@@ -21,7 +21,7 @@ from utils.paginator import RoboPages
 
 if TYPE_CHECKING:
     from bot import Ayaka
-    from utils.context import Context
+    from utils.context import Context, GuildContext
 
 
 PYTZ_LOWER_TIMEZONES = [*map(str.lower, pytz.all_timezones)]
@@ -124,7 +124,7 @@ class Time(commands.Cog):
 
     @commands.group(name='time', invoke_without_command=True)
     @commands.guild_only()
-    async def _time(self, ctx: Context, *, member: discord.Member | None = None):
+    async def _time(self, ctx: GuildContext, *, member: discord.Member | None = None):
         """Let's look at storing member's tz."""
 
         if ctx.invoked_subcommand:
@@ -148,7 +148,7 @@ class Time(commands.Cog):
 
     @_time.command(name='set')
     @commands.guild_only()
-    async def time_set(self, ctx: Context, *, set_timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)):
+    async def time_set(self, ctx: GuildContext, *, set_timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)):
         """Add your timezone, with a warning about public info."""
 
         query = """INSERT INTO tz_store (user_id, guild_ids, tz)
