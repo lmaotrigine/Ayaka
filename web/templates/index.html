@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!--
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at https://mozilla.org/MPL/2.0/.
+-->
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta property="og:title" content="Ayaka" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bot.5ht2.me" />
+    <meta property="og:image" content="/static/{{ name }}.png" />
+    <meta name="theme-color" content="#1e1e1e">
+    <title>Ayaka</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/static/{{ name }}.png">
+  </head>
+  <body>
+    <div class="main">
+    <ul class="directory-list">
+      <li class="folder">
+        <button class="btnV">
+          <a>Ayaka {{ name }}</a>
+        </button>
+      <li class="folder">
+        <button class="btnV">
+          <a href="/discord">Discord</a>
+        </button>
+        <ul>
+          <li>
+            <button class="btnV">
+              <a href="/discord/login">Login</a>
+            </button>
+          </li>
+          <li>
+            <button class="btnV">
+              <a href="/discord/logout">
+                Logout {{  user }}</a>
+            </button>
+          </li>
+          <li>
+            <button class="btnV">
+              <a href="/discord/invite-bot">Invite Bot</a>
+            </button>
+          </li>
+          <li>
+            <button class="btnV">
+              <a href="/discord/avatarhistory">Avatar History</a>
+            </button>
+          </li>
+          <li>
+            <button class="btnV">
+              <a href="/discord/avatarhistory/user_id_here">Avatar History (User)</a>
+            </button>
+          </li>
+        </ul>
+      </li>
+      <li class="folder">
+        <button class="btnV">
+          <a>Pokemon Index</a>
+        </button>
+        <ul>
+          <li>
+            <button class="btnV">
+              <a href="/sprites">Showdown Trainer Sprites</a>
+            </button>
+          </li>
+          <li class="folder">
+            <button class="btnV">
+              <a href="/sprites/pokemon">Sprites</a>
+            </button>
+            <ul>
+              <li>
+                <button class="btnV">
+                  <a href="/static/sprites/pokemon/regular/Mew.gif">Regular</a>
+                </button>
+              </li>
+              <li>
+                <button class="btnV">
+                  <a href="/static/sprites/pokemon/shiny/Mew.gif">Shiny</a>
+                </button>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li class="folder">
+        <button class="btnV">
+          <a>Utils</a>
+        </button>
+        <ul>
+          <li>
+            <button class="btnV">
+              <a href="/voice">Voice Recognition</a>
+            </button>
+          </li>
+          <li>
+            <button class="btnV">
+              <a href="/ip">IP Checker</a>
+            </button>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <div class="footer">
+      <b><i>{{ total }}</b> visits ∙ <b>{{ you }}</b> from you :)</i>
+    </div>
+    </div>
+  </body>
+</html>

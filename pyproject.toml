@@ -1,0 +1,85 @@
+[tool.poetry]
+name = "ayaka"
+version = "0.1.0"
+description = "A general purpose and fun Discord bot."
+authors = ["Varun J <root@varunj.me>"]
+license = "MPL 2.0"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+"discord.py" = {git = "https://github.com/Rapptz/discord.py", rev = "master", extras=["speed", "voice"]}
+discord-ext-menus = {git = "https://github.com/Rapptz/discord-ext-menus", rev = "master"}
+jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
+mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"}
+"nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}
+bottom = {git = "https://git.5ht2.me/darthshittious/bottom", rev = "main"}
+asyncpg = "*"
+aiohttp = {extras = ["speedups"], version = "^3.8.1"}
+googletrans = "3.1.0a0"
+psutil = "*"
+click = "^8.0.1"
+parsedatetime = "*"
+lru_dict = "*"
+lxml = "*"
+pytz = "^2021.1"
+python-dateutil = "*"
+fuzzywuzzy = "*"
+feedparser = "*"
+CurrencyConverter = "*"
+pykakasi = "*"
+beautifulsoup4 = "*"
+Pillow = "*"
+pygit2 = "^1.5.0"
+yt-dlp = "^2022.3.8"
+typing-extensions = "^4.1.1"
+uvloop = {version = "*", markers = "platform_system != 'Windows'"}
+itsdangerous = {version = "^2.1.2", optional = true}
+uvicorn = {version = "^0.17.6", optional = true}
+Jinja2 = {version = "^3.1.1", optional = true}
+fastapi = {version = "^0.75.0", optional = true}
+python-Levenshtein = "^0.12.2"
+redis = "^4.2.1"
+hiredis = "^2.0.0"
+tweepy = "^4.8.0"
+
+[tool.poetry.dev-dependencies]
+black = "*"
+isort = "^5.10.1"
+
+[tool.poetry.extras]
+web = ["fastapi", "itsdangerous", "uvicorn", "Jinja2"]
+
+[tool.black]
+line-length = 125
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+combine_as_imports = true
+combine_star = true
+line_length = 125
+lines_after_imports = 2
+
+[tool.pyright]
+include = ["bot.py", "launcher.py", "utils/**.py", "cogs/**.py", "ipc/**.py", "web/**.py"]
+exclude = ["_testing/**.py", ".venv/**.py"]
+useLibraryCodeForTypes = true
+typeCheckingMode = "basic"
+pythonVersion = "3.10"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+strictParameterNoneValue = true
+reportMissingImports = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportGeneralTypeIssues = "error"
+reportDuplicateImport = "error"
+reportUntypedFunctionDecorator = "error"
+reportUnnecessaryTypeIgnoreComment = "warning"
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,33 @@
+<!--
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at https://mozilla.org/MPL/2.0/.
+-->
+
+<html lang="en">
+  <head>
+    <meta property="og:title" content="HD Pokemon Sprite Index" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bot.5ht2.me" />
+    <meta property="theme-color" content="#000000" />
+    <meta charset="utf-8">
+    <title>Created By: Furret Turret</title>
+  </head>
+  <body>
+    <p>This page serves as an index for all the HD sprites hosted on this server</p>
+    <p>These were created by Furret Turret, I'm just hosting</p>
+    <p>I do not own any of these images, all images are owned by Nintendo and The Pokémon Company</p>
+    <table style="width: 15%">
+      <tr>
+        <th>Regular</th>
+        <th>Shiny</th>
+      </tr>
+      {% for pair in sprites %}
+        <tr>
+          <td><a href="/static/sprites/pokemon/regular/{{ pair[0] }}">{{ pair[0] }}</a></td>
+          <td><a href="/static/sprites/pokemon/shiny/{{ pair[1] }}">{{ pair[1] }}</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>
