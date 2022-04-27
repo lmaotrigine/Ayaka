@@ -6,19 +6,23 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
+import colorsys
 import datetime
 import inspect
 import itertools
 import json
+import math
 import os
 import textwrap
 import unicodedata
 from collections import Counter, defaultdict
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 import discord
 from discord import app_commands
 from discord.ext import commands, menus
+from PIL import Image
 
 from utils import checks, formats, time
 from utils._types import MessageableGuildChannel
@@ -784,6 +788,51 @@ class Meta(commands.Cog):
         await ctx.send(
             f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```'
         )
+        
+    @commands.hybrid_command()
+    async def colour(self, ctx: Context, *, colour: str | None = None) -> None:
+        """Information about a colour"""
+        if colour is None:
+            new_colour = discord.Colour.random()
+        else:
+            new_colour = await commands.ColourConverter().convert(ctx, colour)
+        im = Image.new('RGB', (128, 128), new_colour.to_rgb())
+        hsv = colorsys.rgb_to_hsv(*new_colour.to_rgb())
+        hsv = f'{hsv[0]}°, {hsv[1] * 100}%, {hsv[2] * 100}%'
+        hls = colorsys.rgb_to_hls(*new_colour.to_rgb())
+        hsl = f'{math.degrees(hls[0])}°, {hls[2] * 100}%, {hls[1] * 100}%'
+        def rgb_to_cmyk(r, g, b):
+            if (r, g, b) == (0, 0, 0):
+                # black
+                return 0, 0, 0, 100
+
+            # rgb [0,255] -> cmy [0,1]
+            c = 1 - r / 255
+            m = 1 - g / 255
+            y = 1 - b / 255
+
+            # extract out k [0, 1]
+            min_cmy = min(c, m, y)
+            c = (c - min_cmy) / (1 - min_cmy)
+            m = (m - min_cmy) / (1 - min_cmy)
+            y = (y - min_cmy) / (1 - min_cmy)
+            k = min_cmy
+
+            # rescale to the range [0,CMYK_SCALE]
+            return f'{c * 100}%, {m * 100}%, {y * 100}%, {k * 100}%'
+        cmyk = rgb_to_cmyk(*new_colour.to_rgb())
+        embed = discord.Embed(colour=new_colour)
+        embed.set_author(name=f'Information on {new_colour}')
+        embed.title = f'Hex: {new_colour}'
+        embed.add_field(name='RGB:', value=', '.join(str(x) for x in new_colour.to_rgb()))
+        embed.add_field(name='HSV:', value=hsv)
+        embed.add_field(name='HSL:', value=hsl)
+        embed.add_field(name='CMYK:', value=cmyk)
+        embed.set_image(url='attachment://colour.png')
+        fp = BytesIO()
+        im.save(fp, 'png')
+        fp.seek(0)
+        await ctx.send(embed=embed, file=discord.File(fp, 'colour.png'))
 
 
 async def setup(bot: Ayaka):
