@@ -13,7 +13,7 @@ import json
 import os
 import textwrap
 import unicodedata
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -67,24 +67,25 @@ class GroupHelpPageSource(menus.ListPageSource):
 class HelpSelectMenu(discord.ui.Select['HelpMenu']):
     def __init__(self, commands: dict[commands.Cog, list[commands.Command]], bot: Ayaka, *, private: bool | None = None):
         if private is False:
-            placeholder = 'Private Categories...'
-        elif private is True:
             placeholder = 'Public Categories...'
+        elif private is True:
+            placeholder = 'Private Categories...'
         else:
             placeholder = 'Select a category...'
-        super().__init__(placeholder=placeholder, min_values=1, max_values=1, row=0)
+        super().__init__(placeholder=placeholder, min_values=1, max_values=1, row=int(private or 0))
         self.commands = commands
         self.bot = bot
         self.private = private
         self.__fill_options()
 
     def __fill_options(self) -> None:
-        self.add_option(
-            label='Index',
-            emoji='\N{WAVING HAND SIGN}',
-            value='__index',
-            description='The help page showing how to use the bot.',
-        )
+        if self.row == 0:
+            self.add_option(
+                label='Index',
+                emoji='\N{WAVING HAND SIGN}',
+                value='__index',
+                description='The help page showing how to use the bot.',
+            )
         for cog, commands in self.commands.items():
             if not commands:
                 continue
@@ -242,13 +243,16 @@ class PaginatedHelpCommand(commands.HelpCommand):
 
         entries: list[commands.Command] = await self.filter_commands(bot.commands, sort=True, key=key)
 
-        all_commands: dict[commands.Cog, list[commands.Command]] = {}
+        all_commands: dict[commands.Cog, list[commands.Command]] = defaultdict(list)
         for name, children in itertools.groupby(entries, key=key):
             if name == '\U0010ffff':
                 continue
-
-            cog = bot.get_cog(name)
-            all_commands[cog] = sorted(children, key=lambda c: c.qualified_name)  # type: ignore
+            
+            if name.startswith('__Private__'):
+                cog = bot.get_cog('Private')
+            else:
+                cog = bot.get_cog(name)
+            all_commands[cog] += sorted(children, key=lambda c: c.qualified_name)  # type: ignore
 
         menu = HelpMenu(FrontPageSource(), ctx=self.context)
         menu.add_categories(all_commands)
