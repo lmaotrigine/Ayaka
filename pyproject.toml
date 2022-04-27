@@ -41,6 +41,9 @@ python-Levenshtein = "^0.12.2"
 redis = "^4.2.1"
 hiredis = "^2.0.0"
 tweepy = "^4.8.0"
+ics = "^0.7"
+numpy = "^1.22.3"
+py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 black = "*"

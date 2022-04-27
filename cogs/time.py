@@ -143,7 +143,7 @@ class Time(commands.Cog):
         current_time = self._curr_tz_time(tz, ret_datetime=False)
         embed = discord.Embed(title=f'Time for {member}', description=f'```\n{current_time}\n```')
         embed.set_footer(text=member_timezone)
-        embed.timestamp = datetime.utcnow()
+        embed.timestamp = discord.utils.utcnow()
         return await ctx.send(embed=embed)
 
     @_time.command(name='set')

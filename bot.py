@@ -70,6 +70,7 @@ EXTENSIONS = (
     # 'cogs.private.quiz',
     'cogs.private.ims',
     'cogs.private.private',
+    'cogs.private.logging',
 )
 
 

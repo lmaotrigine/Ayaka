@@ -71,9 +71,10 @@ class ExpiringCache(dict[str, tuple[R, float]]):
         self.__verify_cache_integrity()
         return super().__contains__(key)
 
-    def __getitem__(self, key: str) -> tuple[R, float]:
+    def __getitem__(self, key: str) -> R:
         self.__verify_cache_integrity()
-        return super().__getitem__(key)
+        tup = super().__getitem__(key)
+        return tup[0]
 
     def __setitem__(self, key: str, value: R) -> None:
         super().__setitem__(key, (value, time.monotonic()))

@@ -41,6 +41,18 @@ class plural:
         return f'{v} {singular}'
 
 
+class truncate:
+    def __init__(self, value: str) -> None:
+        self.value = value
+        
+    def __format__(self, format_spec: str) -> str:
+        max_len = int(format_spec)
+        
+        if len(self.value) <= max_len:
+            return self.value
+        return f'{self.value[:max_len - 3]}...'
+
+
 def human_join(seq: Sequence[str], delim: str = ', ', final: str = 'or') -> str:
     size = len(seq)
     if size == 0:
