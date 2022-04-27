@@ -13,6 +13,7 @@ jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
 mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"}
 "nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}
 bottom = {git = "https://git.5ht2.me/darthshittious/bottom", rev = "main"}
+py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
 asyncpg = "*"
 aiohttp = {extras = ["speedups"], version = "^3.8.1"}
 googletrans = "3.1.0a0"
@@ -43,7 +44,6 @@ hiredis = "^2.0.0"
 tweepy = "^4.8.0"
 ics = "^0.7"
 numpy = "^1.22.3"
-py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 black = "*"

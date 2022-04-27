@@ -785,7 +785,7 @@ develop = false
 type = "git"
 url = "https://git.5ht2.me/darthshittious/py-markov"
 reference = "main"
-resolved_reference = "f6583424c6095b372731373386c1ff6aedd981a5"
+resolved_reference = "582c5be3230ed197d20584e9d2b1fa81ae5874e8"
 
 [[package]]
 name = "pycares"
