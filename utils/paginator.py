@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 SourceT = TypeVar('SourceT', bound='menus.PageSource')
 
-
 class RoboPages(discord.ui.View, Generic[SourceT]):
     def __init__(self, source: SourceT, *, ctx: Context, check_embeds: bool = True, compact: bool = False):
         super().__init__()
@@ -172,34 +171,31 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         """Go to the last page."""
         # The call here is safe because it's guarded by skip_if
         await self.show_page(interaction, self.source.get_max_pages() - 1)  # type: ignore
+        
+    class SkipToPageModal(discord.ui.Modal):
+        page_number = discord.ui.TextInput(label='Page number', style=discord.TextStyle.short, required=True, min_length=1)
+        
+        def __init__(self, menu: RoboPages) -> None:
+            super().__init__(title='Skip to page', timeout=menu.timeout)
+            self.menu = menu
+            self.page_number.label = f'Page number (1-{menu.source.get_max_pages()})'
+            self.page_number.min_length = 1
+            self.page_number.max_length = len(str(menu.source.get_max_pages()))
+        
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            try:
+                page = int(self.page_number.value or '') - 1
+                if not 0 <= page < self.menu.source.get_max_pages():
+                    raise ValueError()
+            except ValueError:
+                await interaction.response.send_message(f'``{self.page_number.value}`` could not be converted to a page number', ephemeral=True)
+            else:
+                await self.menu.show_checked_page(interaction, page)
 
     @discord.ui.button(label='Skip to page...', style=discord.ButtonStyle.grey)
     async def numbered_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         """Lets you type a page number to go to."""
-        if self.input_lock.locked():
-            await interaction.response.send_message('Already waiting for your response...', ephemeral=True)
-            return
-
-        if self.message is None:
-            return
-
-        async with self.input_lock:
-            channel = self.message.channel
-            author_id = interaction.user and interaction.user.id
-            await interaction.response.send_message('What page do you want to go to?', ephemeral=True)
-
-            def message_check(m):
-                return m.author.id == author_id and channel == m.channel and m.content.isdigit()
-
-            try:
-                msg = await self.ctx.bot.wait_for('message', check=message_check, timeout=30.0)
-            except asyncio.TimeoutError:
-                await interaction.followup.send('Took too long.', ephemeral=True)
-                await asyncio.sleep(5)
-            else:
-                page = int(msg.content)
-                await msg.delete()
-                await self.show_checked_page(interaction, page - 1)
+        await interaction.response.send_modal(self.SkipToPageModal(self))
 
     @discord.ui.button(label='Quit', style=discord.ButtonStyle.red)
     async def stop_pages(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
