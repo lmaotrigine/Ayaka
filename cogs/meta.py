@@ -326,7 +326,7 @@ class Meta(commands.Cog):
         Only up to 25 characters at a time.
         """
         if len(characters) > 25:
-            raise commands.BadArgument('Too many cha')
+            raise commands.BadArgument('Too many characters.')
 
         def to_string(c):
             digit = f'{ord(c):x}'
