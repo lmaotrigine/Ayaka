@@ -44,10 +44,10 @@ class plural:
 class truncate:
     def __init__(self, value: str) -> None:
         self.value = value
-        
+
     def __format__(self, format_spec: str) -> str:
         max_len = int(format_spec)
-        
+
         if len(self.value) <= max_len:
             return self.value
         return f'{self.value[:max_len - 3]}...'

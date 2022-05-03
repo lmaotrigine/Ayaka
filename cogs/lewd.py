@@ -298,7 +298,7 @@ class Lewd(commands.Cog):
     async def soundgasm(self, ctx: GuildContext, *, url: str) -> None:
         """Downloads media from soundgasm.net URLs."""
 
-        await ctx.trigger_typing()
+        await ctx.typing()
         async with ctx.bot.session.get(url) as request:
             data = await request.text()
 
@@ -362,7 +362,7 @@ class Lewd(commands.Cog):
             await ctx.send(f'Parsing your args failed: {err}')
             return
 
-        current_config = await self.get_booru_config(getattr(ctx.guild, 'id', -1))  # type: ignore
+        current_config = await self.get_booru_config(getattr(ctx.guild, 'id', -1))
 
         if real_args.limit:
             aiohttp_params.update({'limit': int(real_args.limit)})
@@ -436,7 +436,7 @@ class Lewd(commands.Cog):
             await ctx.send(f'Parsing your args failed: {err}.')
             return
 
-        current_config = await self.get_booru_config(getattr(ctx.guild, 'id', -1))  # type: ignore
+        current_config = await self.get_booru_config(getattr(ctx.guild, 'id', -1))
 
         if real_args.limit:
             limit = real_args.limit
@@ -558,7 +558,7 @@ class Lewd(commands.Cog):
         The reaction added will tell you if it is on (check mark), or off (cross).
         """
 
-        config: BooruConfig = await self.get_booru_config(ctx.guild.id)  # type: ignore
+        config: BooruConfig = await self.get_booru_config(ctx.guild.id)
         if not config:
             await ctx.send('No recorded config for this guild.')
             return
@@ -585,7 +585,7 @@ class Lewd(commands.Cog):
         if not message.channel.is_nsfw():
             return
 
-        config: BooruConfig = await self.get_booru_config(message.guild.id)  # type: ignore
+        config: BooruConfig = await self.get_booru_config(message.guild.id)
         if config.auto_six_digits is False:
             return
 

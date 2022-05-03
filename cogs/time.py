@@ -148,7 +148,9 @@ class Time(commands.Cog):
 
     @_time.command(name='set')
     @commands.guild_only()
-    async def time_set(self, ctx: GuildContext, *, set_timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)):
+    async def time_set(
+        self, ctx: GuildContext, *, set_timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)
+    ):
         """Add your timezone, with a warning about public info."""
 
         query = """INSERT INTO tz_store (user_id, guild_ids, tz)

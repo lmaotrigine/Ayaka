@@ -251,7 +251,7 @@ class PaginatedHelpCommand(commands.HelpCommand):
         for name, children in itertools.groupby(entries, key=key):
             if name == '\U0010ffff':
                 continue
-            
+
             if name.startswith('__Private__'):
                 cog = bot.get_cog('Private')
             else:
@@ -788,7 +788,7 @@ class Meta(commands.Cog):
         await ctx.send(
             f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```'
         )
-        
+
     @commands.hybrid_command()
     async def colour(self, ctx: Context, *, colour: str | None = None) -> None:
         """Information about a colour"""
@@ -801,6 +801,7 @@ class Meta(commands.Cog):
         hsv = f'{hsv[0]}°, {hsv[1] * 100}%, {hsv[2] * 100}%'
         hls = colorsys.rgb_to_hls(*new_colour.to_rgb())
         hsl = f'{math.degrees(hls[0])}°, {hls[2] * 100}%, {hls[1] * 100}%'
+
         def rgb_to_cmyk(r, g, b):
             if (r, g, b) == (0, 0, 0):
                 # black
@@ -820,6 +821,7 @@ class Meta(commands.Cog):
 
             # rescale to the range [0,CMYK_SCALE]
             return f'{c * 100}%, {m * 100}%, {y * 100}%, {k * 100}%'
+
         cmyk = rgb_to_cmyk(*new_colour.to_rgb())
         embed = discord.Embed(colour=new_colour)
         embed.set_author(name=f'Information on {new_colour}')

@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 
     from bot import Ayaka
     from utils.context import Context, GuildContext
-    
+
     class SnipeContext(GuildContext):
         snipe_conf: SnipeConfig
 

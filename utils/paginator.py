@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 SourceT = TypeVar('SourceT', bound='menus.PageSource')
 
+
 class RoboPages(discord.ui.View, Generic[SourceT]):
     def __init__(self, source: SourceT, *, ctx: Context, check_embeds: bool = True, compact: bool = False):
         super().__init__()
@@ -171,24 +172,26 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         """Go to the last page."""
         # The call here is safe because it's guarded by skip_if
         await self.show_page(interaction, self.source.get_max_pages() - 1)  # type: ignore
-        
+
     class SkipToPageModal(discord.ui.Modal):
         page_number = discord.ui.TextInput(label='Page number', style=discord.TextStyle.short, required=True, min_length=1)
-        
+
         def __init__(self, menu: RoboPages) -> None:
             super().__init__(title='Skip to page', timeout=menu.timeout)
             self.menu = menu
             self.page_number.label = f'Page number (1-{menu.source.get_max_pages()})'
             self.page_number.min_length = 1
             self.page_number.max_length = len(str(menu.source.get_max_pages()))
-        
+
         async def on_submit(self, interaction: discord.Interaction) -> None:
             try:
                 page = int(self.page_number.value or '') - 1
                 if not 0 <= page < self.menu.source.get_max_pages():
                     raise ValueError()
             except ValueError:
-                await interaction.response.send_message(f'``{self.page_number.value}`` could not be converted to a page number', ephemeral=True)
+                await interaction.response.send_message(
+                    f'``{self.page_number.value}`` could not be converted to a page number', ephemeral=True
+                )
             else:
                 await self.menu.show_checked_page(interaction, page)
 

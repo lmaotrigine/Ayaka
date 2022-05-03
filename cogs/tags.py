@@ -856,7 +856,12 @@ class Tags(commands.Cog):
 
     @tag.command(name='list')
     @suggest_box()
-    async def _list(self, ctx: GuildContext, *, member: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you')):
+    async def _list(
+        self,
+        ctx: GuildContext,
+        *,
+        member: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you'),
+    ):
         """Lists all the tags that belong to you or someone else."""
 
         query = """SELECT name, id
@@ -877,7 +882,12 @@ class Tags(commands.Cog):
 
     @commands.command()
     @suggest_box()
-    async def tags(self, ctx: GuildContext, *, member: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you')):
+    async def tags(
+        self,
+        ctx: GuildContext,
+        *,
+        member: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you'),
+    ):
         """An alias for tag list command."""
         await ctx.invoke(self._list, member=member)
 
@@ -1283,7 +1293,9 @@ class Tags(commands.Cog):
         await ctx.send(embed=embed)
 
     @box.command(name='list')
-    async def box_list(self, ctx: Context, *, user: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you')):
+    async def box_list(
+        self, ctx: Context, *, user: discord.User = commands.param(default=lambda ctx: ctx.author, displayed_default='you')
+    ):
         """Lists all the tags in the box that belong to you or someone else.
 
         Unlike the regular tag list command, this one is sorted by uses.

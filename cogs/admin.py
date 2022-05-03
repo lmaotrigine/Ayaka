@@ -144,11 +144,11 @@ class EvalModal(ui.Modal):
         self.stop()
 
 
-class Admin(commands.Cog, app_commands.Group):
+class Admin(commands.GroupCog, group_name='dev'):
+    """Admin-only commands that make the bot dynamic."""
+
     def __init__(self, bot: Ayaka) -> None:
-        super().__init__(name='dev', description='Admin-only commands that make the bot dynamic.')
         self.bot = bot
-        self.cog.parent = self
         self._last_eval: str | None = None
         self._eval_globals: dict[str, Any] = {'bot': self.bot}
         self._last_sql: str | None = None
