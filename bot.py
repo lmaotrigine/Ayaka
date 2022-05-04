@@ -58,6 +58,7 @@ EXTENSIONS = (
     'cogs.meta',
     'cogs.mod',
     'cogs.nihongo',
+    'cogs.poll',
     'cogs.reminders',
     'cogs.rng',
     'cogs.rtfx',
