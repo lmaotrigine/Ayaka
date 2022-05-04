@@ -124,18 +124,17 @@ class Time(commands.Cog):
 
     @commands.group(name='time', invoke_without_command=True)
     @commands.guild_only()
-    async def _time(self, ctx: GuildContext, *, member: discord.Member | None = None):
+    async def _time(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
         """Let's look at storing member's tz."""
 
         if ctx.invoked_subcommand:
             pass
-        new_member = member or ctx.author
         query = """SELECT *
                    FROM tz_store
                    WHERE user_id = $1
                    AND $2 = ANY(guild_ids)
                 """
-        result = await self.bot.pool.fetchrow(query, new_member.id, ctx.guild.id)
+        result = await self.bot.pool.fetchrow(query, member.id, ctx.guild.id)
         if not result:
             return await ctx.send(f"No timezone for {member} set or it's not public in this guild.")
         member_timezone = result['tz']
