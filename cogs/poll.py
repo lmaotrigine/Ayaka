@@ -57,13 +57,14 @@ class Polls(commands.Cog):
 
         answer = '\n'.join(f'{keycap}: {content}' for keycap, content in answers)
         actual_poll = await ctx.send(f'{ctx.author} asks: {question}\n\n{answer}')
-        for emoji, _ in answer:
+        for emoji, _ in answers:
             await actual_poll.add_reaction(emoji)
 
     @poll.error
     async def poll_error(self, ctx: GuildContext, error: commands.CommandError) -> None:
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send('Missing the question.')
+            ctx.command.extras['handled'] = True
 
     @commands.command()
     @commands.guild_only()

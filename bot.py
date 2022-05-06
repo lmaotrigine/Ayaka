@@ -195,7 +195,8 @@ class Ayaka(commands.AutoShardedBot):
         elif isinstance(error, commands.DisabledCommand):
             await ctx.send('Sorry. This command is disabled and cannot be used.')
         elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f'Missing required argument {error.param} for command {ctx.command}')
+            if ctx.command.extras.get('handled') is not True:
+                await ctx.send(f'Missing required argument {error.param} for command {ctx.command}')
         elif isinstance(error, commands.CommandInvokeError):
             original = error.original
             if not isinstance(original, discord.HTTPException):
