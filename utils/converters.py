@@ -12,7 +12,7 @@ import yarl
 from discord.ext import commands
 from typing_extensions import Self
 
-from utils.context import Context
+from utils.context import Context, GuildContext
 
 
 class DucklingNormalised(TypedDict):
@@ -109,8 +109,8 @@ class RedditMediaURL:
 
 class DatetimeConverter(commands.Converter[datetime.datetime]):
     @staticmethod
-    async def get_timezone(ctx: Context) -> Optional[zoneinfo.ZoneInfo]:
-        row = await ctx.bot.pool.fetchval('SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', ctx.author.id, ctx.guild.id)  # type: ignore
+    async def get_timezone(ctx: GuildContext) -> Optional[zoneinfo.ZoneInfo]:
+        row = await ctx.bot.pool.fetchval('SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', ctx.author.id, ctx.guild.id)
         if row:
             row = zoneinfo.ZoneInfo(row)
             return row
@@ -150,7 +150,7 @@ class DatetimeConverter(commands.Converter[datetime.datetime]):
         return times
 
     @classmethod
-    async def convert(cls, ctx: Context, argument: str) -> datetime.datetime:
+    async def convert(cls, ctx: GuildContext, argument: str) -> datetime.datetime:
         timezone = await cls.get_timezone(ctx)
         now = ctx.message.created_at.astimezone(tz=timezone)
 
@@ -166,7 +166,7 @@ class DatetimeConverter(commands.Converter[datetime.datetime]):
 
 class WhenAndWhatConverter(commands.Converter[tuple[datetime.datetime, str]]):
     @classmethod
-    async def convert(cls, ctx: Context, argument: str) -> tuple[datetime.datetime, str]:
+    async def convert(cls, ctx: GuildContext, argument: str) -> tuple[datetime.datetime, str]:
         timezone = await DatetimeConverter.get_timezone(ctx)
         now = ctx.message.created_at.astimezone(tz=timezone)
 

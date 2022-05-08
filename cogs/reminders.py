@@ -223,9 +223,8 @@ class Reminder(commands.Cog):
         except KeyError:
             now = datetime.datetime.now(datetime.timezone.utc)
 
-        # Remove timezone information since the database does not deal with it
-        when = when.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        now = now.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        when = when.astimezone(datetime.timezone.utc)
+        now = now.astimezone(datetime.timezone.utc)
 
         timer = Timer.temporary(event=event, args=args, kwargs=kwargs, expires=when, created=now)
         delta = (when - now).total_seconds()
