@@ -295,8 +295,8 @@ class Stats(commands.Cog):
 
         # total command uses
         query = "SELECT COUNT(*), MIN(used) FROM commands WHERE guild_id=$1;"
-        count: tuple[int, datetime.datetime] = await ctx.db.fetchrow(query, ctx.guild.id)  # type: ignore
-
+        count = await ctx.db.fetchrow(query, ctx.guild.id)
+        assert count is not None
         embed.description = f'{count[0]} commands used.'
         if count[1]:
             timestamp = count[1].replace(tzinfo=datetime.timezone.utc)
@@ -398,8 +398,8 @@ class Stats(commands.Cog):
 
         # total command uses
         query = "SELECT COUNT(*), MIN(used) FROM commands WHERE guild_id=$1 AND author_id=$2;"
-        count: tuple[int, datetime.datetime] = await ctx.db.fetchrow(query, ctx.guild.id, member.id)  # type: ignore
-
+        count = await ctx.db.fetchrow(query, ctx.guild.id, member.id)
+        assert count is not None
         embed.description = f'{count[0]} commands used.'
         if count[1]:
             timestamp = count[1].replace(tzinfo=datetime.timezone.utc)

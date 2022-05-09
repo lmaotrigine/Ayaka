@@ -11,7 +11,7 @@ from textwrap import shorten
 from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, overload
 
 import discord
-from discord.ext import commands, menus
+from discord.ext import menus
 from discord.ext.commands import Paginator as CommandPaginator
 
 from utils.context import Context
@@ -30,7 +30,7 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         super().__init__()
         self.source: SourceT = source
         self.check_embeds: bool = check_embeds
-        self.ctx: commands.Context = ctx
+        self.ctx: Context = ctx
         self.message: Optional[discord.Message] = None
         self.current_page: int = 0
         self.compact: bool = compact
@@ -208,7 +208,7 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         self.stop()
 
 
-class FieldPageSource(menus.ListPageSource):
+class FieldPageSource(menus.ListPageSource, Generic[T]):
     def __init__(self, entries, *, per_page=12):
         super().__init__(entries, per_page=per_page)
         self.embed = discord.Embed(colour=discord.Colour.blurple())
@@ -297,17 +297,7 @@ class MangadexEmbed(discord.Embed):
         self.set_footer(text=chapter.id)
         self.timestamp = chapter.created_at
         self.add_field(name='Manga link is:', value=f'[here!]({parent.url})')
-        content_ratings = (
-            (
-                mangadex.ContentRating.safe,
-                mangadex.ContentRating.erotica,
-                mangadex.ContentRating.suggestive,
-                mangadex.ContentRating.pornographic,
-            )
-            if nsfw_allowed
-            else (mangadex.ContentRating.safe,)
-        )
-        if chapter.manga.content_rating in content_ratings:
+        if parent.content_rating is mangadex.ContentRating.safe or (nsfw_allowed is True):
             if chapter.manga.cover_url() is None:
                 await chapter.manga.get_cover()
             self.set_thumbnail(url=chapter.manga.cover_url())
@@ -334,17 +324,7 @@ class MangadexEmbed(discord.Embed):
                 self.add_field(name='Last Volume:', value=manga.last_volume)
                 self.add_field(name='Last Chapter:', value=manga.last_chapter)
         self.set_footer(text=manga.id)
-        content_ratings = (
-            (
-                mangadex.ContentRating.safe,
-                mangadex.ContentRating.erotica,
-                mangadex.ContentRating.suggestive,
-                mangadex.ContentRating.pornographic,
-            )
-            if nsfw_allowed
-            else (mangadex.ContentRating.safe,)
-        )
-        if manga.content_rating in content_ratings:
+        if manga.content_rating is mangadex.ContentRating.safe or (nsfw_allowed is True):
             if manga.cover_url() is None:
                 await manga.get_cover()
             self.set_thumbnail(url=manga.cover_url())
