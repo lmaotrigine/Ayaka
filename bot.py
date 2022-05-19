@@ -66,6 +66,7 @@ EXTENSIONS = (
     'cogs.stars',
     'cogs.stats',
     'cogs.tags',
+    'cogs.tiktok',
     'cogs.time',
     'cogs.todo',
     # 'cogs.private.quiz',

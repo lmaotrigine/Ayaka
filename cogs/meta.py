@@ -788,6 +788,14 @@ class Meta(commands.Cog):
         await ctx.send(
             f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```'
         )
+        
+    @commands.command(name='disconnect')
+    @commands.check(lambda ctx: bool(ctx.guild and ctx.guild.voice_client))
+    async def disconnect_(self, ctx: GuildContext) -> None:
+        """Disconnects the bot from the voice channel."""
+        v_client: discord.VoiceClient = ctx.guild.voice_client  # type: ignore
+        v_client.stop()
+        await v_client.disconnect(force=True)
 
     @commands.hybrid_command()
     async def colour(self, ctx: Context, *, colour: str | None = None) -> None:

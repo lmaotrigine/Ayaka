@@ -757,7 +757,7 @@ class Admin(commands.GroupCog, group_name='dev'):
     @commands.command()
     @commands.guild_only()
     async def sync(
-        self, ctx: GuildContext, guilds: commands.Greedy[discord.Object], spec: Optional[Literal['~', '*']] = None
+        self, ctx: GuildContext, guilds: commands.Greedy[discord.Object], spec: Optional[Literal['~', '*', '^']] = None
     ) -> None:
         """Syncs the bot's command tree."""
 
@@ -767,6 +767,10 @@ class Admin(commands.GroupCog, group_name='dev'):
             elif spec == '*':
                 ctx.bot.tree.copy_global_to(guild=ctx.guild)
                 fmt = await self.bot.tree.sync(guild=ctx.guild)
+            elif spec == '^':
+                ctx.bot.tree.clear_commands(guild=ctx.guild)
+                await ctx.bot.tree.sync(guild=ctx.guild)
+                fmt = []
             else:
                 fmt = await ctx.bot.tree.sync()
             await ctx.send(

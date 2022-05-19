@@ -8,17 +8,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import re
 import shlex
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 
 import aiohttp
+import asyncpg
 import discord
 import nhentai
 from aiohttp import BasicAuth
 from asyncpg import Connection, Pool, Record
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from utils import cache, checks, db
 from utils.context import Context, GuildContext
@@ -31,7 +33,9 @@ if TYPE_CHECKING:
 
 SIX_DIGITS = re.compile(r'\{(\d{1,6})\}')
 RATING = {'e': 'explicit', 'q': 'questionable', 's': 'safe'}
-SOUNDGASM_PATTERN = re.compile(r'(https?://media\.soundgasm\.net/sounds/(?P<media>[a-f0-9]+)\.(?P<ext>m4a|mp3))')
+SOUNDGASM_MEDIA_PATTERN = re.compile(r'(https?://media\.soundgasm\.net/sounds/(?P<media>[a-f0-9]+)\.(?P<ext>m4a|mp3))')
+SOUNDGASM_TITLE_PATTERN = re.compile(r'\="title"\>(.*?)\</div\>')
+SOUNDGASM_AUTHOR_PATTERN = re.compile(r'\<a href\="(?:(?:https?://)?soundgasm\.net/u/(?:.*)")\>(.*)\</a\>')
 CONTENT_TYPE_LOOKUP = {'m4a': 'audio/mp4', 'mp3': 'audio/mp3'}
 
 
@@ -178,6 +182,8 @@ class Lewd(commands.Cog):
             BasicAuth(bot.config.danbooru_api['user_id'], bot.config.danbooru_api['api_key']),
             'https://danbooru.donmai.us/posts.json',
         )
+        self._nhen_queue: set[tuple[int, int, int]] = set()
+        self.nhen_deque.start()
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -275,7 +281,7 @@ class Lewd(commands.Cog):
             embeds.append(embed)
         return embeds
 
-    async def _cache(self, url: re.Match[str]) -> tuple[bytes, str]:
+    async def _cache_soundgasm(self, url: re.Match[str], /, *, title: str | None, author: str | None) -> tuple[bytes, str]:
         actual_url = url[0]
         ext = url['ext']
 
@@ -284,9 +290,11 @@ class Lewd(commands.Cog):
 
         form_data = aiohttp.FormData()
         form_data.add_field('files', [audio], content_type=CONTENT_TYPE_LOOKUP[ext])
+        form_data.add_field('title', title if title else '', content_type='text/plain')
+        form_data.add_field('soundgasm_author', author if author else '', content_type='text/plain')
 
         resp = await self.bot.session.post(
-            'http://127.0.0.1:8080/upload',
+            'http://127.0.0.1:8080/upload/audio',
             data=form_data,
             headers={'Authorization': self.bot.config.cdn_key, 'preserve': 'true'},
         )
@@ -302,9 +310,21 @@ class Lewd(commands.Cog):
         async with ctx.bot.session.get(url) as request:
             data = await request.text()
 
-        if found_url := SOUNDGASM_PATTERN.search(data):
-            await ctx.send(found_url[0])
-            audio, cached_url = await self._cache(found_url)
+        if found_url := SOUNDGASM_MEDIA_PATTERN.search(data):
+            title_match = SOUNDGASM_TITLE_PATTERN.search(data)
+            title: str | None = None
+            author_match = SOUNDGASM_AUTHOR_PATTERN.search(data)
+            author: str | None = None
+            fmt = ''
+            if title_match:
+                title = re.sub(r'(\s?[\[\(].*?[\]\)]\s?)', '', title_match[1])
+                fmt += f'{title}\n'
+            if author_match:
+                author = author_match[1]
+                fmt += f'By **{author}**\n'
+            fmt += f'{found_url[1]}'
+            await ctx.send(fmt)
+            audio, cached_url = await self._cache_soundgasm(found_url, title=title, author=author)
         else:
             await ctx.send('No matching content, dickhead.')
             return
@@ -315,7 +335,35 @@ class Lewd(commands.Cog):
         if len(fmt.read()) >= ctx.guild.filesize_limit:
             await ctx.send(f'File too large, have the URL: {cached_url}')
             return
+        fmt.seek(0)
         await ctx.send(file=discord.File(fmt, filename='you_horny_fuck.m4a'))
+        
+    async def _play_asmr(self, url: str, /, *, ctx: GuildContext, v_client: discord.VoiceClient | None) -> None:
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            return
+        v_client = v_client or await ctx.author.voice.channel.connect(cls=discord.VoiceClient)
+        if v_client.is_playing():
+            v_client.stop()
+        audio_ = discord.FFmpegPCMAudio(url)
+        transformer_ = discord.PCMVolumeTransformer(audio_)
+        v_client.play(transformer_)
+        
+    @commands.command()
+    @commands.is_owner()
+    @commands.guild_only()
+    async def asmr(self, ctx: GuildContext) -> None:
+        query = "SELECT * FROM audio TABLESAMPLE BERNOULLI (20)"
+        
+        conn: asyncpg.Connection = await asyncpg.connect(ctx.bot.config.audio_postgresql)
+        rows = await conn.fetch(query)
+        await conn.close()
+        if not rows:
+            await ctx.send('No more asmr.')
+            return
+        row = random.choice(rows)
+        url = f'https://audio.5ht2.me/{row["filename"]}'
+        await ctx.send(f"You're listening to: **{row['title']}**\nBy: **{row['soundgasm_author']}**\n{url}")
+        await self._play_asmr(url, ctx=ctx, v_client=ctx.guild.voice_client)  # type: ignore # sort this out, unless someone broke something
 
     @commands.command(usage='<flags>+ | subcommand')
     @commands.cooldown(1, 10.0, commands.BucketType.user)
@@ -597,6 +645,8 @@ class Lewd(commands.Cog):
         try:
             gallery = await self.bot.hentai_client.fetch_gallery(digits)
         except nhentai.NHentaiError:
+            await message.channel.send('I would have given you the cum provocation but NHentai is down. I queued it and will try again.')
+            self._nhen_queue.add((message.author.id, message.channel.id, digits))
             return
         if not gallery:
             return
@@ -609,6 +659,27 @@ class Lewd(commands.Cog):
 
         embed = NHentaiEmbed.from_gallery(gallery)
         await message.reply(embed=embed)
+        
+    
+    @tasks.loop(minutes=20)
+    async def nhen_deque(self) -> None:
+        for author, channel_id, digits in self._nhen_queue:
+            try:
+                gallery = await self.bot.hentai_client.fetch_gallery(digits)
+            except nhentai.NHentaiError:
+                continue
+            if gallery is None:
+                self._nhen_queue.remove((author, channel_id, digits))
+                return
+            
+            fmt = f'Hey <@{author}>, I finally got that gallery:-'
+            embed = NHentaiEmbed.from_gallery(gallery)
+            channel = self.bot.get_channel(channel_id)
+            self._nhen_queue.remove((author, channel_id, digits))
+            if channel is None:
+                return
+            assert isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.Thread))
+            await channel.send(fmt, embed=embed)
 
 
 async def setup(bot: Ayaka):
