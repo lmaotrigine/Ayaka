@@ -1,6 +1,7 @@
 .vscode/
 .venv/
 __pycache__/
+/buffer/
 cogs/private/
 cogs/testing.py
 cogs/dead/

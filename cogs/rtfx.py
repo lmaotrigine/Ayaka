@@ -22,6 +22,7 @@ import discord
 from discord.ext import commands, menus, tasks  # type: ignore # rtfs
 from jishaku.codeblocks import Codeblock, codeblock_converter
 from jishaku.shell import ShellReader
+from lxml import etree
 
 from utils import fuzzy
 from utils.context import Context
@@ -236,7 +237,7 @@ class RTFX(commands.Cog):
         """
         await self.do_rtfm(ctx, 'discord.py', obj)
 
-    @rtfm.command(name='discord.py-master', aliases=['dpym', 'dpy2.0', 'dpy2'])
+    @rtfm.command(name='discord.py-master', aliases=['dpym', 'dpy2.0', 'dpy2', 'dpy-latest', 'dpyl'])
     async def rtfm_dpy_master(self, ctx: Context, *, obj: str | None = None) -> None:
         """Gives you a documentation link for a discord.py entity (master branch)."""
         await self.do_rtfm(ctx, 'discord.py-master', obj)
@@ -343,6 +344,56 @@ class RTFX(commands.Cog):
 
         fmt = to_codeblock(f'Pyright v{version}:\n\n{diagnostics}\n\n{totals}\n', language='diff', escape_md=False)
         await ctx.send(fmt)
+        
+    @commands.command()
+    async def cpp(self, ctx: Context, *, query: str) -> None:
+        """Search something on cppreference."""
+        
+        url = 'https://en.cppreference.com/mwiki/index.php'
+        params = {
+            'title': 'Special:Search',
+            'search': query,
+        }
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+        }
+        async with ctx.session.get(url, headers=headers, params=params) as resp:
+            if resp.status != 200:
+                await ctx.send(f'An error occurred (status code: {resp.status}). Retry later.')
+                return
+            if resp.url.path != '/mwiki/index.php':
+                await ctx.send(f'<{resp.url}>')
+            e = discord.Embed()
+            root = etree.fromstring(await resp.text(), etree.HTMLParser())
+            nodes = root.findall(".//div[@class='mw-search-result-heading']/a")
+            description = []
+            special_pages = []
+            for node in nodes:
+                href = node.attrib['href']
+                if not href.startswith('/w/cpp'):
+                    continue
+                if href.startswith(('/w/cpp/language', '/w/cpp/concept')):
+                    # special page
+                    special_pages.append(f'[{node.text}](http://en.cppreference.com{href})')
+                else:
+                    description.append(f'[`{node.text}`](http://en.cppreference.com{href})')
+            if len(special_pages) > 0:
+                e.add_field(name='Language Results', value='\n'.join(special_pages), inline=False)
+                if len(description):
+                    e.add_field(name='Library Results', value='\n'.join(description[:10]), inline=False)
+            else:
+                if not len(description):
+                    await ctx.send('No results found.')
+                    return
+                e.title = 'Search Results'
+                e.description = '\n'.join(description[:15])
+            e.add_field(name='See More', value=f'[`{discord.utils.escape_markdown(query)}` results]({resp.url})')
+            await ctx.send(embed=e)
 
 
 async def setup(bot: Ayaka):

@@ -7,6 +7,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 import asyncio
+import functools
 import pathlib
 import re
 from typing import TYPE_CHECKING
@@ -48,7 +49,8 @@ class TikTok(commands.Cog):
             for idx, url in enumerate(matches, start=1):
                 if not url.endswith('/'):
                     url += '/'
-                info = await loop.run_in_executor(None, ydl.extract_info, url)
+                fn = functools.partial(ydl.extract_info, url, download=True)
+                info = await loop.run_in_executor(None, fn)
                 file_loc = pathlib.Path(f'buffer/{info["id"]}.{info["ext"]}')
                 fixed_file_loc = pathlib.Path(f'buffer/{info["id"]}_fixed.{info["ext"]}')
                 
@@ -57,7 +59,8 @@ class TikTok(commands.Cog):
                     file_loc.unlink(missing_ok=True)
                     await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
                     continue
-                await asyncio.create_subprocess_exec(f'ffmpeg -y -i "{file_loc}" "{fixed_file_loc}"')
+                proc = await asyncio.create_subprocess_exec('ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}')
+                await proc.communicate()
                 file = discord.File(str(fixed_file_loc), filename=fixed_file_loc.name)
                 content = f'{info["uploader"]}\n\n' * bool(info['uploader'])
                 content += f'{info["description"]}'
