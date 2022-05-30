@@ -22,8 +22,7 @@ if TYPE_CHECKING:
 
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
-MOBILE_PATTERN = re.compile(r'https?://(?:vm\.)?tiktok\.com/[a-zA-Z0-9]+(?:/\?.*)?')
-DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/\@[a-zA-Z0-9_]+/video/[0-9]+)')
+MOBILE_PATTERN = re.compile(r'https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+')
 # INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z\-0-9]+/')
 INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*)?\=')
 
@@ -39,7 +38,7 @@ class TikTok(commands.Cog):
         if message.guild.id != 932533101530349568:
             return
         
-        matches = MOBILE_PATTERN.findall(message.content) or DESKTOP_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
+        matches = MOBILE_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
         if not matches:
             return
         print(f'Processing {len(matches)} detected TikToks...')
@@ -61,21 +60,20 @@ class TikTok(commands.Cog):
                     continue
                 proc = await asyncio.create_subprocess_exec('ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}')
                 await proc.communicate()
+                if fixed_file_loc.stat().st_size > message.guild.filesize_limit:
+                    file_loc.unlink(missing_ok=True)
+                    await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
+                    continue
                 file = discord.File(str(fixed_file_loc), filename=fixed_file_loc.name)
                 content = f'{info["uploader"]}\n\n' * bool(info['uploader'])
                 content += f'{info["description"]}'
                 if message.mentions:
                     content = ' '.join(m.mention for m in message.mentions) + '\n\n' + content
-                try:
-                    await message.reply(content[:1000], file=file)
-                except discord.HTTPException:
-                    await message.reply(f'This link exceeded the file size limit.')
-                else:
-                    if any([INSTAGRAM_PATTERN.fullmatch(message.content), DESKTOP_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content)]):
-                        await message.delete()
-                finally:
-                    file_loc.unlink(missing_ok=True)
-                    fixed_file_loc.unlink(missing_ok=True)
+                await message.reply(content[:1000], file=file)
+                if message.channel.permissions_for(message.guild.me).manage_messages and any([INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content)]):
+                    await message.delete()
+                file_loc.unlink(missing_ok=True)
+                fixed_file_loc.unlink(missing_ok=True)
 
 
 async def setup(bot: Ayaka) -> None:
