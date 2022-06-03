@@ -285,7 +285,7 @@ class MangadexEmbed(discord.Embed):
     async def from_chapter(cls: Type[Self], chapter: mangadex.Chapter, *, nsfw_allowed: bool = False) -> Self:
         assert chapter.manga is not None
         parent = chapter.manga
-        parent_title = parent.title
+        parent_title = parent.alt_titles.get('ja-ro', parent.title)
         if chapter.title:
             parent_title += f' - {chapter.title}'
         if chapter.chapter:
