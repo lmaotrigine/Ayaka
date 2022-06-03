@@ -94,6 +94,14 @@ python-versions = "*"
 six = ">=1.6.1,<2.0"
 
 [[package]]
+name = "async-lru"
+version = "1.0.3"
+description = "Simple lru_cache for asyncio"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "async-timeout"
 version = "4.0.2"
 description = "Timeout context manager for asyncio programs"
@@ -313,7 +321,7 @@ resolved_reference = "8686b5d1bbc1d3c862292eb436ab630d6e9c9b53"
 
 [[package]]
 name = "discord.py"
-version = "2.0.0a4308+gf24f34e3"
+version = "2.0.0a4318+g823d650e"
 description = "A Python wrapper for the Discord API"
 category = "main"
 optional = false
@@ -338,7 +346,7 @@ voice = ["PyNaCl (>=1.3.0,<1.6)"]
 type = "git"
 url = "https://github.com/Rapptz/discord.py"
 reference = "master"
-resolved_reference = "f24f34e3f1fc350664cc93b1f57510bd9c714a7b"
+resolved_reference = "823d650e9748a58442bde80c233e3fa790117b20"
 
 [[package]]
 name = "fastapi"
@@ -1161,7 +1169,7 @@ web = ["fastapi", "itsdangerous", "uvicorn", "Jinja2"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "659ee8c868c9c9ba50d4609fb6956265d44a9a0b47f33bddee5312fa4f963bf2"
+content-hash = "41d47139f60bf662abba1d8cce12e355a061ea94c063865858e8bbe831e0d722"
 
 [metadata.files]
 aiodns = [
@@ -1261,6 +1269,10 @@ asgiref = [
 astunparse = [
     {file = "astunparse-1.6.3-py2.py3-none-any.whl", hash = "sha256:c2652417f2c8b5bb325c885ae329bdf3f86424075c4fd1a128674bc6fba4b8e8"},
     {file = "astunparse-1.6.3.tar.gz", hash = "sha256:5ad93a8456f0d084c3456d059fd9a92cce667963232cbf763eac3bc5b7940872"},
+]
+async-lru = [
+    {file = "async-lru-1.0.3.tar.gz", hash = "sha256:c2cb9b2915eb14e6cf3e717154b40f715bf90e596d73623677affd0d1fbcd32a"},
+    {file = "async_lru-1.0.3-py3-none-any.whl", hash = "sha256:ea692c303feb6211ff260d230dae1583636f13e05c9ae616eada77855b7f415c"},
 ]
 async-timeout = [
     {file = "async-timeout-4.0.2.tar.gz", hash = "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15"},
