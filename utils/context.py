@@ -47,7 +47,7 @@ class _ContextDBAcquire:
 
 
 class Context(commands.Context['Ayaka']):
-    _db: asyncpg.Pool | asyncpg.Connection | None
+    _db: asyncpg.Connection | None
     prefix: str
     channel: discord.TextChannel | discord.VoiceChannel | discord.Thread | discord.DMChannel
     command: commands.Command[Any, ..., Any]

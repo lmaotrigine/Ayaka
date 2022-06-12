@@ -844,6 +844,13 @@ class Meta(commands.Cog):
         fp.seek(0)
         await ctx.send(embed=embed, file=discord.File(fp, 'colour.png'))
 
-
+@app_commands.context_menu(name='Raw Message')
+@app_commands.checks.cooldown(1, 15)
+async def raw_message(interaction: discord.Interaction, message: discord.Message) -> None:
+    await interaction.response.defer()
+    msg = await interaction.client.http.get_message(message.channel.id, message.id)
+    await interaction.followup.send(f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```')
+    
 async def setup(bot: Ayaka):
     await bot.add_cog(Meta(bot))
+    bot.tree.add_command(raw_message)
