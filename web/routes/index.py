@@ -5,11 +5,19 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 """
 
 from __future__ import annotations
+from collections import defaultdict
 
 import datetime
+import pathlib
 
 from fastapi import APIRouter, Request
-from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+import fastapi
+import discord
+from fastapi.applications import FastAPI
+from fastapi.routing import APIRoute
+import starlette.routing
+import starlette.applications
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 
 from ..template import get_template
 
@@ -37,17 +45,17 @@ async def hi(_) -> RedirectResponse:
 
 
 @router.get('/ip')
-async def ip(req: Request) -> PlainTextResponse:
+async def ip_checker(req: Request) -> PlainTextResponse:
     return PlainTextResponse(req.client.host)
 
 
 @router.get('/voice')
-async def voice(_) -> HTMLResponse:
+async def voice_recognition(_) -> HTMLResponse:
     return HTMLResponse(get_template('voice_recognition.html').render())
 
-
-@router.get('/not_gonna_happen')
-async def lmao(_) -> PlainTextResponse:
-    return PlainTextResponse(
-        "you don't have a token, ask VJ. tokens are one time use, so if you had one and used it you'll need to apply for another"
-    )
+@router.get('/ls')
+async def ls(req: Request) -> JSONResponse:
+    rs: list[APIRoute] = [x for x in req.app.routes if not isinstance(x, starlette.routing.Mount) and 'private' not in x.tags]
+    print([x.__module__ for x in rs])
+    routes = sorted({pathlib.Path(r.path): r.name.upper().replace('_', '-') for r in rs}.items())
+    return JSONResponse({str(k): v for k, v in routes})

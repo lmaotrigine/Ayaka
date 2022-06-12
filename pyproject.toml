@@ -45,6 +45,8 @@ tweepy = "^4.8.0"
 ics = "^0.7"
 numpy = "^1.22.3"
 async-lru = "^1.0.3"
+chess = "^1.9.1"
+CairoSVG = "^2.5.2"
 
 [tool.poetry.dev-dependencies]
 black = "*"

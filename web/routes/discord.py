@@ -14,7 +14,7 @@ from starlette.responses import HTMLResponse, PlainTextResponse, RedirectRespons
 from ..template import get_template
 
 
-router = APIRouter()
+router = APIRouter(prefix='/discord')
 
 
 async def broadcast_join(
@@ -25,11 +25,6 @@ async def broadcast_join(
     if success:
         return RedirectResponse('/')
     return RedirectResponse('/not_gonna_happen')
-
-
-@router.get('/')
-async def hi(req: Request) -> RedirectResponse:
-    return RedirectResponse('https://discord.gg/s44CFagYN2')
 
 
 @router.get('/login')
@@ -44,6 +39,7 @@ async def login(req: Request):
 
 @router.get('/logout')
 async def logout(req: Request):
+    """Logout"""
     try:
         del req.session['user']
     except KeyError:

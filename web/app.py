@@ -10,7 +10,7 @@ import pathlib
 import secrets
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
@@ -22,6 +22,7 @@ from .oauth import Oauth2
 from .routes.discord import router as discord_router
 from .routes.index import router as index_router
 from .routes.pokemon import router as pokemon_router
+from .routes.private import router as private_router
 
 
 dirname = pathlib.Path(__file__).parent.parent
@@ -32,11 +33,13 @@ class MyAPI(FastAPI):
         self.client = Client(port=3456, secret_key=config.ipc_key)
         self.redis = aioredis.from_url(config.redis)
         super().__init__(docs_url=None, redoc_url=None, openapi_url=None)
+    
 
 
 app = MyAPI()
 app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(64))
-app.include_router(discord_router, prefix='/discord')
+app.include_router(discord_router)
+app.include_router(private_router)
 app.include_router(index_router)
 app.include_router(pokemon_router)
 app.mount('/static', StaticFiles(directory=dirname / 'static'), name='static')
