@@ -10,7 +10,7 @@ import pathlib
 import secrets
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
@@ -33,7 +33,6 @@ class MyAPI(FastAPI):
         self.client = Client(port=3456, secret_key=config.ipc_key)
         self.redis = aioredis.from_url(config.redis)
         super().__init__(docs_url=None, redoc_url=None, openapi_url=None)
-    
 
 
 app = MyAPI()

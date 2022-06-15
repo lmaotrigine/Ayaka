@@ -7,7 +7,6 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from typing import Literal, TypeAlias, TypedDict
 
 import discord
-
 from typing_extensions import NotRequired
 
 
@@ -105,8 +104,9 @@ _DndClassSkillsChoice = TypedDict(
     {
         'from': list[str],
         'count': int,
-    }
+    },
 )
+
 
 class _DndClassStartingProficiencies(TypedDict):
     armor: list[str]

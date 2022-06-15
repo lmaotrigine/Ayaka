@@ -344,11 +344,11 @@ class RTFX(commands.Cog):
 
         fmt = to_codeblock(f'Pyright v{version}:\n\n{diagnostics}\n\n{totals}\n', language='diff', escape_md=False)
         await ctx.send(fmt)
-        
+
     @commands.command()
     async def cpp(self, ctx: Context, *, query: str) -> None:
         """Search something on cppreference."""
-        
+
         url = 'https://en.cppreference.com/mwiki/index.php'
         params = {
             'title': 'Special:Search',

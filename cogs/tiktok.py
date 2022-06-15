@@ -13,9 +13,10 @@ import re
 from typing import TYPE_CHECKING
 
 import discord
-from discord import app_commands
 import yt_dlp
+from discord import app_commands
 from discord.ext import commands
+
 
 if TYPE_CHECKING:
     from bot import Ayaka
@@ -31,7 +32,7 @@ INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-
 class TikTok(commands.Cog):
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
-        
+
     async def process_url(self, url: str, max_len: int = 8388608) -> tuple[discord.File, str]:
         loop = asyncio.get_running_loop()
         if not url.endswith('/'):
@@ -40,7 +41,7 @@ class TikTok(commands.Cog):
         info = await loop.run_in_executor(None, fn)
         file_loc = pathlib.Path(f'buffer/{info["id"]}.{info["ext"]}')
         fixed_file_loc = pathlib.Path(f'buffer/{info["id"]}_fixed.{info["ext"]}')
-        
+
         stat = file_loc.stat()
         if stat.st_size > max_len:
             file_loc.unlink(missing_ok=True)
@@ -56,20 +57,19 @@ class TikTok(commands.Cog):
         content = f'{info["uploader"]}\n\n' * bool(info['uploader'])
         content += f'{info["description"]}'
         return file, content
-        
-    
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if not message.guild:
             return
         if message.guild.id != 932533101530349568:
             return
-        
+
         matches = MOBILE_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
         if not matches:
             return
         print(f'Processing {len(matches)} detected TikToks...')
-        
+
         async with message.channel.typing():
             for idx, url in enumerate(matches, start=1):
                 try:
@@ -77,13 +77,15 @@ class TikTok(commands.Cog):
                 except ValueError:
                     await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
                     continue
-                
+
                 if message.mentions:
                     content = ' '.join(m.mention for m in message.mentions) + '\n\n' + content
                 await message.reply(content[:1000], file=file)
-                if message.channel.permissions_for(message.guild.me).manage_messages and any([INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content)]):
+                if message.channel.permissions_for(message.guild.me).manage_messages and any(
+                    [INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content)]
+                ):
                     await message.delete()
-    
+
     @app_commands.command(name='tiktok')
     async def tt(self, interaction: discord.Interaction, url: str) -> None:
         """Download a TikTok video or an Instagram reel."""
@@ -96,6 +98,7 @@ class TikTok(commands.Cog):
         else:
             file, content = await self.process_url(url)
         await interaction.followup.send(content[:1000], file=file)
+
 
 async def setup(bot: Ayaka) -> None:
     await bot.add_cog(TikTok(bot))

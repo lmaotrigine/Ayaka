@@ -16,6 +16,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+
 if TYPE_CHECKING:
     from bot import Ayaka
     from utils._types import DndClassTopLevel
@@ -31,13 +32,13 @@ class Roll:
         self.die = die
         self.rolls = rolls
         self.mod = mod
-    
+
     def __str__(self) -> str:
         fmt = f'{self.rolls}d{self.die}'
         if self.mod is not None:
             fmt += f'{self.mod:+}'
         return fmt
-    
+
     def __repr__(self) -> str:
         return f'<Roll die={self.die} rolls={self.rolls} mod={self.mod:+}>'
 
@@ -64,7 +65,7 @@ class DnD(commands.GroupCog, name='dnd'):
         self.bot = bot
         self._classes: list[str] = discord.utils.MISSING
         super().__init__()
-    
+
     @app_commands.command(name='data-for')
     @app_commands.rename(class_='class')
     async def dnd_data_for(self, interaction: discord.Interaction, class_: str) -> None:
@@ -78,7 +79,7 @@ class DnD(commands.GroupCog, name='dnd'):
             data: DndClassTopLevel = json.load(fp)
         possible_subclasses = '\n'.join(x['name'] for x in data['subclass'])
         await interaction.followup.send(f'Possible subclasses for {class_.title()}:\n\n{possible_subclasses}')
-    
+
     @dnd_data_for.autocomplete(name='class_')
     async def data_for_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         if self._classes is discord.utils.MISSING:
@@ -93,27 +94,34 @@ class DnD(commands.GroupCog, name='dnd'):
             self._classes = ret
         if not current:
             return [app_commands.Choice(name=class_.title(), value=class_) for class_ in self._classes][:25]
-        return [app_commands.Choice(name=class_.title(), value=class_) for class_ in self._classes if current.lower() in class_][:25]
-    
+        return [
+            app_commands.Choice(name=class_.title(), value=class_) for class_ in self._classes if current.lower() in class_
+        ][:25]
+
     @commands.hybrid_command()
-    async def roll(self, ctx: Context, *, dice: list[Roll] = commands.param(converter=DiceRoll, default=None, displayed_default='1d20+0')) -> None:
+    async def roll(
+        self,
+        ctx: Context,
+        *,
+        dice: list[Roll] = commands.param(converter=DiceRoll, default=None, displayed_default='1d20+0'),
+    ) -> None:
         """Roll DnD dice!
-        
+
         Rolls a DnD die in the format of `1d10+0`, this includes `+` or `-` modifiers.
-        
+
         Examples:
             `1d10+2`
             `2d8-12`
-        
+
         You can also roll multiple dice at once, in the format of `2d10+2 1d12`.
         """
         dice = dice or [Roll(die=20, rolls=1)]
         if len(dice) > 25:
             await ctx.send('No more than 25 dice per invoke, please.')
             return
-        
+
         embed = discord.Embed(title='Rolls', colour=discord.Colour.random())
-        
+
         for die in dice:
             _choices: list[int] = []
             for _ in range(die.rolls):
@@ -130,7 +138,7 @@ class DnD(commands.GroupCog, name='dnd'):
             _current_total = 0
         embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
-        
+
     @roll.error
     async def roll_error(self, ctx: Context, error: BaseException) -> None:
         error = getattr(error, 'original', error)

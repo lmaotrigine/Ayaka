@@ -337,7 +337,7 @@ class Lewd(commands.Cog):
             return
         fmt.seek(0)
         await ctx.send(file=discord.File(fmt, filename='you_horny_fuck.m4a'))
-        
+
     async def _play_asmr(self, url: str, /, *, ctx: GuildContext, v_client: discord.VoiceClient | None) -> None:
         if not ctx.author.voice or not ctx.author.voice.channel:
             return
@@ -347,13 +347,13 @@ class Lewd(commands.Cog):
         audio_ = discord.FFmpegPCMAudio(url)
         transformer_ = discord.PCMVolumeTransformer(audio_)
         v_client.play(transformer_)
-        
+
     @commands.command()
     @commands.is_owner()
     @commands.guild_only()
     async def asmr(self, ctx: GuildContext) -> None:
         query = "SELECT * FROM audio TABLESAMPLE BERNOULLI (20)"
-        
+
         conn: asyncpg.Connection = await asyncpg.connect(ctx.bot.config.audio_postgresql)
         rows = await conn.fetch(query)
         await conn.close()
@@ -645,7 +645,9 @@ class Lewd(commands.Cog):
         try:
             gallery = await self.bot.hentai_client.fetch_gallery(digits)
         except nhentai.NHentaiError:
-            await message.channel.send('I would have given you the cum provocation but NHentai is down. I queued it and will try again.')
+            await message.channel.send(
+                'I would have given you the cum provocation but NHentai is down. I queued it and will try again.'
+            )
             self._nhen_queue.add((message.author.id, message.channel.id, digits))
             return
         if not gallery:
@@ -659,8 +661,7 @@ class Lewd(commands.Cog):
 
         embed = NHentaiEmbed.from_gallery(gallery)
         await message.reply(embed=embed)
-        
-    
+
     @tasks.loop(minutes=20)
     async def nhen_deque(self) -> None:
         for author, channel_id, digits in self._nhen_queue:
@@ -671,7 +672,7 @@ class Lewd(commands.Cog):
             if gallery is None:
                 self._nhen_queue.remove((author, channel_id, digits))
                 return
-            
+
             fmt = f'Hey <@{author}>, I finally got that gallery:-'
             embed = NHentaiEmbed.from_gallery(gallery)
             channel = self.bot.get_channel(channel_id)
