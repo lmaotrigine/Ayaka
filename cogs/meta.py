@@ -338,6 +338,27 @@ class Meta(commands.Cog):
             await ctx.send('Output too long to display.')
             return
         await ctx.send(msg)
+        
+    @commands.command()
+    @checks.mod_or_permissions(manage_nicknames=True)
+    async def decancer(self, ctx: GuildContext, *, user: discord.Member | None = None) -> None:
+        """Normalises username to make it mentionable."""
+        def ensure_user(user: discord.Member | None) -> discord.Member:
+            if user is None:
+                if ctx.message.reference:
+                    ref = ctx.message.reference.resolved
+                    if isinstance(ref, discord.Message):
+                        return ref.author  # type: ignore
+                raise commands.MissingRequiredArgument(commands.Parameter('user', kind=inspect.Parameter.KEYWORD_ONLY))
+            return user
+        user = ensure_user(user)
+        async with self.bot.session.get('https://api.5ht2.me/decancer', params={'text': user.display_name}) as resp:
+            if resp.status != 200:
+                await ctx.send(f'Something went wrong with the API. Tell VJ: {await resp.text()}')
+                return
+            js = await resp.json()
+        decancered = js['decancered']
+        await user.edit(nick=decancered, reason=f'decancer by {ctx.author}')
 
     @commands.group(name='prefix', invoke_without_command=True)
     async def prefix(self, ctx: GuildContext) -> None:
