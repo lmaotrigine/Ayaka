@@ -271,9 +271,7 @@ class RTFX(commands.Cog):
             return
 
         new_target = dedent(target)
-
-        fmt = to_codeblock(new_target, language='py', escape_md=False)
-        pages = TextPageSource(fmt, prefix='```py')
+        pages = TextPageSource(new_target, prefix='```py')
         menu = RoboPages(pages, ctx=ctx)
         await menu.start()
 
