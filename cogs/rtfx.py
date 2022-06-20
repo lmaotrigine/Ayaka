@@ -27,6 +27,7 @@ from lxml import etree
 from utils import fuzzy
 from utils.context import Context
 from utils.formats import to_codeblock
+from utils.paginator import RoboPages, TextPageSource
 
 
 if TYPE_CHECKING:
@@ -272,7 +273,9 @@ class RTFX(commands.Cog):
         new_target = dedent(target)
 
         fmt = to_codeblock(new_target, language='py', escape_md=False)
-        await ctx.send(fmt)
+        pages = TextPageSource(fmt, prefix='```py')
+        menu = RoboPages(pages, ctx=ctx)
+        await menu.start()
 
     @rtfs.error
     async def rtfs_error(self, ctx: Context, error: commands.CommandError) -> None:

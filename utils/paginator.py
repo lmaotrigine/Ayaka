@@ -209,11 +209,11 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
 
 
 class FieldPageSource(menus.ListPageSource, Generic[T]):
-    def __init__(self, entries, *, per_page=12):
+    def __init__(self, entries: list[tuple[str, str]], *, per_page: int = 12):
         super().__init__(entries, per_page=per_page)
         self.embed = discord.Embed(colour=discord.Colour.blurple())
 
-    async def format_page(self, menu, entries):
+    async def format_page(self, menu: RoboPages, entries: list[tuple[str, str]]) -> discord.Embed:
         self.embed.clear_fields()
         self.embed.description = None
 
@@ -228,14 +228,14 @@ class FieldPageSource(menus.ListPageSource, Generic[T]):
 
 
 class TextPageSource(menus.ListPageSource):
-    def __init__(self, text, *, prefix='```', suffix='```', max_size=2000):
+    def __init__(self, text: str, *, prefix: str = '```', suffix: str = '```', max_size: int = 2000) -> None:
         pages = CommandPaginator(prefix=prefix, suffix=suffix, max_size=max_size - 200)
         for line in text.split('\n'):
             pages.add_line(line)
 
         super().__init__(entries=pages.pages, per_page=1)
 
-    async def format_page(self, menu, content):
+    async def format_page(self, menu: RoboPages, content: str) -> str:
         maximum = self.get_max_pages()
         if maximum > 1:
             return f'{content}\nPage {menu.current_page + 1}/{maximum}'
@@ -243,7 +243,7 @@ class TextPageSource(menus.ListPageSource):
 
 
 class SimplePageSource(menus.ListPageSource):
-    async def format_page(self, menu, entries):
+    async def format_page(self, menu: SimplePages, entries: list[str]) -> discord.Embed:
         pages = []
         for index, entry in enumerate(entries, start=menu.current_page * self.per_page):
             pages.append(f'{index + 1}. {entry}')

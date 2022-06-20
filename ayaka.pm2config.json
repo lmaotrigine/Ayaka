@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "Ayaka",
-      "cwd": "/home/varun/bots/ayaka/",
+      "cwd": "/home/frodo/bots/ayaka/",
       "script": "launcher.py",
       "autorestart": true,
       "max_restart": 5,
@@ -23,7 +23,7 @@
     },
     {
       "name": "Ayaka Web",
-      "cwd": "/home/varun/bots/ayaka/",
+      "cwd": "/home/frodo/bots/ayaka/",
       "script": "launcher.py",
       "args": [
         "web"
