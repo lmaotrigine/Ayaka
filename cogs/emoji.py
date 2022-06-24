@@ -221,7 +221,7 @@ class Emoji(commands.Cog):
         e.set_thumbnail(url=cdn)
 
         # valid emoji ID so let's use it
-        query = """SELECT guild_id, SUM(total) AS 'Count'
+        query = """SELECT guild_id, SUM(total) AS "Count"
                    FROM emoji_stats
                    WHERE emoji_id = $1
                    GROUP BY guild_id;
