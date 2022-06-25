@@ -285,7 +285,7 @@ class MangadexEmbed(discord.Embed):
     async def from_chapter(cls: Type[Self], chapter: mangadex.Chapter, *, nsfw_allowed: bool = False) -> Self:
         assert chapter.manga is not None
         parent = chapter.manga
-        parent_title = parent.alt_titles.get('ja-ro', parent.title)
+        parent_title = parent.title
         if chapter.title:
             parent_title += f' - {chapter.title}'
         if chapter.chapter:
@@ -296,7 +296,8 @@ class MangadexEmbed(discord.Embed):
         self = cls(title=parent_title, colour=discord.Colour.red(), url=chapter.url)
         self.set_footer(text=chapter.id)
         self.timestamp = chapter.created_at
-        self.add_field(name='Manga link is:', value=f'[here!]({parent.url})')
+        self.add_field(name='Manga link is:', value=f'[here!]({parent.url})', inline=False)
+        self.add_field(name='Number of pages:', value=chapter.pages, inline=False)
         if parent.content_rating is mangadex.ContentRating.safe or (nsfw_allowed is True):
             if chapter.manga.cover_url() is None:
                 await chapter.manga.get_cover()

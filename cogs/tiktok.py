@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
-MOBILE_PATTERN = re.compile(r'https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+')
-# INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z\-0-9]+/')
+MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?')
+DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))\?(?:.*)')
 INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*)?\=')
 
 
@@ -46,7 +46,7 @@ class TikTok(commands.Cog):
         if stat.st_size > max_len:
             file_loc.unlink(missing_ok=True)
             raise ValueError('Video exceeded the file size limit.')
-        proc = await asyncio.create_subprocess_exec('ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}')
+        proc = await asyncio.create_subprocess_exec('ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}', '-hide_banner', '-loglevel', 'warning')
         await proc.communicate()
         if fixed_file_loc.stat().st_size > max_len:
             file_loc.unlink(missing_ok=True)
@@ -54,8 +54,8 @@ class TikTok(commands.Cog):
         file = discord.File(str(fixed_file_loc), filename=fixed_file_loc.name)
         file_loc.unlink(missing_ok=True)
         fixed_file_loc.unlink(missing_ok=True)
-        content = f'{info["uploader"]}\n\n' * bool(info['uploader'])
-        content += f'{info["description"]}'
+        content = f'**Uploader:**: {info["uploader"]}\n\n' * bool(info['uploader'])
+        content += f'**Description:** {info["description"]}' * bool(info['description'])
         return file, content
 
     @commands.Cog.listener()
@@ -65,15 +65,16 @@ class TikTok(commands.Cog):
         if message.guild.id != 932533101530349568:
             return
 
-        matches = MOBILE_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
+        matches = MOBILE_PATTERN.findall(message.content) or DESKTOP_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
         if not matches:
             return
         print(f'Processing {len(matches)} detected TikToks...')
 
         async with message.channel.typing():
             for idx, url in enumerate(matches, start=1):
+                exposed_url = url[0]
                 try:
-                    file, content = await self.process_url(url, message.guild.filesize_limit)
+                    file, content = await self.process_url(exposed_url, message.guild.filesize_limit)
                 except ValueError:
                     await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
                     continue
@@ -82,14 +83,14 @@ class TikTok(commands.Cog):
                     content = ' '.join(m.mention for m in message.mentions) + '\n\n' + content
                 await message.reply(content[:1000], file=file)
                 if message.channel.permissions_for(message.guild.me).manage_messages and any(
-                    [INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content)]
+                    [INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content), DESKTOP_PATTERN.fullmatch(message.content)]
                 ):
                     await message.delete()
 
     @app_commands.command(name='tiktok')
     async def tt(self, interaction: discord.Interaction, url: str) -> None:
         """Download a TikTok video or an Instagram reel."""
-        if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url):
+        if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url) and not DESKTOP_PATTERN.fullmatch(url):
             await interaction.response.send_message('Invalid TikTok link.', ephemeral=True)
             return
         await interaction.response.defer()
