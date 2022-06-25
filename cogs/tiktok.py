@@ -64,6 +64,9 @@ class TikTok(commands.Cog):
             return
         if message.guild.id != 932533101530349568:
             return
+        ctx = await self.bot.get_context(message)
+        if ctx.valid:
+            return
 
         matches = MOBILE_PATTERN.findall(message.content) or DESKTOP_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
         if not matches:
