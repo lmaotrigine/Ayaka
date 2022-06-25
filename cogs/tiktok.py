@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING
 
 import discord
 import yt_dlp
-from discord import app_commands
 from discord.ext import commands
 
 
 if TYPE_CHECKING:
     from bot import Ayaka
+    from utils.context import Context
 
 
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
@@ -87,18 +87,18 @@ class TikTok(commands.Cog):
                 ):
                     await message.delete()
 
-    @app_commands.command(name='tiktok')
-    async def tt(self, interaction: discord.Interaction, url: str) -> None:
+    @commands.hybrid_command(name='tiktok')
+    async def tt(self, ctx: Context, url: str) -> None:
         """Download a TikTok video or an Instagram reel."""
         if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url) and not DESKTOP_PATTERN.fullmatch(url):
-            await interaction.response.send_message('Invalid TikTok link.', ephemeral=True)
+            await ctx.send('Invalid TikTok link.', ephemeral=True)
             return
-        await interaction.response.defer()
-        if interaction.guild:
-            file, content = await self.process_url(url, interaction.guild.filesize_limit)
+        await ctx.defer()
+        if ctx.guild:
+            file, content = await self.process_url(url, ctx.guild.filesize_limit)
         else:
             file, content = await self.process_url(url)
-        await interaction.followup.send(content[:1000], file=file)
+        await ctx.send(content[:1000], file=file)
 
 
 async def setup(bot: Ayaka) -> None:
