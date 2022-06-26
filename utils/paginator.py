@@ -11,6 +11,7 @@ from textwrap import shorten
 from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, overload
 
 import discord
+import mangadex
 from discord.ext import menus
 from discord.ext.commands import Paginator as CommandPaginator
 
@@ -18,7 +19,6 @@ from utils.context import Context
 
 
 if TYPE_CHECKING:
-    import mangadex
     from typing_extensions import Self
 
 T = TypeVar('T')
