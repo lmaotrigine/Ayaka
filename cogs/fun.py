@@ -422,7 +422,7 @@ class Fun(commands.Cog):
         text = self.stut(self.initial_uwu(text), stut)
         return self.cute(text, cute)
 
-    @commands.command(aliases=['uwu', 'owo', 'owofy'], hidden=True)
+    @commands.hybrid_command(aliases=['uwu', 'owo', 'owofy'], hidden=True)
     async def uwufy(self, ctx: Context, *, text: str) -> None:
         """UwU"""
         await ctx.send(self.build_uwu(text, cute=3))
