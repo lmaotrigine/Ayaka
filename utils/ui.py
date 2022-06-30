@@ -62,6 +62,7 @@ class DisambiguationView(discord.ui.View, Generic[T]):
         self.matches = matches
         self.value: T | None = None
         self.message: discord.Message | None = None
+        self.select.options.clear()
         for k, v in matches.items():
             self.select.add_option(label=str(v[1]), value=str(k))
         self.author_id = author_id
