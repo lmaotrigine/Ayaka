@@ -73,7 +73,7 @@ class DisambiguationView(discord.ui.View, Generic[T]):
         if self.message:
             await self.message.delete()
             self.message = None
-        await interaction.response.send_message(f'Selected {self.value}', ephemeral=True)
+        await interaction.response.send_message(self.ctx.tick(True), ephemeral=True)
         self.stop()
     
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
