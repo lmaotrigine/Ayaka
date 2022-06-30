@@ -6,7 +6,6 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-import asyncio
 import io
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, TypeVar
 
@@ -14,7 +13,7 @@ import asyncpg
 import discord
 from discord.ext import commands
 
-from .ui import ConfirmationView
+from .ui import ConfirmationView, DisambiguationView
 
 
 if TYPE_CHECKING:
@@ -94,32 +93,22 @@ class Context(commands.Context['Ayaka']):
 
         if len(matches) == 1:
             return matches[0]
-
-        await self.send('There are too many matches... Which one did you mean? **Only say the number**.')
-        await self.send('\n'.join(f'{index}: {entry(item)}' for index, item in enumerate(matches, 1)))
-
-        def check(m):
-            return m.content.isdigit() and m.author.id == self.author.id and m.channel.id == self.channel.id
-
+        
+        matches_ = {i: (m, entry(m)) for i, m in enumerate(matches)}
+        view = DisambiguationView(matches_, self.author.id, self)
+        
         await self.release()
 
-        # only give them 3 tries.
+        view.message = await self.send('There are too many matches... Which one did you mean?', view=view)
         try:
-            for i in range(3):
-                try:
-                    message = await self.bot.wait_for('message', check=check, timeout=30.0)
-                except asyncio.TimeoutError:
-                    raise ValueError('Took too long. Goodbye.')
-
-                index = int(message.content)
-                try:
-                    return matches[index - 1]
-                except Exception:
-                    await self.send(f'Please give me a valid number. {2 - i} tries remaining...')
-            raise ValueError('Too many tries. Goodbye.')
+            if await view.wait():
+                raise ValueError('Took too long, goodbye.')
+            else:
+                assert view.value is not None
+                return view.value
         finally:
-            await self.acquire()
-
+            await self.release()
+    
     async def prompt(
         self,
         message: str,

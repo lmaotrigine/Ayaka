@@ -26,7 +26,11 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
 MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?')
 DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))\?(?:.*)')
-INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*)?\=')
+INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/\?.*?\=')
+
+
+class NeedsLogin(commands.CommandError):
+    pass
 
 
 class TikTok(commands.Cog):
@@ -38,7 +42,12 @@ class TikTok(commands.Cog):
         if not url.endswith('/'):
             url += '/'
         fn = functools.partial(ydl.extract_info, url, download=True)
-        info = await loop.run_in_executor(None, fn)
+        try:
+            info = await loop.run_in_executor(None, fn)
+        except yt_dlp.DownloadError as e:
+            if 'You need to log in' in str(e):
+                raise NeedsLogin('Need to log in.')
+            raise
         file_loc = pathlib.Path(f'buffer/{info["id"]}.{info["ext"]}')
         fixed_file_loc = pathlib.Path(f'buffer/{info["id"]}_fixed.{info["ext"]}')
 
@@ -75,9 +84,15 @@ class TikTok(commands.Cog):
 
         async with message.channel.typing():
             for idx, url in enumerate(matches, start=1):
-                exposed_url = url[0]
+                if isinstance(url, str):
+                    exposed_url = url
+                else:
+                    exposed_url = url[0]
                 try:
                     file, content = await self.process_url(exposed_url, message.guild.filesize_limit)
+                except NeedsLogin as e:
+                    await message.channel.send(str(e))
+                    return
                 except ValueError:
                     await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
                     continue
@@ -97,10 +112,17 @@ class TikTok(commands.Cog):
             await ctx.send('Invalid TikTok link.', ephemeral=True)
             return
         await ctx.defer()
-        if ctx.guild:
-            file, content = await self.process_url(url, ctx.guild.filesize_limit)
-        else:
-            file, content = await self.process_url(url)
+        try:
+            if ctx.guild:
+                file, content = await self.process_url(url, ctx.guild.filesize_limit)
+            else:
+                file, content = await self.process_url(url)
+        except NeedsLogin as e:
+            await ctx.send(str(e))
+            return
+        except ValueError:
+            await ctx.send('TikTok link exceeded the file size limit.')
+            return
         await ctx.send(content[:1000], file=file)
 
 

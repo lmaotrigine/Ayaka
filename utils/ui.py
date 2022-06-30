@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import discord
 
@@ -14,6 +14,7 @@ import discord
 if TYPE_CHECKING:
     from .context import Context
 
+T = TypeVar('T')
 
 class ConfirmationView(discord.ui.View):
     def __init__(self, *, timeout: float, author_id: int, reacquire: bool, ctx: Context, delete_after: bool) -> None:
@@ -52,4 +53,33 @@ class ConfirmationView(discord.ui.View):
         await interaction.response.defer()
         if self.delete_after:
             await interaction.delete_original_message()
+        self.stop()
+
+
+class DisambiguationView(discord.ui.View, Generic[T]):
+    def __init__(self, matches: dict[int, tuple[T, Any]], author_id: int, ctx: Context) -> None:
+        self.matches = matches
+        self.value: T | None = None
+        self.message: discord.Message | None = None
+        for k, v in matches.items():
+            self.select.add_option(label=str(v[1]), value=str(k))
+        self.author_id = author_id
+        self.ctx = ctx
+        
+    @discord.ui.select(options=[])
+    async def select(self, interaction: discord.Interaction, item: discord.ui.Select) -> None:
+        self.value = self.matches[int(item.values[0])][0]
+        await interaction.response.send_message(f'Selected {self.value}', ephemeral=True)
+        self.stop()
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user and interaction.user.id in (self.author_id, self.ctx.bot.owner_id):
+            return True
+        else:
+            await interaction.response.send_message('This disambiguation dialog is not for you.', ephemeral=True)
+            return False
+    
+    async def on_timeout(self) -> None:
+        if self.message:
+            await self.message.delete()
         self.stop()

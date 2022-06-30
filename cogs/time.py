@@ -6,12 +6,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-import random
+import zoneinfo
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import discord
-import pytz
 from discord.ext import commands, menus
 from fuzzywuzzy import process
 
@@ -22,9 +21,6 @@ from utils.paginator import RoboPages
 if TYPE_CHECKING:
     from bot import Ayaka
     from utils.context import Context, GuildContext
-
-
-PYTZ_LOWER_TIMEZONES = [*map(str.lower, pytz.all_timezones)]
 
 
 class TZMenuSource(menus.ListPageSource):
@@ -47,11 +43,11 @@ class TimeTable(db.Table, table_name='tz_store'):
 
 class TimezoneConverter(commands.Converter):
     async def convert(self, ctx: Context, argument: str):
-        query = process.extract(query=argument.lower(), choices=pytz.all_timezones_set, limit=5)
-        if argument.lower() not in {timezone.lower() for timezone in pytz.all_timezones_set}:
-            matches = '\n'.join([f'`{index + 1}.` {match[0]}' for index, match in enumerate(query)])
-            raise commands.BadArgument(f'That was not a recognised timezone. Maybe you meant one of these?\n{matches}')
-        return pytz.timezone(query[0][0])
+        query = process.extract(query=argument.lower(), choices=zoneinfo.available_timezones(), limit=5)
+        if argument.lower() not in {timezone.lower() for timezone in zoneinfo.available_timezones()}:
+            result = await ctx.disambiguate(query, lambda t: t[0])
+            return zoneinfo.ZoneInfo(result[0])
+        return zoneinfo.ZoneInfo(query[0][0])
 
 
 class Time(commands.Cog):
@@ -95,7 +91,7 @@ class Time(commands.Cog):
             embeds.append(embed)
         return embeds
 
-    def _curr_tz_time(self, curr_timezone: pytz.BaseTzInfo, *, ret_datetime: bool = False):
+    def _curr_tz_time(self, curr_timezone: zoneinfo.ZoneInfo, *, ret_datetime: bool = False):
         # We assume it's a good TZ here
         dt_obj = datetime.now(curr_timezone)
         if ret_datetime:
@@ -103,10 +99,8 @@ class Time(commands.Cog):
         return time.hf_time(dt_obj)
 
     @commands.command(aliases=['tz'])
-    async def timezone(self, ctx: Context, *, timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)):
+    async def timezone(self, ctx: Context, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)):
         """This will return the time in a specified timezone."""
-        if not timezone:
-            timezone = await TimezoneConverter().convert(ctx, random.choice(pytz.all_timezones))
         embed = discord.Embed(
             title=f'Current time in {timezone}', description=f'```\n{self._curr_tz_time(timezone, ret_datetime=False)}\n```'
         )
@@ -117,7 +111,7 @@ class Time(commands.Cog):
     @commands.command(aliases=['tzs'])
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def timezones(self, ctx):
-        tz_list = [pytz.all_timezones[x : x + 15] for x in range(0, len(pytz.all_timezones), 15)]
+        tz_list = [list(zoneinfo.available_timezones())[x : x + 15] for x in range(0, len(zoneinfo.available_timezones()), 15)]
         embeds = self._gen_tz_embeds(str(ctx.author), tz_list)
         pages = RoboPages(source=TZMenuSource(range(0, 40), embeds), ctx=ctx)
         await pages.start()
@@ -148,7 +142,7 @@ class Time(commands.Cog):
     @_time.command(name='set')
     @commands.guild_only()
     async def time_set(
-        self, ctx: GuildContext, *, set_timezone: pytz.BaseTzInfo = commands.param(converter=TimezoneConverter)
+        self, ctx: GuildContext, *, set_timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)
     ):
         """Add your timezone, with a warning about public info."""
 
@@ -161,7 +155,7 @@ class Time(commands.Cog):
         confirm = await ctx.prompt('This will make your timezone public in this guild. confirm?', reacquire=False)
         if not confirm:
             return
-        await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], set_timezone.zone)
+        await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], set_timezone.key)
         return await ctx.message.add_reaction(ctx.tick(True))
 
     @_time.command(name='remove')
