@@ -70,6 +70,9 @@ class DisambiguationView(discord.ui.View, Generic[T]):
     @discord.ui.select(options=[])
     async def select(self, interaction: discord.Interaction, item: discord.ui.Select) -> None:
         self.value = self.matches[int(item.values[0])][0]
+        if self.message:
+            await self.message.delete()
+            self.message = None
         await interaction.response.send_message(f'Selected {self.value}', ephemeral=True)
         self.stop()
     
