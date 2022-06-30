@@ -37,8 +37,8 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         self.bot = bot
         self.ayaka_task.start()
         self.ayaka_details = {
-            False: ProfileState('static/Dusk.png', 'Ayaka Dusk'),
-            True: ProfileState('static/Dawn.jpg', 'Ayaka Dawn'),
+            False: ProfileState('static/dusk.png', 'Ayaka Dusk'),
+            True: ProfileState('static/dawn.png', 'Ayaka Dawn'),
         }
 
     @property
@@ -46,7 +46,7 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         now = discord.utils.utcnow()
         dawn = now.hour >= 6 and now.hour < 18
         if dawn:
-            return discord.PartialEmoji(name='ayaka_dawn', id=959377925583556608)
+            return discord.PartialEmoji(name='ayaka_dawn', id=992019469016772639)
         else:
             return discord.PartialEmoji(name='ayaka_dusk', id=959377339584745492)
 
