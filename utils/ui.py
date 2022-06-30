@@ -58,6 +58,7 @@ class ConfirmationView(discord.ui.View):
 
 class DisambiguationView(discord.ui.View, Generic[T]):
     def __init__(self, matches: dict[int, tuple[T, Any]], author_id: int, ctx: Context) -> None:
+        super().__init__()
         self.matches = matches
         self.value: T | None = None
         self.message: discord.Message | None = None
