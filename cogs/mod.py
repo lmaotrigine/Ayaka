@@ -2029,7 +2029,8 @@ class Mod(commands.Cog):
 
         if not fmt:
             return
-        formatted = '\n'.join(f'{member.name} || {member.display_name} ({member.id})' for member in fmt)
+        formatted = '{0:32} || {1:<32} ({2})\n\n'.format('~~ Name ~~', '~~ Nickname ~~', '~~ ID ~~')
+        formatted += '\n'.join(f'{member.name:32} || {member.display_name:<32} ({member.id})' for member in fmt)
 
         out = io.BytesIO(formatted.encode())
 
