@@ -13,11 +13,12 @@ import itertools
 import json
 import math
 import os
+import pathlib
 import textwrap
 import unicodedata
 from collections import Counter, defaultdict
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 import discord
 from discord import app_commands
@@ -460,6 +461,27 @@ class Meta(commands.Cog):
 
         await self.bot.set_guild_prefixes(ctx.guild, [])
         await ctx.send(ctx.tick(True))
+        
+    @staticmethod
+    def _iterate_source_line_counts(root: pathlib.Path) -> Iterator[int]:
+        for child in root.iterdir():
+            if child.name.startswith('.'):
+                continue
+            if child.is_dir():
+                yield from Meta._iterate_source_line_counts(child)
+            else:
+                if child.suffix == '.py':
+                    with child.open(encoding='utf-8') as f:
+                        yield len(f.readlines())
+    
+    @staticmethod
+    def count_source_lines(root: pathlib.Path) -> int:
+        return sum(Meta._iterate_source_line_counts(root))
+    
+    @commands.command()
+    async def cloc(self, ctx: Context) -> None:
+        """."""
+        await ctx.send(f'I am made of only {self.count_source_lines(pathlib.Path(__file__).parent.parent):,} lines.')
 
     @commands.command()
     async def source(self, ctx: Context, *, command: str | None = None) -> None:
