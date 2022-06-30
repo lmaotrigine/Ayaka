@@ -33,7 +33,7 @@ class NeedsLogin(commands.CommandError):
     pass
 
 
-class TikTok(commands.Cog):
+class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
 
