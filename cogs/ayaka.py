@@ -48,7 +48,7 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         if dawn:
             return discord.PartialEmoji(name='ayaka_dawn', id=992019469016772639)
         else:
-            return discord.PartialEmoji(name='ayaka_dusk', id=959377339584745492)
+            return discord.PartialEmoji(name='ayaka_dusk', id=992019472321892352)
 
     def cog_unload(self):
         self.ayaka_task.cancel()

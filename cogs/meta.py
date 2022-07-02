@@ -848,10 +848,10 @@ class Meta(commands.Cog):
         else:
             new_colour = await commands.ColourConverter().convert(ctx, colour)
         im = Image.new('RGB', (128, 128), new_colour.to_rgb())
-        hsv = colorsys.rgb_to_hsv(*new_colour.to_rgb())
-        hsv = f'{hsv[0]}°, {hsv[1] * 100}%, {hsv[2] * 100}%'
-        hls = colorsys.rgb_to_hls(*new_colour.to_rgb())
-        hsl = f'{math.degrees(hls[0])}°, {hls[2] * 100}%, {hls[1] * 100}%'
+        hsv = colorsys.rgb_to_hsv(*map(lambda x: x / 255, new_colour.to_rgb()))
+        hsv = f'{hsv[0] * 360:.0f}°, {hsv[1] * 100:.0f}%, {hsv[2] * 100:.0f}%'
+        hls = colorsys.rgb_to_hls(*map(lambda x: x / 255, new_colour.to_rgb()))
+        hsl = f'{hls[0] * 360:.0f}°, {hls[2] * 100:.0f}%, {hls[1] * 100:.0f}%'
 
         def rgb_to_cmyk(r, g, b):
             if (r, g, b) == (0, 0, 0):
@@ -871,15 +871,15 @@ class Meta(commands.Cog):
             k = min_cmy
 
             # rescale to the range [0,CMYK_SCALE]
-            return f'{c * 100}%, {m * 100}%, {y * 100}%, {k * 100}%'
+            return f'{c * 100:.0f}%, {m * 100:.0f}%, {y * 100:.0f}%, {k * 100:.0f}%'
 
         cmyk = rgb_to_cmyk(*new_colour.to_rgb())
         embed = discord.Embed(colour=new_colour)
         embed.set_author(name=f'Information on {new_colour}')
         embed.title = f'Hex: {new_colour}'
-        embed.add_field(name='RGB:', value=', '.join(str(x) for x in new_colour.to_rgb()))
-        embed.add_field(name='HSV:', value=hsv)
-        embed.add_field(name='HSL:', value=hsl)
+        embed.add_field(name='RGB:', value=', '.join(str(x) for x in new_colour.to_rgb()) + '\u2000\u2000')
+        embed.add_field(name='HSV:', value=hsv + '\u2000\u2000')
+        embed.add_field(name='HSL:', value=hsl + '\u2000\u2000')
         embed.add_field(name='CMYK:', value=cmyk)
         embed.set_image(url='attachment://colour.png')
         fp = BytesIO()
