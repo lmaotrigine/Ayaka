@@ -11,7 +11,6 @@ import datetime
 import inspect
 import itertools
 import json
-import math
 import os
 import pathlib
 import textwrap
@@ -470,7 +469,7 @@ class Meta(commands.Cog):
             if child.is_dir():
                 yield from Meta._iterate_source_line_counts(child)
             else:
-                if child.suffix == '.py':
+                if child.suffix in ('.py', '.html', '.css'):
                     with child.open(encoding='utf-8') as f:
                         yield len(f.readlines())
     
