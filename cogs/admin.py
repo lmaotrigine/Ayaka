@@ -15,6 +15,7 @@ import io
 import logging
 import os
 import re
+import secrets
 import subprocess
 import sys
 import textwrap
@@ -29,7 +30,7 @@ from discord import app_commands, ui
 from discord.ext import commands
 
 from bot import EXTENSIONS
-from utils import formats
+from utils import db, formats
 from utils.context import Context, GuildContext
 from utils.paginator import RoboPages, TextPageSource
 
@@ -42,6 +43,13 @@ if TYPE_CHECKING:
 
     from bot import Ayaka
 
+
+class AuthTokens(db.Table, table_name='auth_tokens'):
+    id = db.PrimaryKeyColumn()
+    user_id = db.Column(db.Integer(big=True), index=True)
+    guild_id = db.Column(db.Integer(big=True), index=True)
+    token = db.Column(db.String, unique=True, nullable=False)
+    created_at = db.Column(db.Datetime(timezone=True), default="(now() at time zone 'utc')", nullable=False)
 
 class PerformanceMocker:
     """A mock object that can also be used in await expressions."""
@@ -859,6 +867,21 @@ class Admin(commands.GroupCog, group_name='dev'):
             success = True
 
         await ctx.send(f'Status: {ctx.tick(success)} Time: {(end - start) * 1000:.2f}ms')
+        
+    @commands.group()
+    async def whitelist(self, ctx: Context) -> None:
+        """Manages the guild whitelist."""
+    
+    @whitelist.command()
+    async def gen(self, ctx: Context, guild_id: int, *, user: discord.User) -> None:
+        """Generates a token for this guild and user."""
+        token = secrets.token_hex(64)
+        query = """
+                INSERT INTO auth_tokens (guild_id, user_id, token, created_at)
+                VALUES ($1, $2, $3, $4);
+                """
+        await ctx.db.execute(query, guild_id, user.id, token, discord.utils.utcnow())
+        await ctx.message.add_reaction(ctx.tick(True))
 
 
 async def setup(bot: Ayaka):

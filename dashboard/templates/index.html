@@ -11,18 +11,18 @@
     <meta property="og:title" content="Ayaka" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://bot.5ht2.me" />
-    <meta property="og:image" content="/static/{{ name }}.png" />
+    <meta property="og:image" content="{{ bot.user.avatar.url }}" />
     <meta name="theme-color" content="#1e1e1e">
     <title>Ayaka</title>
     <link rel="stylesheet" type="text/css" href="/static/css/style.css">
-    <link rel="icon" type="image/png" href="/static/{{ name }}.png">
+    <link rel="icon" type="image/png" href="{{ bot.user.avatar.url }}">
   </head>
   <body>
     <div class="main">
     <ul class="directory-list">
       <li class="folder">
         <button class="btnV">
-          <a>Ayaka {{ name }}</a>
+          <a>{{ bot.user.name }}</a>
         </button>
       <li class="folder">
         <button class="btnV">
@@ -37,8 +37,12 @@
           <li>
             <button class="btnV">
               <a href="/discord/logout">
-                Logout {{  user }}</a>
+                Logout
+              </a>
             </button>
+            {% if user %}
+                ({{  user }})
+              {% end %}
           </li>
           <li>
             <button class="btnV">

@@ -15,8 +15,6 @@ import asyncpg
 import discord
 from discord.ext import commands, tasks
 
-import ipc
-from ipc.server import IpcPayload
 from utils import cache, db
 
 
@@ -80,7 +78,7 @@ class Logging(commands.Cog):
         self._avy_cache[member.id].append((msg.attachments[0].url, avy.url))
 
     async def upsert(self, member: discord.User | discord.Member) -> None:
-        avs = await self.get_user_avys(member.id)  # type: ignore
+        avs = await self.get_user_avys(member.id)
         ext = 'gif' if member.display_avatar.is_animated() else 'png'
         current = member.display_avatar.with_format(ext).with_size(1024).key
         if current != avs.last_avatar:
@@ -98,7 +96,7 @@ class Logging(commands.Cog):
             files = []
             avys = {}
             for member in members:
-                exist = await self.get_user_avys(member.id)  # type: ignore
+                exist = await self.get_user_avys(member.id)
                 avy = member.display_avatar.with_size(1024)
                 ext = 'gif' if avy.is_animated() else 'png'
                 avy = avy.with_format(ext)
@@ -145,14 +143,12 @@ class Logging(commands.Cog):
                 records = [{'user_id': user_id, 'attachment': None, 'avatar': None}]
             return AvatarCache.from_record(records)
 
-    @ipc.route()
-    async def avatar_history(self, data: IpcPayload) -> dict[str, str | list[str]]:
-        user_id = data.get('user_id', 0)
+    async def avatar_history(self, user_id: int) -> dict[str, str | list[str]]:
         user = self.bot.get_user(user_id)  # ignore if not in cache idc
         if user is None:
             return {'avatars': []}
         image = user.display_avatar.with_static_format('png').with_size(1024).url
-        avatars = await self.get_user_avys(user_id)  # type: ignore
+        avatars = await self.get_user_avys(user_id)
         return {'user': str(user), 'image': image, 'avatars': avatars.urls}
 
 

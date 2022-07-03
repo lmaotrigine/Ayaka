@@ -17,6 +17,7 @@ import sys
 import textwrap
 import traceback
 import urllib.parse
+import zoneinfo
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -24,7 +25,6 @@ import dateutil.parser
 import dateutil.tz
 import discord
 import feedparser
-import pytz
 import tweepy
 import tweepy.asynchronous
 from bs4 import BeautifulSoup
@@ -170,11 +170,11 @@ class Feeds(commands.Cog):
         for timezone_abbreviation in ('EDT', 'EST'):
             matching_timezones = list(
                 filter(
-                    lambda t: datetime.datetime.now(pytz.timezone(t)).strftime('%Z') == timezone_abbreviation,
-                    pytz.common_timezones,
+                    lambda t: datetime.datetime.now(zoneinfo.ZoneInfo(t)).strftime('%Z') == timezone_abbreviation,
+                    zoneinfo.available_timezones(),
                 )
             )
-            matching_utc_offsets = set(datetime.datetime.now(pytz.timezone(t)).strftime('%z') for t in matching_timezones)
+            matching_utc_offsets = set(datetime.datetime.now(zoneinfo.ZoneInfo(t)).strftime('%z') for t in matching_timezones)
             if len(matching_utc_offsets) == 1:
                 self.tzinfos[timezone_abbreviation] = dateutil.tz.gettz(matching_timezones[0])
         self.new_feed = asyncio.Event()

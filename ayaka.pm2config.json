@@ -20,24 +20,6 @@
         "-O"
       ],
       "log_date_format": "DD-MM-YYYY HH:mm:ss"
-    },
-    {
-      "name": "Ayaka Web",
-      "cwd": "/home/frodo/bots/ayaka/",
-      "script": "launcher.py",
-      "args": [
-        "web"
-      ],
-      "autorestart": true,
-      "max_restart": 5,
-      "instances": 1,
-      "interpreter": "poetry",
-      "interpreter_args": [
-        "run",
-        "python",
-        "-O"
-      ],
-      "log_date_format": "DD-MM-YYYY HH:mm:ss"
     }
   ]
 }

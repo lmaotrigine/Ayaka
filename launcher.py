@@ -16,7 +16,7 @@ import logging
 import sys
 import traceback
 from logging.handlers import RotatingFileHandler
-from typing import TYPE_CHECKING, Awaitable, Callable, Generator, Iterable, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Callable, Coroutine, Generator, Iterable, ParamSpec, TypeVar
 
 import click
 
@@ -40,7 +40,7 @@ else:
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
-def coroutine(func: Callable[P, Awaitable[T]]) -> Callable[P, T]:
+def coroutine(func: Callable[P, Coroutine[None, None, T]]) -> Callable[P, T]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         return asyncio.run(func(*args, **kwargs))
@@ -111,15 +111,6 @@ async def run_bot() -> None:
         await bot.start()
 
 
-def run_server(port: int | None = None) -> None:
-    import uvicorn
-
-    from web.app import app
-
-    port = port or 6789
-    uvicorn.run(app, port=port)  # type: ignore
-
-
 @click.group(invoke_without_command=True, options_metavar='[options]')
 @click.pass_context
 def main(ctx: click.Context) -> None:
@@ -127,13 +118,6 @@ def main(ctx: click.Context) -> None:
     if ctx.invoked_subcommand is None:
         with setup_logging():
             asyncio.run(run_bot())
-
-
-@main.command()
-def web() -> None:
-    """Launches the web server."""
-    with setup_logging('web'):
-        run_server()
 
 
 @main.group(short_help='database stuff', options_metavar='[options]')

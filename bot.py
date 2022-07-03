@@ -21,11 +21,14 @@ import discord
 import mangadex
 import nhentai
 import redis.asyncio as aioredis
+import tornado.httpserver
+import tornado.web
 from discord import app_commands
 from discord.ext import commands
 
 import config
-from ipc import Server
+from dashboard.routes import setup_routes
+from dashboard.utils.http import HTTPClient
 from utils.config import Config
 from utils.context import Context
 
@@ -34,6 +37,7 @@ if TYPE_CHECKING:
     from asyncpg import Pool
 
     from cogs.config import Config as ConfigCog
+    from cogs.logging import Logging as LoggingCog
     from cogs.reminders import Reminder
 
 DESCRIPTION = """
@@ -51,7 +55,6 @@ EXTENSIONS = (
     'cogs.emoji',
     'cogs.feeds',
     'cogs.fun',
-    'cogs.ipc',
     'cogs.lewd',
     'cogs.logging',
     'cogs.manga',
@@ -133,7 +136,7 @@ class Ayaka(commands.AutoShardedBot):
             application_id=config.application_id,
         )
         self.session = aiohttp.ClientSession()
-        self.ipc_server = Server(self, port=3456, secret_key=config.ipc_key)
+        self.dashboard_client = HTTPClient(self)
         self.redis = aioredis.from_url(config.redis, encoding='utf-8', decode_responses=True)
         self.hentai_client = nhentai.Client()
         md_user = config.mangadex_auth['username']
@@ -145,6 +148,8 @@ class Ayaka(commands.AutoShardedBot):
         self._prev_events = deque(maxlen=10)
         self.resumes: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
         self.identifies: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
+        self.dashboard = tornado.web.Application(setup_routes(bot=self), static_path=str(pathlib.Path(__file__).parent / 'static'), template_path=str(pathlib.Path(__file__).parent / 'dashboard' / 'templates'), cookie_secret=config.cookie_secret, debug=False, default_host=config.base_url)
+        self.server = tornado.httpserver.HTTPServer(self.dashboard, xheaders=True)
 
         self.emoji = {
             True: '<:yes:956843604620476457>',
@@ -162,7 +167,8 @@ class Ayaka(commands.AutoShardedBot):
         self._auto_spam_count = Counter()
 
     async def setup_hook(self) -> None:
-        await self.ipc_server.start()
+        self.server.bind(6789)
+        self.server.start()
         self.prefixes: Config[list[str]] = Config(pathlib.Path('configs/prefixes.json'), loop=self.loop)
         self.blacklist: Config[bool] = Config(pathlib.Path('configs/blacklist.json'), loop=self.loop)
         self.bot_app_info = await self.application_info()
@@ -399,6 +405,11 @@ class Ayaka(commands.AutoShardedBot):
                         fp.write(f'{data}\n')
                     else:
                         fp.write(f'{last_log}\n')
+    
+    async def get_user_avatars(self, user_id: int) -> dict[str, str | list[str]] | None:
+        if self.logging_cog is None:
+            return None
+        return await self.logging_cog.avatar_history(user_id)
 
     @property
     def config(self) -> config:  # type: ignore # this can be used as a type but idk if it's best practice
@@ -411,3 +422,7 @@ class Ayaka(commands.AutoShardedBot):
     @property
     def config_cog(self) -> ConfigCog | None:
         return self.get_cog('Config')  # type: ignore # ???
+    
+    @property
+    def logging_cog(self) -> LoggingCog | None:
+        return self.get_cog('Logging')  # type: ignore # ???
