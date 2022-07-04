@@ -57,12 +57,13 @@ class DiscordLogin(HTTPHandler, abc.ABC):
         
         guild_id = self.get_query_argument('guild_id', None)
         if guild_id is not None:
-            guild_id = int(guild_id)
-            query = 'SELECT token FROM auth_tokens WHERE guild_id = $1;'
-            res = await self.bot.pool.fetchval(query, guild_id)
-            if not res:
-                return self.redirect('/not_gonna_happen', status=403)
-        print('meow?')
+            user = await self.get_user()
+            if user is None or user.id != self.bot.owner.id:
+                guild_id = int(guild_id)
+                query = 'SELECT token FROM auth_tokens WHERE guild_id = $1;'
+                res = await self.bot.pool.fetchval(query, guild_id)
+                if not res:
+                    return self.redirect('/not_gonna_happen')
         async with self.bot.session.post(
                 "https://discord.com/api/oauth2/token",
                 data={
@@ -99,14 +100,14 @@ class DiscordLogin(HTTPHandler, abc.ABC):
             else:
                 user = await self.get_user()
                 if not user:
-                    await self.leave_guild(guild_id)
+                    await self.leave_guild(int(guild_id))
                     return
                 if user.id == self.bot.owner.id:
                     return
                 query = 'DELETE FROM auth_tokens WHERE token in (SELECT token FROM auth_tokens WHERE user_id = $1 AND guild_id = $2 ORDER BY created_at DESC LIMIT 1);'
                 res = await self.bot.pool.execute(query, user.id, guild_id)
             if res == 'DELETE 0':
-                await self.leave_guild(guild_id)
+                await self.leave_guild(int(guild_id))
         print('hi')
         return self.redirect('/')
     
