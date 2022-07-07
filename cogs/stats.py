@@ -802,7 +802,7 @@ class Stats(commands.Cog):
             # Shard Task failure
             # Shard Task complete (no failure)
             if shard.is_closed():
-                badge = '<:offline:316856575501402112>'
+                badge = '<:offline:956843179188060190>'
                 issues += 1
             elif shard._parent._task and shard._parent._task.done():
                 exc = shard._parent._task.exception()
@@ -813,7 +813,7 @@ class Stats(commands.Cog):
                     badge = '\U0001f504'
 
             if badge is None:
-                badge = '<:online:316856575413321728>'
+                badge = '<:online:957185052234641429>'
 
             stats = []
             identify = identifies.get(shard_id, 0)
