@@ -59,22 +59,15 @@ class RemoveNoise(logging.Filter):
 
 
 @contextlib.contextmanager
-def setup_logging(name='bot') -> Generator[None, None, None]:
+def setup_logging() -> Generator[None, None, None]:
     log = logging.getLogger()
     try:
         # __enter__
-        if name == 'bot':
-            logging.getLogger('discord').setLevel(logging.INFO)
-            logging.getLogger('discord.http').setLevel(logging.WARNING)
-            logging.getLogger('discord.state').addFilter(RemoveNoise())
-            logging.getLogger('mangadex.http').setLevel(logging.DEBUG)
-            handler = RotatingFileHandler(
-                filename='ayaka.log', encoding='utf-8', mode='w', maxBytes=32 * 1024 * 1024, backupCount=5
-            )
-        else:
-            handler = RotatingFileHandler(
-                filename='ayaka-web.log', encoding='utf-8', mode='w', maxBytes=32 * 1024 * 1024, backupCount=5
-            )
+        logging.getLogger('discord').setLevel(logging.INFO)
+        logging.getLogger('discord.http').setLevel(logging.WARNING)
+        logging.getLogger('discord.state').addFilter(RemoveNoise())
+        logging.getLogger('mangadex.http').setLevel(logging.DEBUG)
+        handler = RotatingFileHandler(filename='ayaka.log', encoding='utf-8', mode='w', maxBytes=32 * 1024 * 1024, backupCount=5)
         log.setLevel(logging.INFO)
         dt_fmt = '%Y-%m-%d %H:%M:%S'
         fmt = logging.Formatter('[{asctime}] [{levelname:<7}] {name}: {message}', dt_fmt, style='{')
