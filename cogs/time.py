@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import zoneinfo
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import discord
 from discord.ext import commands, menus
@@ -24,12 +24,12 @@ if TYPE_CHECKING:
 
 
 class TZMenuSource(menus.ListPageSource):
-    def __init__(self, data, embeds):
+    def __init__(self, data: Iterable[int], embeds: list[discord.Embed]) -> None:
         self.data = data
         self.embeds = embeds
         super().__init__(data, per_page=1)
 
-    async def format_page(self, _, page):
+    async def format_page(self, _, page: int) -> discord.Embed:
         return self.embeds[page]
 
 
@@ -42,7 +42,7 @@ class TimeTable(db.Table, table_name='tz_store'):
 
 
 class TimezoneConverter(commands.Converter):
-    async def convert(self, ctx: Context, argument: str):
+    async def convert(self, ctx: Context, argument: str) -> zoneinfo.ZoneInfo:
         query = process.extract(query=argument.lower(), choices=zoneinfo.available_timezones(), limit=5)
         if argument.lower() not in {timezone.lower() for timezone in zoneinfo.available_timezones()}:
             result = await ctx.disambiguate(query, lambda t: t[0])
@@ -81,7 +81,7 @@ class Time(commands.Cog):
         if isinstance(error, commands.BadArgument):
             return await ctx.send(str(error))
 
-    def _gen_tz_embeds(self, requester: str, iterable: list):
+    def _gen_tz_embeds(self, requester: str, iterable: list[list[str]]) -> list[discord.Embed]:
         embeds = []
         for item in iterable:
             embed = discord.Embed(title='Timezone lists', colour=discord.Colour.green())
@@ -98,7 +98,7 @@ class Time(commands.Cog):
             return dt_obj
         return time.hf_time(dt_obj)
 
-    @commands.command(aliases=['tz'])
+    @commands.hybrid_group(name='timezone', aliases=['tz'])
     async def timezone(self, ctx: Context, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)):
         """This will return the time in a specified timezone."""
         embed = discord.Embed(
@@ -108,7 +108,7 @@ class Time(commands.Cog):
         embed.timestamp = datetime.utcnow()
         return await ctx.send(embed=embed)
 
-    @commands.command(aliases=['tzs'])
+    @commands.hybrid_command(aliases=['tzs'])
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def timezones(self, ctx):
         tz_list = [list(zoneinfo.available_timezones())[x : x + 15] for x in range(0, len(zoneinfo.available_timezones()), 15)]
@@ -116,10 +116,10 @@ class Time(commands.Cog):
         pages = RoboPages(source=TZMenuSource(range(0, 40), embeds), ctx=ctx)
         await pages.start()
 
-    @commands.group(name='time', invoke_without_command=True)
+    @commands.hybrid_command(name='now', invoke_without_command=True)
     @commands.guild_only()
-    async def _time(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
-        """Let's look at storing member's tz."""
+    async def _now(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
+        """Current time for a member."""
 
         if ctx.invoked_subcommand:
             pass
@@ -139,7 +139,7 @@ class Time(commands.Cog):
         embed.timestamp = discord.utils.utcnow()
         return await ctx.send(embed=embed)
 
-    @_time.command(name='set')
+    @timezone.command(name='set')
     @commands.guild_only()
     async def time_set(
         self, ctx: GuildContext, *, set_timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)
@@ -158,7 +158,7 @@ class Time(commands.Cog):
         await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], set_timezone.key)
         return await ctx.message.add_reaction(ctx.tick(True))
 
-    @_time.command(name='remove')
+    @timezone.command(name='remove')
     @commands.guild_only()
     async def time_remove(self, ctx):
         """Remove your timezone from this guild."""
@@ -178,7 +178,7 @@ class Time(commands.Cog):
         await self.bot.pool.execute(query, ctx.author.id, ctx.guild.id)
         return await ctx.message.add_reaction(ctx.tick(True))
 
-    @_time.command(name='clear')
+    @timezone.command(name='clear')
     async def time_clear(self, ctx):
         """Clears your timezones from all guilds."""
         query = 'DELETE FROM tz_store WHERE user_id = $1;'
