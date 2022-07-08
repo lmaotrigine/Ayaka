@@ -143,7 +143,7 @@ class SpoilerCooldown(commands.CooldownMapping):
     def _bucket_key(self, tup):
         return tup
 
-    def is_rate_llimited(self, message_id, user_id):
+    def is_rate_limited(self, message_id, user_id):
         bucket = self.get_bucket((message_id, user_id))  # type: ignore
         return bucket.update_rate_limit() is not None  # type: ignore
 
@@ -705,7 +705,7 @@ class Fun(commands.Cog):
         if payload.emoji.id != SPOILER_EMOJI_ID:
             return
 
-        if self._spoiler_cooldown.is_rate_llimited(payload.message_id, payload.user_id):
+        if self._spoiler_cooldown.is_rate_limited(payload.message_id, payload.user_id):
             return
 
         user = self.bot.get_user(payload.user_id) or (await self.bot.fetch_user(payload.user_id))

@@ -55,7 +55,7 @@ class Time(commands.Cog):
 
     def __init__(self, bot: Ayaka):
         self.bot = bot
-        self.ctx_menu = discord.app_commands.ContextMenu(name='Current time', callback=self.now_ctx_menu)
+        self.ctx_menu = discord.app_commands.ContextMenu(name='Get Current Time', callback=self.now_ctx_menu)
         self.bot.tree.add_command(self.ctx_menu, override=True)
     
     async def cog_unload(self) -> None:
