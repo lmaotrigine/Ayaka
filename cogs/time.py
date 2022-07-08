@@ -144,12 +144,20 @@ class Time(commands.Cog):
     @commands.guild_only()
     async def _now(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
         """Current time for a member."""
-        embed = await self.get_time_for(member)
+        try:
+            embed = await self.get_time_for(member)
+        except commands.BadArgument as e:
+            await ctx.send(str(e))
+            return
         return await ctx.send(embed=embed)
     
     @app_commands.guild_only()
     async def now_ctx_menu(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        embed = await self.get_time_for(member)
+        try:
+            embed = await self.get_time_for(member)
+        except commands.BadArgument as e:
+            await interaction.response.send_message(str(e), ephemeral=True)
+            return
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @timezone.command(name='set')
