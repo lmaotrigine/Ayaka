@@ -123,17 +123,21 @@ class Time(commands.Cog):
         await pages.start()
         
     async def get_time_for(self, member: discord.Member) -> discord.Embed:
-        query = """SELECT *
-                   FROM tz_store
-                   WHERE user_id = $1
-                   AND $2 = ANY(guild_ids)
-                """
-        result = await self.bot.pool.fetchrow(query, member.id, member.guild.id)
-        if not result:
-            raise commands.BadArgument(f"No timezone for {member} set or it's not public in this guild.")
-        member_timezone = result['tz']
-        query = process.extract(query=member_timezone.lower(), choices=zoneinfo.available_timezones(), limit=5)
-        tz = zoneinfo.ZoneInfo(query[0][0])
+        if member.id == self.bot.user.id:
+            tz = zoneinfo.ZoneInfo('UTC')
+            member_timezone = 'UTC'
+        else:
+            query = """SELECT *
+                       FROM tz_store
+                       WHERE user_id = $1
+                       AND $2 = ANY(guild_ids)
+                    """
+            result = await self.bot.pool.fetchrow(query, member.id, member.guild.id)
+            if not result:
+                raise commands.BadArgument(f"No timezone for {member} set or it's not public in this guild.")
+            member_timezone = result['tz']
+            query = process.extract(query=member_timezone.lower(), choices=zoneinfo.available_timezones(), limit=5)
+            tz = zoneinfo.ZoneInfo(query[0][0])
         current_time = self._curr_tz_time(tz, ret_datetime=False)
         embed = discord.Embed(title=f'Time for {member}', description=f'```\n{current_time}\n```')
         embed.set_footer(text=member_timezone)
