@@ -169,7 +169,7 @@ class Time(commands.Cog):
         if not confirm:
             return
         await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], timezone.key)
-        return await ctx.message.add_reaction(ctx.tick(True))
+        return await ctx.send(ctx.tick(True), ephemeral=True)
     
     @time_set.autocomplete(name='timezone')
     async def timezone_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -178,7 +178,7 @@ class Time(commands.Cog):
 
     @timezone.command(name='remove')
     @commands.guild_only()
-    async def time_remove(self, ctx):
+    async def time_remove(self, ctx: GuildContext):
         """Remove your timezone from this guild."""
         query = """WITH corrected AS (
                        SELECT user_id, array_agg(guild_id) new_guild_ids
@@ -194,17 +194,17 @@ class Time(commands.Cog):
                    AND tz_store.user_id = corrected.user_id;
                 """
         await self.bot.pool.execute(query, ctx.author.id, ctx.guild.id)
-        return await ctx.message.add_reaction(ctx.tick(True))
+        return await ctx.send(ctx.tick(True), ephemeral=True)
 
     @timezone.command(name='clear')
-    async def time_clear(self, ctx):
+    async def time_clear(self, ctx: GuildContext):
         """Clears your timezones from all guilds."""
         query = 'DELETE FROM tz_store WHERE user_id = $1;'
         confirm = await ctx.prompt('Are you sure you wish to purge your timezone from all guilds?')
         if not confirm:
             return
         await self.bot.pool.execute(query, ctx.author.id)
-        return await ctx.message.add_reaction(ctx.tick(True))
+        return await ctx.send(ctx.tick(True), ephemeral=True)
 
     async def _time_error(self, ctx: Context, error):
         error = getattr(error, 'original', error)
