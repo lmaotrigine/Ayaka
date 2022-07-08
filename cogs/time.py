@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Iterable
 
 import discord
+from discord import app_commands
 from discord.ext import commands, menus
 from fuzzywuzzy import process
 
@@ -55,7 +56,7 @@ class Time(commands.Cog):
 
     def __init__(self, bot: Ayaka):
         self.bot = bot
-        self.ctx_menu = discord.app_commands.ContextMenu(name='Get Current Time', callback=self.now_ctx_menu)
+        self.ctx_menu = app_commands.ContextMenu(name='Get Current Time', callback=self.now_ctx_menu)
         self.bot.tree.add_command(self.ctx_menu, override=True)
     
     async def cog_unload(self) -> None:
@@ -146,7 +147,7 @@ class Time(commands.Cog):
         embed = await self.get_time_for(member)
         return await ctx.send(embed=embed)
     
-    @discord.app_commands.guild_only()
+    @app_commands.guild_only()
     async def now_ctx_menu(self, interaction: discord.Interaction, member: discord.Member) -> None:
         embed = await self.get_time_for(member)
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -154,7 +155,7 @@ class Time(commands.Cog):
     @timezone.command(name='set')
     @commands.guild_only()
     async def time_set(
-        self, ctx: GuildContext, *, set_timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)
+        self, ctx: GuildContext, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)
     ):
         """Add your timezone, with a warning about public info."""
 
@@ -167,8 +168,13 @@ class Time(commands.Cog):
         confirm = await ctx.prompt('This will make your timezone public in this guild. confirm?', reacquire=False)
         if not confirm:
             return
-        await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], set_timezone.key)
+        await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], timezone.key)
         return await ctx.message.add_reaction(ctx.tick(True))
+    
+    @time_set.autocomplete(name='timezone')
+    async def timezone_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        tzs = {x.lower() for x in zoneinfo.available_timezones()}
+        return [app_commands.Choice(name=c, value=c) for c in tzs if current in c][:25]
 
     @timezone.command(name='remove')
     @commands.guild_only()
