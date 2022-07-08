@@ -145,7 +145,7 @@ class SpoilerCooldown(commands.CooldownMapping):
 
     def is_rate_llimited(self, message_id, user_id):
         bucket = self.get_bucket((message_id, user_id))  # type: ignore
-        return bucket.update_rate_limit() is not None
+        return bucket.update_rate_limit() is not None  # type: ignore
 
 
 @app_commands.context_menu(name='View Pronouns')

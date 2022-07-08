@@ -55,6 +55,11 @@ class Time(commands.Cog):
 
     def __init__(self, bot: Ayaka):
         self.bot = bot
+        self.ctx_menu = discord.app_commands.ContextMenu(name='Current time', callback=self.now_ctx_menu)
+        self.bot.tree.add_command(self.ctx_menu, override=True)
+    
+    async def cog_unload(self) -> None:
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -115,29 +120,36 @@ class Time(commands.Cog):
         embeds = self._gen_tz_embeds(str(ctx.author), tz_list)
         pages = RoboPages(source=TZMenuSource(range(0, 40), embeds), ctx=ctx)
         await pages.start()
-
-    @commands.hybrid_command(name='now', invoke_without_command=True)
-    @commands.guild_only()
-    async def _now(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
-        """Current time for a member."""
-
-        if ctx.invoked_subcommand:
-            pass
+        
+    async def get_time_for(self, member: discord.Member) -> discord.Embed:
         query = """SELECT *
                    FROM tz_store
                    WHERE user_id = $1
                    AND $2 = ANY(guild_ids)
                 """
-        result = await self.bot.pool.fetchrow(query, member.id, ctx.guild.id)
+        result = await self.bot.pool.fetchrow(query, member.id, member.guild.id)
         if not result:
-            return await ctx.send(f"No timezone for {member} set or it's not public in this guild.")
+            raise commands.BadArgument(f"No timezone for {member} set or it's not public in this guild.")
         member_timezone = result['tz']
-        tz = await TimezoneConverter().convert(ctx, member_timezone)
+        query = process.extract(query=member_timezone.lower(), choices=zoneinfo.available_timezones(), limit=5)
+        tz = zoneinfo.ZoneInfo(query[0][0])
         current_time = self._curr_tz_time(tz, ret_datetime=False)
         embed = discord.Embed(title=f'Time for {member}', description=f'```\n{current_time}\n```')
         embed.set_footer(text=member_timezone)
         embed.timestamp = discord.utils.utcnow()
+        return embed
+
+    @commands.hybrid_command(name='now', invoke_without_command=True)
+    @commands.guild_only()
+    async def _now(self, ctx: GuildContext, *, member: discord.Member = commands.Author):
+        """Current time for a member."""
+        embed = await self.get_time_for(member)
         return await ctx.send(embed=embed)
+    
+    @discord.app_commands.guild_only()
+    async def now_ctx_menu(self, interaction: discord.Interaction, member: discord.Member) -> None:
+        embed = await self.get_time_for(member)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @timezone.command(name='set')
     @commands.guild_only()
