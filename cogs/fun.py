@@ -839,3 +839,7 @@ class Fun(commands.Cog):
 async def setup(bot: Ayaka):
     await bot.add_cog(Fun(bot))
     bot.tree.add_command(get_pronouns, override=True)
+
+
+async def teardown(bot: Ayaka) -> None:
+    bot.tree.remove_command(get_pronouns.name, type=get_pronouns.type)

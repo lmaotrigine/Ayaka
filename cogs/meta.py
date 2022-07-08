@@ -900,3 +900,7 @@ async def raw_message(interaction: discord.Interaction, message: discord.Message
 async def setup(bot: Ayaka):
     await bot.add_cog(Meta(bot))
     bot.tree.add_command(raw_message)
+
+
+async def teardown(bot: Ayaka):
+    bot.tree.remove_command(raw_message.name, type=raw_message.type)
