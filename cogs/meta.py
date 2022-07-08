@@ -16,13 +16,12 @@ import pathlib
 import textwrap
 import unicodedata
 from collections import Counter, defaultdict
-from io import BytesIO
 from typing import TYPE_CHECKING, Any, Iterator
+from urllib.parse import urlencode
 
 import discord
 from discord import app_commands
 from discord.ext import commands, menus
-from PIL import Image
 
 from utils import checks, formats, time
 from utils._types import MessageableGuildChannel
@@ -846,7 +845,6 @@ class Meta(commands.Cog):
             new_colour = discord.Colour.random()
         else:
             new_colour = await commands.ColourConverter().convert(ctx, colour)
-        im = Image.new('RGB', (128, 128), new_colour.to_rgb())
         hsv = colorsys.rgb_to_hsv(*map(lambda x: x / 255, new_colour.to_rgb()))
         hsv = f'{hsv[0] * 360:.0f}°, {hsv[1] * 100:.0f}%, {hsv[2] * 100:.0f}%'
         hls = colorsys.rgb_to_hls(*map(lambda x: x / 255, new_colour.to_rgb()))
@@ -880,11 +878,8 @@ class Meta(commands.Cog):
         embed.add_field(name='HSV:', value=hsv + '\u2000\u2000')
         embed.add_field(name='HSL:', value=hsl + '\u2000\u2000')
         embed.add_field(name='CMYK:', value=cmyk)
-        embed.set_image(url='attachment://colour.png')
-        fp = BytesIO()
-        im.save(fp, 'png')
-        fp.seek(0)
-        await ctx.send(embed=embed, file=discord.File(fp, 'colour.png'))
+        embed.set_image(url='https://api.5ht2.me/colour?' + urlencode({'colour': str(new_colour)}))
+        await ctx.send(embed=embed)
 
 
 @app_commands.context_menu(name='Raw Message')
