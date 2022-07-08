@@ -172,9 +172,8 @@ class Time(commands.Cog):
         return await ctx.send(ctx.tick(True), ephemeral=True)
     
     @time_set.autocomplete(name='timezone')
-    async def timezone_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        tzs = {x.lower() for x in zoneinfo.available_timezones()}
-        return [app_commands.Choice(name=c, value=c) for c in tzs if current in c][:25]
+    async def timezone_autocomplete(self, _: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        return [app_commands.Choice(name=c, value=c) for c in zoneinfo.available_timezones() if current.lower() in c.lower()][:25]
 
     @timezone.command(name='remove')
     @commands.guild_only()
