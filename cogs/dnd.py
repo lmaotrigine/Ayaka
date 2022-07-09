@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import json
 import pathlib
-import random
 import re
 from typing import TYPE_CHECKING
 
+import dice_parser
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+from utils.dice import PersistentRollContext, string_search_adv, VerboseMDStringifier
 
 
 if TYPE_CHECKING:
@@ -24,40 +26,6 @@ if TYPE_CHECKING:
 
 
 CLASS_PATH = pathlib.Path(__file__).parent.parent / '5e.tools' / 'class'
-DICE_RE = re.compile(r'(?P<rolls>[0-9]+)d(?P<die>[0-9]+)(?P<mod>[\+\-][0-9]+)?')
-
-
-class Roll:
-    def __init__(self, *, die: int, rolls: int, mod: int | None = None) -> None:
-        self.die = die
-        self.rolls = rolls
-        self.mod = mod
-
-    def __str__(self) -> str:
-        fmt = f'{self.rolls}d{self.die}'
-        if self.mod is not None:
-            fmt += f'{self.mod:+}'
-        return fmt
-
-    def __repr__(self) -> str:
-        return f'<Roll die={self.die} rolls={self.rolls} mod={self.mod:+}>'
-
-
-class DiceRoll(commands.Converter[Roll]):
-    async def convert(self, _: Context, argument: str) -> list[Roll]:
-        search: list[tuple[str, str, str]] = DICE_RE.findall(argument)
-        if not search:
-            raise commands.BadArgument("Dice roll doesn't seem valid, please use it in the format of `2d20` or `2d20+8`")
-        ret: list[Roll] = []
-        for match in search:
-            rolls: int = int(match[0])
-            die: int = int(match[1])
-            if match[2]:
-                mod = int(match[2])
-            else:
-                mod = None
-            ret.append(Roll(die=die, rolls=rolls, mod=mod))
-        return ret
 
 
 class DnD(commands.GroupCog, name='dnd'):
@@ -103,46 +71,137 @@ class DnD(commands.GroupCog, name='dnd'):
         self,
         ctx: Context,
         *,
-        dice: list[Roll] = commands.param(converter=DiceRoll, default=None, displayed_default='1d20+0'),
+        dice: str = '1d20',
     ) -> None:
-        """Roll DnD dice!
-
-        Rolls a DnD die in the format of `1d10+0`, this includes `+` or `-` modifiers.
-
-        Examples:
-            `1d10+2`
-            `2d8-12`
-
-        You can also roll multiple dice at once, in the format of `2d10+2 1d12`.
+        """Roll any combination of dice in the `XdY` format. (`1d6`, `2d8`, etc)
+        
+        Multiple rolls can be added together as an equation.
+        Standard mathematical operators and parentheses can be used: `() + - / *`
+        
+        This command also accepts `adv` and `dis` for Advantage and Disadvantage.
+        Rolls can be tagged with `[text]` for informational purposes.
+        Any text after the roll will assign  the name of the roll.
+        
+        __Examples__
+        `roll` or `roll 1d20` - Roll a single d20, just like at the table
+        `roll 1d20+4` - A skill check or attack roll
+        `roll 1d8+2+1d6` - Longbow damage with Hunter's Mark
+        
+        `roll 1d20+1 adv` - A skill check or attack roll with Advantage
+        `roll 1d20-3 dis` - A skill check or attack roll with Disadvantage
+        
+        `roll (1d8+4)*2` - Warhammer damage against bludgeoning vulnerability
+        
+        `roll 1d10[cold]+2d6[piercing] Ice Knife` - The Ice Knife Spell does cold and piercing damage
+        
+        **Advanced Options**
+        __Operators__
+        Operators are always followed by a selector, and operate on the items in the set that match the selector.
+        A set can be made of single or multiple entries i.e., `1d20` or `(1d6,1d8,1d10)`.
+        
+        These operations work on dice and sets of numbers
+        `k` - keep - keeps all matched values.
+        `p` - drop - drops all matched values.
+        
+        These operations only work on dice rolls.
+        `rr` - reroll - Rerolls all matched die values until none match.
+        `ro` - reroll once - Rerolls all matched die values once.
+        `ra` - reroll and add - Rerolls up to one matched value once, add to the roll.
+        `mi` - minimum - Sets the minimum value of each die.
+        `ma` - maximum - Sets the maximum value of each die.
+        `e` - explode on - Rolls an additional die for each matched value. Exploded dice can explode.
+        
+        __Selectors__
+        Selectors select from the remaining kept values in a set.
+        `X`  | literal X
+        `lX` | lowest X
+        `hX` | highest X
+        `>X` | greater than X
+        `<X` | less than X
+        
+        __Examples__
+        `roll 2d20kh1+4` - Advantage roll, using Keep Highest format
+        `roll 2d20kl1-2` - Disadvantage roll, using Keep Lowest format
+        `roll 4d6mi2[fire]` - Elemental Adept, Fire
+        `roll 10d6ra6` - Wild Magic Sorcerer Spell Bombardment
+        `roll 4d6ro<3` - Great Weapon Fighting
+        `roll 2d6e6` - Explode on 6
+        `roll (1d6,1d8,1d10)kh2` - Keep 2 highest rolls of a set of dice
+        
+        **Additional information can be found at:**
+        https://github.com/lmaotrigine/dice-parser/blob/main/README.md#dice-syntax
         """
-        dice = dice or [Roll(die=20, rolls=1)]
-        if len(dice) > 25:
-            await ctx.send('No more than 25 dice per invoke, please.')
+        
+        if dice == '0/0':
+            await ctx.send('What do you expect me to do, destroy the universe?')
             return
-
-        embed = discord.Embed(title='Rolls', colour=discord.Colour.random())
-
-        for die in dice:
-            _choices: list[int] = []
-            for _ in range(die.rolls):
-                _choices.append(random.randint(1, die.die))
-            _current_total: int = sum(_choices)
-            fmt = ''
-            for i, amount in enumerate(_choices, 1):
-                fmt += f'Roll {i}: {amount}'
-            fmt += f'\nTotal: {_current_total}'
-            if die.mod:
-                _current_total += die.mod
-                fmt += f'\nTotal incl mod: {abs(_current_total)}'
-            embed.add_field(name=f'{die}', value=f'```prolog\n{fmt}\n```')
-            _current_total = 0
-        embed.set_footer(text=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
-        await ctx.send(embed=embed)
-
+        dice, adv = string_search_adv(dice)
+        res = dice_parser.roll(dice, advantage=adv, allow_comments=True, stringifier=VerboseMDStringifier())
+        embed = discord.Embed(colour=discord.Colour.random())
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+        out = f':game_die:\n{res}'
+        if len(out) > 3999:
+            out = f':game_die:\n{str(res)[:400]}...\n**Total**: {res.total}'
+        embed.description = out
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions(users=[ctx.author]))
+    
+    @commands.hybrid_command(name='multiroll', aliases=['rr'])
+    async def rr(self, ctx: Context, iterations: int, *, dice: str) -> None:
+        """Rolls dice in xdy format a given number of times."""
+        dice, adv = string_search_adv(dice)
+        await self._roll_many(ctx, iterations, dice, adv=adv)
+    
+    @commands.hybrid_command(name='iterroll', aliases=['rrr'])
+    async def rrr(self, ctx: Context, iterations: int, dice: str, dc: int | None = None, *, args: str = '') -> None:
+        """Rolls dice in xdy format, given a set DC."""
+        _, adv = string_search_adv(args)
+        await self._roll_many(ctx, iterations, dice, dc, adv)
+        
+    @staticmethod
+    async def _roll_many(ctx: Context, iteratons: int, roll_str: str, dc: int | None = None, adv: dice_parser.AdvType | None = None) -> None:
+        if iteratons < 1 or iteratons > 100:
+            await ctx.send('Too many or too few iterations.')
+            return
+        if adv is None:
+            adv = dice_parser.AdvType.NONE
+        results = []
+        successes = 0
+        ast = dice_parser.parse(roll_str, allow_comments=True)
+        roller = dice_parser.Roller(context=PersistentRollContext())
+        
+        for _ in range(iteratons):
+            res = roller.roll(ast, advantage=adv)
+            if dc is not None and res.total >= dc:
+                successes += 1
+            results.append(res)
+        
+        if dc is None:
+            header = f'Rolling {iteratons} iterations...'
+            footer = f'{sum(o.total for o in results)} total.'
+        else:
+            header = f'Rolling {iteratons} iterations, DC {dc}...'
+            footer = f'{successes} successes, {sum(o.total for o in results)} total.'
+        if ast.comment:
+            header = f'{ast.comment}: {header}'
+        
+        result_strs = '\n'.join(str(o) for o in results)
+        embed = discord.Embed(colour=discord.Colour.random())
+        embed.title = header
+        embed.set_footer(text=footer)
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+        out = result_strs
+        if len(out) > 3500:
+            one_result = str(results[0])
+            out = f'{one_result}\n[{len(results) - 1} results omitted for output size.]'
+        embed.description = out
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions(users=[ctx.author]))
+    
     @roll.error
+    @rr.error
+    @rrr.error
     async def roll_error(self, ctx: Context, error: BaseException) -> None:
         error = getattr(error, 'original', error)
-        if isinstance(error, commands.BadArgument):
+        if isinstance(error, dice_parser.RollError):
             await ctx.send(str(error), delete_after=5)
             return
 
