@@ -346,7 +346,7 @@ lark = "^1.1.2"
 type = "git"
 url = "https://github.com/lmaotrigine/dice-parser"
 reference = "HEAD"
-resolved_reference = "fb6ddeaabfd68b570351ed711b58238eb474a763"
+resolved_reference = "a4a7c87cb79ab6b6f371689e90590068415beb8e"
 
 [[package]]
 name = "discord-ext-menus"
