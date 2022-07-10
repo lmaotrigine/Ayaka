@@ -333,7 +333,7 @@ dev = ["tox", "bump2version (<1)", "sphinx (<2)", "importlib-metadata (<3)", "im
 [[package]]
 name = "dice-parser"
 version = "0.1.0"
-description = "A pretty versaitle dice parser"
+description = "A pretty versatile dice parser"
 category = "main"
 optional = false
 python-versions = "^3.10"
@@ -342,11 +342,14 @@ develop = false
 [package.dependencies]
 lark = "^1.1.2"
 
+[package.extras]
+test = ["pytest (>=7.1.2,<8.0.0)", "pytest-cov (>=3.0.0,<4.0.0)"]
+
 [package.source]
 type = "git"
 url = "https://github.com/lmaotrigine/dice-parser"
 reference = "HEAD"
-resolved_reference = "a4a7c87cb79ab6b6f371689e90590068415beb8e"
+resolved_reference = "8628055a2acdbd0c65da4d9f14b49a27b6206621"
 
 [[package]]
 name = "discord-ext-menus"
@@ -393,7 +396,7 @@ voice = ["PyNaCl (>=1.3.0,<1.6)"]
 type = "git"
 url = "https://github.com/Rapptz/discord.py"
 reference = "master"
-resolved_reference = "a8a6bf4f6c9d6cb71a23bf2079c410aeb1407a8b"
+resolved_reference = "1aaa32d4bced65d346f0634984c95a707bf0c00b"
 
 [[package]]
 name = "feedparser"
