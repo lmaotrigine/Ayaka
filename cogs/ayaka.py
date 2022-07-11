@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from cogs.stats import Stats
 
 
-class AyakaCore(commands.Cog, name='Ayaka'):
+class AyakaCore(commands.Cog, name='Ayaka', command_attrs=dict(hidden=True)):
     """Ayaka specific commands."""
 
     def __init__(self, bot: Ayaka):
@@ -122,7 +122,7 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         )
         embed.add_field(
             name='Body',
-            value=to_codeblock(body.content, language=body.language, escape_md=False),
+            value=to_codeblock(body.content, language=body.language or '', escape_md=False),
         )
 
         await ctx.send(embed=embed)

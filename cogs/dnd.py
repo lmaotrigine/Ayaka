@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 CLASS_PATH = pathlib.Path(__file__).parent.parent / '5e.tools' / 'class'
 
 
-class DnD(commands.GroupCog, name='dnd'):
+class DnD(commands.GroupCog, name='dnd', command_attrs=dict(hidden=True)):
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
         self._classes: list[str] = discord.utils.MISSING

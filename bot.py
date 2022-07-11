@@ -52,6 +52,7 @@ EXTENSIONS = (
     'cogs.anime',
     'cogs.ayaka',
     'cogs.config',
+    'cogs.dnd',
     'cogs.emoji',
     'cogs.feeds',
     'cogs.fun',
