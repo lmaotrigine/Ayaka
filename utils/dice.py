@@ -17,8 +17,8 @@ def string_search_adv(dice_str: str) -> tuple[str, dice_parser.AdvType]:
 
 
 class VerboseMDStringifier(dice_parser.MarkdownStringifier):
-    def _str_expression(self, node: dice_parser.Expression) -> str:
-        return f'**{node.comment or "Result"}**: {self._stringify(node.roll)}\n**Total**: {int(node.total)}'
+    def str_expression(self, node: dice_parser.Expression) -> str:
+        return f'**{node.comment or "Result"}**: {self.stringify_node(node.roll)}\n**Total**: {int(node.total)}'
 
 
 class PersistentRollContext(dice_parser.RollContext):
@@ -35,30 +35,30 @@ class PersistentRollContext(dice_parser.RollContext):
 
 
 class RerollableStringifier(dice_parser.SimpleStringifier):
-    def _stringify(self, node: dice_parser.Number) -> str | None:
+    def stringify_node(self, node: dice_parser.Number) -> str | None:
         if not node.kept:
             return None
-        return super()._stringify(node)
+        return super().stringify_node(node)
     
-    def _str_expression(self, node: dice_parser.Expression) -> str | None:
-        return self._stringify(node.roll)
+    def str_expression(self, node: dice_parser.Expression) -> str | None:
+        return self.stringify_node(node.roll)
     
-    def _str_literal(self, node: dice_parser.Literal) -> str:
+    def str_literal(self, node: dice_parser.Literal) -> str:
         return str(node.total)
     
-    def _str_parenthetical(self, node: dice_parser.Parenthetical) -> str:
-        return f'({self._stringify(node.value)})'
+    def str_parenthetical(self, node: dice_parser.Parenthetical) -> str:
+        return f'({self.stringify_node(node.value)})'
     
-    def _str_set(self, node: dice_parser.Set) -> str:
-        out = ', '.join([self._stringify(v) for v in node.values if v.kept])  # type: ignore
+    def str_set(self, node: dice_parser.Set) -> str:
+        out = ', '.join([self.stringify_node(v) for v in node.values if v.kept])  # type: ignore
         if len(node.values) == 1:
             return f'({out},)'
         return f'({out})'
     
-    def _str_dice(self, node: dice_parser.Dice) -> str:
-        return self._str_set(node)
+    def str_dice(self, node: dice_parser.Dice) -> str:
+        return self.str_set(node)
     
-    def _str_die(self, node: dice_parser.Die) -> str:
+    def str_die(self, node: dice_parser.Die) -> str:
         return str(node.total)
 
 

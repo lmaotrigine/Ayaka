@@ -46,7 +46,10 @@ class TimezoneConverter(commands.Converter):
     async def convert(self, ctx: Context, argument: str) -> zoneinfo.ZoneInfo:
         query = process.extract(query=argument.lower(), choices=zoneinfo.available_timezones(), limit=5)
         if argument.lower() not in {timezone.lower() for timezone in zoneinfo.available_timezones()}:
-            result = await ctx.disambiguate(query, lambda t: t[0])
+            try:
+                result = await ctx.disambiguate(query, lambda t: t[0])
+            except ValueError as e:
+                raise commands.BadArgument(str(e))
             return zoneinfo.ZoneInfo(result[0])
         return zoneinfo.ZoneInfo(query[0][0])
 
