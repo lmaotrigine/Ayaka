@@ -7,7 +7,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 import zoneinfo
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Iterable
 
 import discord
@@ -125,7 +125,6 @@ class Time(commands.Cog):
     async def get_time_for(self, member: discord.Member) -> discord.Embed:
         if member.id == self.bot.user.id:
             tz = zoneinfo.ZoneInfo('UTC')
-            member_timezone = 'UTC'
         else:
             query = """SELECT *
                        FROM tz_store
@@ -138,9 +137,13 @@ class Time(commands.Cog):
             member_timezone = result['tz']
             query = process.extract(query=member_timezone.lower(), choices=zoneinfo.available_timezones(), limit=5)
             tz = zoneinfo.ZoneInfo(query[0][0])
+        
         current_time = self._curr_tz_time(tz, ret_datetime=False)
         embed = discord.Embed(title=f'Time for {member}', description=f'```\n{current_time}\n```')
-        embed.set_footer(text=member_timezone)
+        delta: timedelta = tz.utcoffset(discord.utils.utcnow())  # type: ignore # this is literally a timezone
+        seconds = int(delta.total_seconds())
+        utc_offset = f'UTC{seconds // 3600:+03}:{abs(seconds) // 60 % 60:02}'
+        embed.set_footer(text=f'{tz} ({utc_offset})')
         embed.timestamp = discord.utils.utcnow()
         return embed
 
