@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from cogs.stats import Stats
 
 
-class AyakaCore(commands.Cog, name='Ayaka', command_attrs=dict(hidden=True)):
+class AyakaCore(commands.Cog, name='Ayaka'):
     """Ayaka specific commands."""
 
     def __init__(self, bot: Ayaka):
