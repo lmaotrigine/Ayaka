@@ -31,7 +31,7 @@ from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
 
 from utils import checks, db
-from utils._types import MessageableGuildChannel
+from utils._types.discord_ import MessageableGuildChannel
 
 
 if TYPE_CHECKING:

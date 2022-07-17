@@ -21,7 +21,7 @@ from utils.dice import PersistentRollContext, string_search_adv, VerboseMDString
 
 if TYPE_CHECKING:
     from bot import Ayaka
-    from utils._types import DndClassTopLevel
+    from utils._types.dnd import DndClassTopLevel
     from utils.context import Context
 
 

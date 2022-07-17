@@ -29,7 +29,7 @@ from lru import LRU
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from utils import checks, languages
-from utils._types import MessageableGuildChannel
+from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.converters import RedditMediaURL
 from utils.formats import plural

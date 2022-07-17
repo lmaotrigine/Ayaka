@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from bot import Ayaka
-    from utils._types import JishoWordsResponse, KanjiDevKanjiPayload, KanjiDevWordsPayload, _JishoJapanesePayload
+    from utils._types.nihongo import JishoWordsResponse, KanjiDevKanjiPayload, KanjiDevWordsPayload, _JishoJapanesePayload
 
 BASE_URL = 'https://kanjiapi.dev/v1'
 HIRAGANA = 'あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわを'

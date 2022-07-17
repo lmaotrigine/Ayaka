@@ -24,7 +24,7 @@ from discord import app_commands
 from discord.ext import commands, menus
 
 from utils import checks, formats, time
-from utils._types import MessageableGuildChannel
+from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.paginator import RoboPages
 
