@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import weakref
+from collections import deque
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 from urllib.parse import quote
 
@@ -32,9 +33,12 @@ class Route:
     
     BASE: ClassVar[str] = 'https://discord.com/api/v10'
     
-    def __init__(self, method: str, path: str, token: str, **parameters: Any) -> None:
+    def __init__(self, method: str, path: str, token: str, *, metadata: str | None = None, **parameters: Any) -> None:
         self.method: str = method
         self.path: str = path
+        # Metadata is a special string used to differentiate between known sub ratelimits
+        # Since these can't be handled generically, this is the next best way to do so
+        self.metadata: str | None = metadata
         self.token: str = token
         url = self.BASE + self.path
         if parameters:
@@ -46,24 +50,121 @@ class Route:
         self.webhook_token: str | None = parameters.get('webhook_token')
     
     @property
-    def bucket(self) -> str:
-        return f'{self.channel_id}:{self.guild_id}:{self.path}'
-
-
-class MaybeUnlock:
-    def __init__(self, lock: asyncio.Lock) -> None:
-        self.lock: asyncio.Lock = lock
-        self._unlock: bool = True
+    def key(self) -> str:
+        if self.metadata:
+            return f'{self.method} {self.path}:{self.metadata}'
+        return f'{self.method} {self.path}'
     
-    def __enter__(self) -> Self:
+    @property
+    def major_parameters(self) -> str:
+        return '+'.join(str(k) for k in (self.channel_id, self.guild_id, self.webhook_id, self.webhook_token) if k is not None)
+
+
+class Ratelimit:
+    def __init__(self) -> None:
+        self.limit: int = 1
+        self.remaining: int = self.limit
+        self.outgoing: int = 0
+        self.reset_after: float = 0.0
+        self.expires: float | None = None
+        self.dirty: bool = False
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        self._pending_requests: deque[asyncio.Future[Any]] = deque()
+        # Only a single rate limit object should be sleeping at a time.
+        # The object that is sleeping is ultimately responsible for freeing the semaphore
+        # for the requests currently pending.
+        self._sleeping: asyncio.Lock = asyncio.Lock()
+    
+    def __repr__(self) -> str:
+        return f'<RateLimitBucket limit={self.limit} remaining={self.remaining} pending_requests={len(self._pending_requests)}>'
+    
+    def reset(self) -> None:
+        self.remaining = self.limit - self.outgoing
+        self.expires = None
+        self.reset_after = 0.0
+        self.dirty = False
+    
+    def update(self, response: aiohttp.ClientResponse, *, use_clock: bool = False) -> None:
+        headers = response.headers
+        self.limit = int(headers.get('X-Ratelimit-Limit', 1))
+        
+        if self.dirty:
+            self.remaining = min(int(headers.get('X-Ratelimit-Remaining', 0)), self.limit - self.outgoing)
+        else:
+            self.remaining = int(headers.get('X-Ratelimit-Remaining', 0))
+            self.dirty = True
+        
+        reset_after = headers.get('X-Ratelimit-Reset-After')
+        if use_clock or not reset_after:
+            utc = datetime.timezone.utc
+            now = datetime.datetime.now(utc)
+            reset = datetime.datetime.fromtimestamp(float(headers['X-Ratelimit-Reset']), utc)
+            self.reset_after = (reset - now).total_seconds()
+        else:
+            self.reset_after = float(reset_after)
+        
+        self.expires = self._loop.time() + self.reset_after
+    
+    def _wake_next(self) -> None:
+        while self._pending_requests:
+            future = self._pending_requests.popleft()
+            if not future.done():
+                future.set_result(None)
+                break
+    
+    def _wake(self, count: int = 1) -> None:
+        awaken = 0
+        while self._pending_requests:
+            future = self._pending_requests.popleft()
+            if not future.done():
+                future.set_result(None)
+                self._has_just_awaken = True
+                awaken += 1
+            
+            if awaken >= count:
+                break
+    
+    async def _refresh(self) -> None:
+        async with self._sleeping:
+            await asyncio.sleep(self.reset_after)
+        self.reset()
+        self._wake(self.remaining)
+    
+    def is_expired(self) -> bool:
+        return self.expires is not None and self._loop.time() > self.expires
+    
+    async def acquire(self) -> None:
+        if self.is_expired():
+            self.reset()
+        
+        while self.remaining <= 0:
+            future = self._loop.create_future()
+            self._pending_requests.append(future)
+            try:
+                await future
+            except:
+                future.cancel()
+                if self.remaining > 0 and not future.cancelled():
+                    self._wake_next()
+                raise
+        
+        self.remaining -= 1
+        self.outgoing += 1
+    
+    async def __aenter__(self) -> Self:
+        await self.acquire()
         return self
     
-    def defer(self) -> None:
-        self._unlock = False
-        
-    def __exit__(self, exc_type: type[BE] | None, exc: BE | None, traceback: TracebackType) -> None:
-        if self._unlock:
-            self.lock.release()
+    async def __aexit__(self, type: type[BE], value: BE, traceback: TracebackType) -> None:
+        self.outgoing -= 1
+        tokens = self.remaining - self.outgoing
+        # Check whether the rate limit needs to be preemptively slept on
+        # Note that this is a Lock to prevent multiple rate limit objects from sleeping at once
+        if not self._sleeping.locked():
+            if tokens <= 0:
+                await self._refresh()
+            elif self._pending_requests:
+                self._wake(tokens)
 
 
 async def json_or_text(response: aiohttp.ClientResponse) -> dict[str, Any] | str:
@@ -77,33 +178,39 @@ async def json_or_text(response: aiohttp.ClientResponse) -> dict[str, Any] | str
     return text
 
 
-def _parse_ratelimit_header(request: Any, *, use_clock: bool = False) -> float:
-    reset_after: str | None = request.headers.get('X-Ratelimit-Reset-After')
-    if use_clock or not reset_after:
-        utc = datetime.timezone.utc
-        now = datetime.datetime.now(utc)
-        reset = datetime.datetime.fromtimestamp(float(request.headers['X-Ratelimit-Reset']), utc)
-        return (reset - now).total_seconds()
-    else:
-        return float(reset_after)
-
-
 class HTTPClient:
     
     def __init__(self, bot: Ayaka) -> None:
         self.bot: Ayaka = bot
-        self._locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+        # Route key -> bucket hash
+        self._bucket_hashes: dict[str, str] = {}
+        # Bucket hash + Major parameters -> Rate limit
+        self._buckets: weakref.WeakValueDictionary[str, Ratelimit] = weakref.WeakValueDictionary()
+        # Route key + Major parameters -> Rate limit
+        # Used for temporary oneshot requests that don't have a bucket hash
+        # While I'd love to use a single mapping for these, doing this would cause the rate limit objects
+        # to inexplicably be evicted from the dictionary before we're done with it
+        self._oneshots: weakref.WeakValueDictionary[str, Ratelimit] = weakref.WeakValueDictionary()
         self._global_over: asyncio.Event = asyncio.Event()
         self._global_over.set()
     
     async def request(self, route: Route, **kwargs: Any) -> Any:
-        bucket = route.bucket
+        route_key = route.key
+        bucket_hash = None
+        try:
+            bucket_hash = self._bucket_hashes[route_key]
+        except KeyError:
+            key = route_key + route.major_parameters
+            
+            mapping = self._oneshots
+        else:
+            key = bucket_hash + route.major_parameters
+            mapping = self._buckets
         
-        lock = self._locks.get(bucket)
-        if lock is None:
-            lock = asyncio.Lock()
-            if bucket is not None:
-                self._locks[bucket] = lock
+        try:
+            ratelimit = mapping[key]
+        except KeyError:
+            mapping[key] = ratelimit = Ratelimit()
         
         kwargs['headers'] = {'Authorization': f'Bearer {route.token}'}
         
@@ -113,16 +220,42 @@ class HTTPClient:
         resp: aiohttp.ClientResponse | None = None
         data: dict[str, Any] | str | None = None
         
-        await lock.acquire()
-        
-        with MaybeUnlock(lock) as maybe_lock:
+        async with ratelimit:
             for tries in range(5):
                 try:
                     async with self.bot.session.request(route.method, route.url, **kwargs) as resp:
                         data = await json_or_text(resp)
-                        if resp.headers.get('X-Ratelimit-Remaining') == '0' and resp.status != 429:
-                            maybe_lock.defer()
-                            self.bot.loop.call_later(_parse_ratelimit_header(resp, use_clock=False), lock.release)
+                        # Update and use rate limit information if the bucket header is present
+                        discord_hash = resp.headers.get('X-Ratelimit-Bucket')
+                        # I am unsure if X-Ratelimit-Bucket is always available
+                        # However, X-Ratelimit-Remaining has been a consistent cornerstone that worked
+                        has_ratelimit_headers = 'X-Ratelimit-Remaining' in resp.headers
+                        if discord_hash is not None:
+                            # If the hash Discord has provided is somehow different from our current hash something changed
+                            if bucket_hash != discord_hash:
+                                if bucket_hash is not None:
+                                    # If the previous hash was an actual Discord hash then this means the
+                                    # hash has changed sporadically.
+                                    # This can be due to two reasons
+                                    # 1. It's a sub-ratelimit which is hard to handle
+                                    # 2. The ratelimit information genuinely changed
+                                    # There is no good way to discern these, Discord doesn't provide a way to do so.
+                                    # At best, there will be some form of logging to help catch it.
+                                    # Alternating sub-ratelimits means that the requests oscillate between
+                                    # different underlying rate limits -- this can lead to unexpected 429s
+                                    # It is unavoidable.
+                                    self._bucket_hashes[route_key] = discord_hash
+                                    recalculated_key = discord_hash + route.major_parameters
+                                    self._buckets[recalculated_key] = ratelimit
+                                    self._buckets.pop(key, None)
+                                elif route_key not in self._bucket_hashes:
+                                    self._bucket_hashes[route_key] = discord_hash
+                                    self._buckets[discord_hash + route.major_parameters] = ratelimit
+                        
+                        if has_ratelimit_headers:
+                            if resp.status != 429:
+                                ratelimit.update(resp, use_clock=False)
+                                
                         if 300 > resp.status >= 200:
                             return data
                         if resp.status == 429:
