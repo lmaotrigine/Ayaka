@@ -350,7 +350,7 @@ docs = ["Sphinx (>=5.0.2,<6.0.0)", "sphinxcontrib-websupport (>=1.2.4,<2.0.0)", 
 type = "git"
 url = "https://github.com/lmaotrigine/dice-parser"
 reference = "HEAD"
-resolved_reference = "2ee2e4af61af1318a5a1543f97071e8735bc7f9b"
+resolved_reference = "83c897110fe3a273172fb139abff583248ab727e"
 
 [[package]]
 name = "discord-ext-menus"
@@ -372,7 +372,7 @@ resolved_reference = "8686b5d1bbc1d3c862292eb436ab630d6e9c9b53"
 
 [[package]]
 name = "discord.py"
-version = "2.0.0a4403+g1aaa32d4"
+version = "2.0.0a4405+ge0341c9e"
 description = "A Python wrapper for the Discord API"
 category = "main"
 optional = false
@@ -397,7 +397,7 @@ voice = ["PyNaCl (>=1.3.0,<1.6)"]
 type = "git"
 url = "https://github.com/Rapptz/discord.py"
 reference = "master"
-resolved_reference = "e0341c9ef25c0093bff991ff09c87dba0414e58c"
+resolved_reference = "87bc79e6e311da60b024ae61a2a3757e55606aa6"
 
 [[package]]
 name = "feedparser"
@@ -592,7 +592,7 @@ voice = ["yt-dlp (>=2022.3.8)"]
 type = "git"
 url = "https://github.com/Gorialis/jishaku"
 reference = "master"
-resolved_reference = "717f6543bdc99758b6aee5a00231ad4f4f27de7e"
+resolved_reference = "1d4ebabe048fd9a9d9b0ac3bf6d288891a2cdc4a"
 
 [[package]]
 name = "lark"
@@ -972,7 +972,7 @@ idna2008 = ["idna"]
 
 [[package]]
 name = "setuptools"
-version = "63.1.0"
+version = "63.2.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
@@ -1148,7 +1148,7 @@ multidict = ">=4.0"
 
 [[package]]
 name = "yt-dlp"
-version = "2022.6.29"
+version = "2022.7.18"
 description = "A youtube-dl fork with additional features and patches"
 category = "main"
 optional = false
@@ -2110,7 +2110,10 @@ rfc3986 = [
     {file = "rfc3986-1.5.0-py2.py3-none-any.whl", hash = "sha256:a86d6e1f5b1dc238b218b012df0aa79409667bb209e58da56d0b94704e712a97"},
     {file = "rfc3986-1.5.0.tar.gz", hash = "sha256:270aaf10d87d0d4e095063c65bf3ddbc6ee3d0b226328ce21e036f946e421835"},
 ]
-setuptools = []
+setuptools = [
+    {file = "setuptools-63.2.0-py3-none-any.whl", hash = "sha256:0d33c374d41c7863419fc8f6c10bfe25b7b498aa34164d135c622e52580c6b16"},
+    {file = "setuptools-63.2.0.tar.gz", hash = "sha256:c04b44a57a6265fe34a4a444e965884716d34bae963119a76353434d6f18e450"},
+]
 sgmllib3k = [
     {file = "sgmllib3k-1.0.0.tar.gz", hash = "sha256:7868fb1c8bfa764c1ac563d3cf369c381d1325d36124933a726f29fcdaa812e9"},
 ]
@@ -2361,6 +2364,6 @@ yarl = [
     {file = "yarl-1.7.2.tar.gz", hash = "sha256:45399b46d60c253327a460e99856752009fcee5f5d3c80b2f7c0cae1c38d56dd"},
 ]
 yt-dlp = [
-    {file = "yt-dlp-2022.6.29.tar.gz", hash = "sha256:5fbfac72fd035d11bc2693e5d1cd6933b1bc0712f742f5082a261703810bb5c9"},
-    {file = "yt_dlp-2022.6.29-py2.py3-none-any.whl", hash = "sha256:a688f5cbc4a824456983774ccdd4a12befd379f6c92e25074fa85e7b8ce31704"},
+    {file = "yt-dlp-2022.7.18.tar.gz", hash = "sha256:0e7b81fc6ac8d1b7d3fffa79f9044ca4163784422582c9a3593305da2a69ec02"},
+    {file = "yt_dlp-2022.7.18-py2.py3-none-any.whl", hash = "sha256:d7d1f81d230756f094b4d9ee59b37b2c13b2e63ff5fb72cda53625edb072cdae"},
 ]
