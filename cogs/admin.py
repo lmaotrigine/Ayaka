@@ -23,7 +23,7 @@ import time
 import traceback
 from collections import Counter  # type: ignore eval
 from contextlib import redirect_stdout
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Generator, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Literal, Optional, Union
 
 import discord
 from discord import app_commands, ui
@@ -124,15 +124,6 @@ def remove_codeblock(text: str) -> tuple[str | None, str]:
     return lang, txt
 
 
-def full_command_name(
-    command: app_commands.Command[Any, Any, Any] | app_commands.Group | app_commands.ContextMenu
-) -> Generator[str, Any, Any]:
-    if not isinstance(command, app_commands.ContextMenu):
-        if command.parent:
-            yield from full_command_name(command.parent)
-    yield command.name
-
-
 class EvalModal(ui.Modal):
     def __init__(self, *, sql: bool = False, prev_code: str | None = None, prev_extras: str | None = None):
         super().__init__(title=('SQL' if sql else 'Python') + ' Evaluation')
@@ -189,7 +180,7 @@ class Admin(commands.GroupCog, group_name='dev'):
             log.warn('Received command "%s" which was not found.', name)
             return
 
-        command_name = ' '.join(full_command_name(interaction.command))
+        command_name = ' '.join(self.bot.tree.full_command_name(interaction.command))
         command_args = ' '.join([f'{k}: {v!r}' for k, v in interaction.namespace.__dict__.items()])
 
         log.info('[%s/#%s/%s]: /%s %s', interaction.user, interaction.channel, interaction.guild, command_name, command_args)

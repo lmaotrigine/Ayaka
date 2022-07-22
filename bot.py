@@ -14,7 +14,7 @@ import pathlib
 import sys
 import traceback
 from collections import Counter, defaultdict, deque
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Generator, Iterable, Optional
 
 import aiohttp
 import discord
@@ -99,22 +99,27 @@ class ProxyObject(discord.Object):
 
 
 class Tree(app_commands.CommandTree):
+    @staticmethod
+    def full_command_name(command: app_commands.Command[Any, Any, Any] | app_commands.Group | app_commands.ContextMenu) -> Generator[str, None, None]:
+        if not isinstance(command, app_commands.ContextMenu):
+            if command.parent:
+                yield from Tree.full_command_name(command.parent)
+        yield command.name
+    
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         assert interaction.command is not None
         e = discord.Embed(title='Command Error', colour=0xA32952)
-        e.add_field(name='Command', value=interaction.command.name)
-        trace = traceback.format_exception(type(error), error, error.__traceback__)
-        e.add_field(name='Error', value=f'```py\n{trace}\n```')
+        e.add_field(name='Command', value=self.full_command_name(interaction.command))
+        trace = ''.join(traceback.format_exception(type(error), error, error.__traceback__, chain=False))
+        e.description = f'```py\n{trace}\n```'
         e.timestamp = discord.utils.utcnow()
-        hook = self.client.get_cog('Stats').webhook
-        try:
-            await hook.send(embed=e)
-        except discord.HTTPException:
-            pass
+        hook = self.client.stat_webhook
+        await hook.send(embed=e)
 
 
 class Ayaka(commands.AutoShardedBot):
     pool: Pool
+    tree: Tree
     _original_help_command: Optional[commands.HelpCommand]
     user: discord.ClientUser  # typechecker lie
     command_stats: Counter[str]
