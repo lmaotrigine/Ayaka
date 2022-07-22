@@ -108,8 +108,19 @@ class Tree(app_commands.CommandTree):
     
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         assert interaction.command is not None
-        e = discord.Embed(title='Command Error', colour=0xA32952)
-        e.add_field(name='Command', value=self.full_command_name(interaction.command))
+        e = discord.Embed(title='Tree Error', colour=0xA32952)
+        e.add_field(name='Name', value=' '.join(self.full_command_name(interaction.command)))
+        e.add_field(name='Type', value='Context Menu' if isinstance(interaction.command, app_commands.ContextMenu) else 'Slash Command')
+        e.add_field(name='Author', value=f'{interaction.user} (ID: {interaction.user.id})')
+        fmt = f'Channel: {interaction.channel} (ID: {interaction.channel_id})'
+        if interaction.guild:
+            fmt = f'{fmt}\nGuild: {interaction.guild} (ID: {interaction.guild.id})'
+
+        e.add_field(name='Location', value=fmt, inline=False)
+        fmt = command_args = ' '.join([f'{k}: {v!r}' for k, v in interaction.namespace.__dict__.items()])
+        if fmt:
+            e.add_field(name='Parameters', value=command_args)
+
         trace = ''.join(traceback.format_exception(type(error), error, error.__traceback__, chain=False))
         e.description = f'```py\n{trace}\n```'
         e.timestamp = discord.utils.utcnow()
