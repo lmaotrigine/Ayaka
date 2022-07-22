@@ -19,6 +19,7 @@ import yarl
 from discord.ext import commands, tasks
 
 from utils import checks, db
+from utils.paginator import RoboPages, TextPageSource
 
 
 if TYPE_CHECKING:
@@ -305,6 +306,16 @@ class Emoji(commands.Cog):
         """Emoji management commands."""
         if ctx.subcommand_passed is None:
             await ctx.send_help(ctx.command)
+    
+    @_emoji.command(name='list')
+    @commands.guild_only()
+    async def _emoji_list(self, ctx: GuildContext) -> None:
+        """Fancy post server emojis."""
+        emojis = sorted([e for e in ctx.guild.emojis if len(e.roles) == 0 and e.available], key=lambda e: e.name.lower())
+        fmt = '\n'.join(f'{emoji} -- `{emoji}`' for emoji in emojis)
+        source = TextPageSource(fmt, prefix='', suffix='')
+        pages = RoboPages(source, ctx=ctx)
+        await pages.start()
 
     @_emoji.command(name='create')
     async def _emoji_create(self, ctx: GuildContext, name: emoji_name, *, emoji: EmojiURL = None) -> None:  # type: ignore
