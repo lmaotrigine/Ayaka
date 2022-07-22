@@ -200,9 +200,10 @@ class DnD(commands.GroupCog, name='dnd', command_attrs=dict(hidden=True)):
     @rr.error
     @rrr.error
     async def roll_error(self, ctx: Context, error: BaseException) -> None:
-        error = getattr(error, 'original', error)
+        error = getattr(error, 'original', error)  # HybridCommandError/CommandInvokeError
+        error = getattr(error, 'original', error)  # CommandInvokeError wrapped by HybirdCommandError
         if isinstance(error, dice_parser.RollError):
-            await ctx.send(str(error), delete_after=5)
+            await ctx.send(str(error), delete_after=5, ephemeral=True)
             return
 
 
