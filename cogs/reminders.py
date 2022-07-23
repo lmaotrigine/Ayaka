@@ -276,7 +276,7 @@ class Reminder(commands.Cog):
             'reminder',
             ctx.author.id,
             ctx.channel.id,
-            parsed_what,
+            parsed_what or '...',
             connection=ctx.db,
             created=ctx.message.created_at,
             message_id=ctx.message.id,
