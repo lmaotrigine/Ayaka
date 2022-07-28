@@ -197,6 +197,7 @@ class Tags(commands.Cog):
                 await ctx.send_help(ctx.command)
             else:
                 await ctx.send(str(error))
+            ctx.command.extras['handled'] = True
 
     async def get_possible_tags(
         self,
@@ -702,7 +703,7 @@ class Tags(commands.Cog):
             clause = f'{clause} AND owner_id=$3'
 
         query = f'DELETE FROM tag_lookup WHERE {clause} RETURNING tag_id;'
-        deleted = await ctx.db.fetchrow(query, *args)
+        deleted: asyncpg.Record = await ctx.db.fetchrow(query, *args)
 
         if deleted is None:
             await ctx.send('Could not delete tag. Either it does not exist or you do not have permissions to do so.')
@@ -741,7 +742,7 @@ class Tags(commands.Cog):
             clause = f'{clause} AND owner_id=$3'
 
         query = f'DELETE FROM tag_lookup WHERE {clause} RETURNING tag_id;'
-        deleted = await ctx.db.fetchrow(query, *args)
+        deleted: asyncpg.Record = await ctx.db.fetchrow(query, *args)
 
         if deleted is None:
             await ctx.send('Could not delete tag. Either it does not exist or you do not have permissions to do so.')
@@ -1131,7 +1132,7 @@ class Tags(commands.Cog):
 
         query = "SELECT name, content FROM tags WHERE LOWER(name)=$1 AND location_id IS NULL;"
 
-        tag = await ctx.db.fetchrow(query, name)
+        tag: asyncpg.Record = await ctx.db.fetchrow(query, name)
 
         if tag is None:
             return await ctx.send('A tag with this name cannot be found in the box.')

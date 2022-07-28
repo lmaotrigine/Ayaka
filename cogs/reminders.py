@@ -44,7 +44,7 @@ class DucklingConverter(commands.Converter[datetime.datetime]):
         return row
 
     async def convert(self, ctx: GuildContext, argument: str) -> datetime.datetime:
-        params = {'locale': 'en_US', 'text': argument, 'dims': str(['time'])}
+        params = {'locale': 'en_GB', 'text': argument, 'dims': str(['time'])}
         tz = await self.get_tz(ctx)
         if tz is not None:
             params['tz'] = tz
