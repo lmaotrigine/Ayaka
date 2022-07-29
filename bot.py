@@ -69,6 +69,7 @@ EXTENSIONS = (
     'cogs.snipe',
     'cogs.stars',
     'cogs.stats',
+    'cogs.synth',
     'cogs.tags',
     'cogs.tiktok',
     'cogs.time',
