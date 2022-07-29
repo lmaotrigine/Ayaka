@@ -101,17 +101,22 @@ class ProxyObject(discord.Object):
 
 class Tree(app_commands.CommandTree):
     @staticmethod
-    def full_command_name(command: app_commands.Command[Any, Any, Any] | app_commands.Group | app_commands.ContextMenu) -> Generator[str, None, None]:
+    def full_command_name(
+        command: app_commands.Command[Any, Any, Any] | app_commands.Group | app_commands.ContextMenu
+    ) -> Generator[str, None, None]:
         if not isinstance(command, app_commands.ContextMenu):
             if command.parent:
                 yield from Tree.full_command_name(command.parent)
         yield command.name
-    
+
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         assert interaction.command is not None
         e = discord.Embed(title='Tree Error', colour=0xA32952)
         e.add_field(name='Name', value=' '.join(self.full_command_name(interaction.command)))
-        e.add_field(name='Type', value='Context Menu' if isinstance(interaction.command, app_commands.ContextMenu) else 'Slash Command')
+        e.add_field(
+            name='Type',
+            value='Context Menu' if isinstance(interaction.command, app_commands.ContextMenu) else 'Slash Command',
+        )
         e.add_field(name='Author', value=f'{interaction.user} (ID: {interaction.user.id})')
         fmt = f'Channel: {interaction.channel} (ID: {interaction.channel_id})'
         if interaction.guild:
@@ -166,7 +171,14 @@ class Ayaka(commands.AutoShardedBot):
         self._prev_events = deque(maxlen=10)
         self.resumes: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
         self.identifies: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
-        self.dashboard = tornado.web.Application(setup_routes(bot=self), static_path=str(pathlib.Path(__file__).parent / 'static'), template_path=str(pathlib.Path(__file__).parent / 'dashboard' / 'templates'), cookie_secret=config.cookie_secret, debug=False, default_host=config.base_url)
+        self.dashboard = tornado.web.Application(
+            setup_routes(bot=self),
+            static_path=str(pathlib.Path(__file__).parent / 'static'),
+            template_path=str(pathlib.Path(__file__).parent / 'dashboard' / 'templates'),
+            cookie_secret=config.cookie_secret,
+            debug=False,
+            default_host=config.base_url,
+        )
         self.server = tornado.httpserver.HTTPServer(self.dashboard, xheaders=True)
 
         self.emoji = {
@@ -423,7 +435,7 @@ class Ayaka(commands.AutoShardedBot):
                         fp.write(f'{data}\n')
                     else:
                         fp.write(f'{last_log}\n')
-    
+
     async def get_user_avatars(self, user_id: int) -> dict[str, str | list[str]] | None:
         if self.logging_cog is None:
             return None
@@ -440,7 +452,7 @@ class Ayaka(commands.AutoShardedBot):
     @property
     def config_cog(self) -> ConfigCog | None:
         return self.get_cog('Config')  # type: ignore # ???
-    
+
     @property
     def logging_cog(self) -> LoggingCog | None:
         return self.get_cog('Logging')  # type: ignore # ???

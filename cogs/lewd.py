@@ -476,7 +476,9 @@ class Lewd(commands.Cog):
 
         limit = max(min(0, real_args.limit), 100)
         aiohttp_params.update({'limit': limit})
-        lowered_tags = [re.sub(r'rating\:(safe|questionable|explicit)', _reverse_rating_repl, tag.lower()) for tag in real_args.tags]
+        lowered_tags = [
+            re.sub(r'rating\:(safe|questionable|explicit)', _reverse_rating_repl, tag.lower()) for tag in real_args.tags
+        ]
         tags = set(lowered_tags)
         common_elems = tags & current_config.blacklist
         if common_elems:

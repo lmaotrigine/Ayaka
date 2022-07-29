@@ -11,8 +11,8 @@ from typing import Any
 
 import discord
 
-from ..utils.handlers import HTTPHandler
 from ..guild import Guild
+from ..utils.handlers import HTTPHandler
 
 
 class BasePage(HTTPHandler, abc.ABC):
@@ -26,14 +26,18 @@ class Index(BasePage, abc.ABC):
     async def get(self) -> None:
         data = await self.get_page_render_info()
         total = await self.bot.redis.incrby('hits', 1)
-        remote = self.request.headers.get('X-Real-IP') or self.request.headers.get('X-Forwarded-For') or self.request.remote_ip
+        remote = (
+            self.request.headers.get('X-Real-IP') or self.request.headers.get('X-Forwarded-For') or self.request.remote_ip
+        )
         you = await self.bot.redis.incrby(f'hits:{remote}', 1)
         self.render('index.html', total=total, you=you, **data)
 
 
 class IP(BasePage, abc.ABC):
     async def get(self) -> None:
-        remote = self.request.headers.get('X-Real-IP') or self.request.headers.get('X-Forwarded-For') or self.request.remote_ip
+        remote = (
+            self.request.headers.get('X-Real-IP') or self.request.headers.get('X-Forwarded-For') or self.request.remote_ip
+        )
         self.set_header('Content-Type', 'text/plain; charset=utf-8')
         await self.finish(remote)
 
@@ -46,4 +50,6 @@ class VoiceRecognition(BasePage, abc.ABC):
 class NotGonnaHappen(BasePage, abc.ABC):
     async def get(self) -> None:
         self.set_header('Content-Type', 'text/plain; charset=utf-8')
-        await self.finish("you don't have a token, ask VJ. tokens are one time use, so if you had one and used it you'll need to apply for another")
+        await self.finish(
+            "you don't have a token, ask VJ. tokens are one time use, so if you had one and used it you'll need to apply for another"
+        )

@@ -12,6 +12,7 @@ import pathlib
 
 from ..utils.handlers import HTTPHandler
 
+
 static = pathlib.Path(__file__).parent.parent.parent / 'static'
 
 
@@ -21,7 +22,7 @@ class ShowdownTrainerSprites(HTTPHandler, abc.ABC):
         with open(file) as f:
             sprites = f.read().splitlines()
         self.render('sprites.html', sprites=sprites)
-    
+
 
 class PokemonSprites(HTTPHandler, abc.ABC):
     async def get(self) -> None:

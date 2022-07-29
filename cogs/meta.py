@@ -337,11 +337,12 @@ class Meta(commands.Cog):
             await ctx.send('Output too long to display.')
             return
         await ctx.send(msg)
-        
+
     @commands.command()
     @checks.mod_or_permissions(manage_nicknames=True)
     async def decancer(self, ctx: GuildContext, *, user: discord.Member | None = None) -> None:
         """Normalises username to make it mentionable."""
+
         def ensure_user(user: discord.Member | None) -> discord.Member:
             if user is None:
                 if ctx.message.reference:
@@ -350,6 +351,7 @@ class Meta(commands.Cog):
                         return ref.author  # type: ignore
                 raise commands.MissingRequiredArgument(commands.Parameter('user', kind=inspect.Parameter.KEYWORD_ONLY))
             return user
+
         user = ensure_user(user)
         async with self.bot.session.get('https://api.5ht2.me/decancer', params={'text': user.display_name}) as resp:
             if resp.status != 200:
@@ -459,7 +461,7 @@ class Meta(commands.Cog):
 
         await self.bot.set_guild_prefixes(ctx.guild, [])
         await ctx.send(ctx.tick(True))
-        
+
     @staticmethod
     def _iterate_source_line_counts(root: pathlib.Path) -> Iterator[int]:
         for child in root.iterdir():
@@ -471,11 +473,11 @@ class Meta(commands.Cog):
                 if child.suffix in ('.py', '.html', '.css'):
                     with child.open(encoding='utf-8') as f:
                         yield len(f.readlines())
-    
+
     @staticmethod
     def count_source_lines(root: pathlib.Path) -> int:
         return sum(Meta._iterate_source_line_counts(root))
-    
+
     @commands.command()
     async def cloc(self, ctx: Context) -> None:
         """."""

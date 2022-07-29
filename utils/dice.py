@@ -12,7 +12,7 @@ def string_search_adv(dice_str: str) -> tuple[str, dice_parser.AdvType]:
     adv = dice_parser.AdvType.NONE
     if (match := ADV_WORD_RE.search(dice_str)) is not None:
         adv = dice_parser.AdvType.ADV if match.group(1) == 'adv' else dice_parser.AdvType.DIS
-        return dice_str[:match.start(1)] + dice_str[match.end():], adv
+        return dice_str[: match.start(1)] + dice_str[match.end() :], adv
     return dice_str, adv
 
 
@@ -26,7 +26,7 @@ class PersistentRollContext(dice_parser.RollContext):
         super().__init__(max_rolls)
         self.max_total_rolls = max_total_rolls or max_rolls
         self.total_rolls = 0
-    
+
     def count_roll(self, n: int = 1) -> None:
         super().count_roll(n)
         self.total_rolls += 1
@@ -39,25 +39,25 @@ class RerollableStringifier(dice_parser.SimpleStringifier):
         if not node.kept:
             return None
         return super().stringify_node(node)
-    
+
     def str_expression(self, node: dice_parser.Expression) -> str | None:
         return self.stringify_node(node.roll)
-    
+
     def str_literal(self, node: dice_parser.Literal) -> str:
         return str(node.total)
-    
+
     def str_parenthetical(self, node: dice_parser.Parenthetical) -> str:
         return f'({self.stringify_node(node.value)})'
-    
+
     def str_set(self, node: dice_parser.Set) -> str:
         out = ', '.join([self.stringify_node(v) for v in node.values if v.kept])  # type: ignore
         if len(node.values) == 1:
             return f'({out},)'
         return f'({out})'
-    
+
     def str_dice(self, node: dice_parser.Dice) -> str:
         return self.str_set(node)
-    
+
     def str_die(self, node: dice_parser.Die) -> str:
         return str(node.total)
 

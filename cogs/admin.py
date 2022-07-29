@@ -51,6 +51,7 @@ class AuthTokens(db.Table, table_name='auth_tokens'):
     token = db.Column(db.String, unique=True, nullable=False)
     created_at = db.Column(db.Datetime(timezone=True), default="(now() at time zone 'utc')", nullable=False)
 
+
 class PerformanceMocker:
     """A mock object that can also be used in await expressions."""
 
@@ -858,11 +859,11 @@ class Admin(commands.GroupCog, group_name='dev'):
             success = True
 
         await ctx.send(f'Status: {ctx.tick(success)} Time: {(end - start) * 1000:.2f}ms')
-        
+
     @commands.group()
     async def whitelist(self, ctx: Context) -> None:
         """Manages the guild whitelist."""
-    
+
     @whitelist.command()
     async def gen(self, ctx: Context, guild_id: int, *, user: discord.User) -> None:
         """Generates a token for this guild and user."""

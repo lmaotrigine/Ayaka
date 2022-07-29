@@ -20,9 +20,11 @@ import orjson
 
 if TYPE_CHECKING:
     from types import TracebackType
+
     from typing_extensions import Self
+
     from bot import Ayaka
-    
+
     BE = TypeVar('BE', bound=BaseException)
 
 
@@ -30,9 +32,9 @@ __all__ = ('Route', 'HTTPClient')
 
 
 class Route:
-    
+
     BASE: ClassVar[str] = 'https://discord.com/api/v10'
-    
+
     def __init__(self, method: str, path: str, token: str, *, metadata: str | None = None, **parameters: Any) -> None:
         self.method: str = method
         self.path: str = path
@@ -48,16 +50,18 @@ class Route:
         self.guild_id: str | int | None = parameters.get('guild_id')
         self.webhook_id: str | int | None = parameters.get('webhook_id')
         self.webhook_token: str | None = parameters.get('webhook_token')
-    
+
     @property
     def key(self) -> str:
         if self.metadata:
             return f'{self.method} {self.path}:{self.metadata}'
         return f'{self.method} {self.path}'
-    
+
     @property
     def major_parameters(self) -> str:
-        return '+'.join(str(k) for k in (self.channel_id, self.guild_id, self.webhook_id, self.webhook_token) if k is not None)
+        return '+'.join(
+            str(k) for k in (self.channel_id, self.guild_id, self.webhook_id, self.webhook_token) if k is not None
+        )
 
 
 class Ratelimit:
@@ -74,26 +78,28 @@ class Ratelimit:
         # The object that is sleeping is ultimately responsible for freeing the semaphore
         # for the requests currently pending.
         self._sleeping: asyncio.Lock = asyncio.Lock()
-    
+
     def __repr__(self) -> str:
-        return f'<RateLimitBucket limit={self.limit} remaining={self.remaining} pending_requests={len(self._pending_requests)}>'
-    
+        return (
+            f'<RateLimitBucket limit={self.limit} remaining={self.remaining} pending_requests={len(self._pending_requests)}>'
+        )
+
     def reset(self) -> None:
         self.remaining = self.limit - self.outgoing
         self.expires = None
         self.reset_after = 0.0
         self.dirty = False
-    
+
     def update(self, response: aiohttp.ClientResponse, *, use_clock: bool = False) -> None:
         headers = response.headers
         self.limit = int(headers.get('X-Ratelimit-Limit', 1))
-        
+
         if self.dirty:
             self.remaining = min(int(headers.get('X-Ratelimit-Remaining', 0)), self.limit - self.outgoing)
         else:
             self.remaining = int(headers.get('X-Ratelimit-Remaining', 0))
             self.dirty = True
-        
+
         reset_after = headers.get('X-Ratelimit-Reset-After')
         if use_clock or not reset_after:
             utc = datetime.timezone.utc
@@ -102,16 +108,16 @@ class Ratelimit:
             self.reset_after = (reset - now).total_seconds()
         else:
             self.reset_after = float(reset_after)
-        
+
         self.expires = self._loop.time() + self.reset_after
-    
+
     def _wake_next(self) -> None:
         while self._pending_requests:
             future = self._pending_requests.popleft()
             if not future.done():
                 future.set_result(None)
                 break
-    
+
     def _wake(self, count: int = 1) -> None:
         awaken = 0
         while self._pending_requests:
@@ -120,23 +126,23 @@ class Ratelimit:
                 future.set_result(None)
                 self._has_just_awaken = True
                 awaken += 1
-            
+
             if awaken >= count:
                 break
-    
+
     async def _refresh(self) -> None:
         async with self._sleeping:
             await asyncio.sleep(self.reset_after)
         self.reset()
         self._wake(self.remaining)
-    
+
     def is_expired(self) -> bool:
         return self.expires is not None and self._loop.time() > self.expires
-    
+
     async def acquire(self) -> None:
         if self.is_expired():
             self.reset()
-        
+
         while self.remaining <= 0:
             future = self._loop.create_future()
             self._pending_requests.append(future)
@@ -147,14 +153,14 @@ class Ratelimit:
                 if self.remaining > 0 and not future.cancelled():
                     self._wake_next()
                 raise
-        
+
         self.remaining -= 1
         self.outgoing += 1
-    
+
     async def __aenter__(self) -> Self:
         await self.acquire()
         return self
-    
+
     async def __aexit__(self, type: type[BE], value: BE, traceback: TracebackType) -> None:
         self.outgoing -= 1
         tokens = self.remaining - self.outgoing
@@ -179,7 +185,6 @@ async def json_or_text(response: aiohttp.ClientResponse) -> dict[str, Any] | str
 
 
 class HTTPClient:
-    
     def __init__(self, bot: Ayaka) -> None:
         self.bot: Ayaka = bot
         # Route key -> bucket hash
@@ -193,7 +198,7 @@ class HTTPClient:
         self._oneshots: weakref.WeakValueDictionary[str, Ratelimit] = weakref.WeakValueDictionary()
         self._global_over: asyncio.Event = asyncio.Event()
         self._global_over.set()
-    
+
     async def request(self, route: Route, **kwargs: Any) -> Any:
         route_key = route.key
         bucket_hash = None
@@ -201,25 +206,25 @@ class HTTPClient:
             bucket_hash = self._bucket_hashes[route_key]
         except KeyError:
             key = route_key + route.major_parameters
-            
+
             mapping = self._oneshots
         else:
             key = bucket_hash + route.major_parameters
             mapping = self._buckets
-        
+
         try:
             ratelimit = mapping[key]
         except KeyError:
             mapping[key] = ratelimit = Ratelimit()
-        
+
         kwargs['headers'] = {'Authorization': f'Bearer {route.token}'}
-        
+
         if not self._global_over.is_set():
             await self._global_over.wait()
-        
+
         resp: aiohttp.ClientResponse | None = None
         data: dict[str, Any] | str | None = None
-        
+
         async with ratelimit:
             for tries in range(5):
                 try:
@@ -251,11 +256,11 @@ class HTTPClient:
                                 elif route_key not in self._bucket_hashes:
                                     self._bucket_hashes[route_key] = discord_hash
                                     self._buckets[discord_hash + route.major_parameters] = ratelimit
-                        
+
                         if has_ratelimit_headers:
                             if resp.status != 429:
                                 ratelimit.update(resp, use_clock=False)
-                                
+
                         if 300 > resp.status >= 200:
                             return data
                         if resp.status == 429:

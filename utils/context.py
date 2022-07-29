@@ -93,10 +93,10 @@ class Context(commands.Context['Ayaka']):
 
         if len(matches) == 1:
             return matches[0]
-        
+
         matches_ = {i: (m, entry(m)) for i, m in enumerate(matches)}
         view = DisambiguationView(matches_, self.author.id, self)
-        
+
         await self.release()
 
         view.message = await self.send('There are too many matches... Which one did you mean?', view=view)
@@ -108,7 +108,7 @@ class Context(commands.Context['Ayaka']):
                 return view.value
         finally:
             await self.release()
-    
+
     async def prompt(
         self,
         message: str,

@@ -61,7 +61,7 @@ class Time(commands.Cog):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name='Get Current Time', callback=self.now_ctx_menu)
         self.bot.tree.add_command(self.ctx_menu, override=True)
-    
+
     async def cog_unload(self) -> None:
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
@@ -120,11 +120,13 @@ class Time(commands.Cog):
     @commands.hybrid_command(aliases=['tzs'])
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def timezones(self, ctx):
-        tz_list = [list(zoneinfo.available_timezones())[x : x + 15] for x in range(0, len(zoneinfo.available_timezones()), 15)]
+        tz_list = [
+            list(zoneinfo.available_timezones())[x : x + 15] for x in range(0, len(zoneinfo.available_timezones()), 15)
+        ]
         embeds = self._gen_tz_embeds(str(ctx.author), tz_list)
         pages = RoboPages(source=TZMenuSource(range(0, 40), embeds), ctx=ctx)
         await pages.start()
-        
+
     async def get_time_for(self, member: discord.Member) -> discord.Embed:
         if member.id == self.bot.user.id:
             tz = zoneinfo.ZoneInfo('UTC')
@@ -140,7 +142,7 @@ class Time(commands.Cog):
             member_timezone = result['tz']
             query = process.extract(query=member_timezone.lower(), choices=zoneinfo.available_timezones(), limit=5)
             tz = zoneinfo.ZoneInfo(query[0][0])
-        
+
         current_time = self._curr_tz_time(tz, ret_datetime=False)
         embed = discord.Embed(title=f'Time for {member}', description=f'```\n{current_time}\n```')
         delta: timedelta = tz.utcoffset(discord.utils.utcnow())  # type: ignore # this is literally a timezone
@@ -160,7 +162,7 @@ class Time(commands.Cog):
             await ctx.send(str(e))
             return
         return await ctx.send(embed=embed)
-    
+
     @app_commands.guild_only()
     async def now_ctx_menu(self, interaction: discord.Interaction, member: discord.Member) -> None:
         try:
@@ -188,10 +190,12 @@ class Time(commands.Cog):
             return
         await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], timezone.key)
         return await ctx.send(ctx.tick(True), ephemeral=True)
-    
+
     @time_set.autocomplete(name='timezone')
     async def timezone_autocomplete(self, _: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=c, value=c) for c in zoneinfo.available_timezones() if current.lower() in c.lower()][:25]
+        return [
+            app_commands.Choice(name=c, value=c) for c in zoneinfo.available_timezones() if current.lower() in c.lower()
+        ][:25]
 
     @timezone.command(name='remove')
     @commands.guild_only()

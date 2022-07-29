@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 T = TypeVar('T')
 
+
 class ConfirmationView(discord.ui.View):
     def __init__(self, *, timeout: float, author_id: int, reacquire: bool, ctx: Context, delete_after: bool) -> None:
         super().__init__(timeout=timeout)
@@ -67,7 +68,7 @@ class DisambiguationView(discord.ui.View, Generic[T]):
             self.select.add_option(label=str(v[1]), value=str(k))
         self.author_id = author_id
         self.ctx = ctx
-        
+
     @discord.ui.select(options=[])
     async def select(self, interaction: discord.Interaction, item: discord.ui.Select) -> None:
         self.value = self.matches[int(item.values[0])][0]
@@ -76,14 +77,14 @@ class DisambiguationView(discord.ui.View, Generic[T]):
             self.message = None
         await interaction.response.send_message(self.ctx.tick(True), ephemeral=True)
         self.stop()
-    
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user and interaction.user.id in (self.author_id, self.ctx.bot.owner_id):
             return True
         else:
             await interaction.response.send_message('This disambiguation dialog is not for you.', ephemeral=True)
             return False
-    
+
     async def on_timeout(self) -> None:
         if self.message:
             await self.message.delete()

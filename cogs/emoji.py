@@ -306,7 +306,7 @@ class Emoji(commands.Cog):
         """Emoji management commands."""
         if ctx.subcommand_passed is None:
             await ctx.send_help(ctx.command)
-    
+
     @_emoji.command(name='list')
     @commands.guild_only()
     async def _emoji_list(self, ctx: GuildContext) -> None:

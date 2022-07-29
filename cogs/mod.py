@@ -323,6 +323,7 @@ def can_use_block():
         if isinstance(ctx.channel, discord.Thread):
             return ctx.author.id == ctx.channel.owner_id or ctx.channel.permissions_for(ctx.author).manage_threads
         return ctx.channel.permissions_for(ctx.author).manage_roles
+
     return commands.check(predicate)
 
 
@@ -2088,12 +2089,12 @@ class Mod(commands.Cog):
         confirm = await ctx.prompt('This is a self **ban**. There is no undoing this.')
         if confirm:
             return await ctx.author.ban(reason='Suicide.', delete_message_days=0)
-        
+
     @commands.command()
     @can_use_block()
     async def block(self, ctx: ModGuildContext, *, member: discord.Member) -> None:
         """Blocks a user from your channel."""
-        
+
         if member.top_role >= ctx.author.top_role and not self.bot.is_owner(ctx.author):
             return
         reason = f'Block by {ctx.author} (ID: {ctx.author.id})'
@@ -2106,17 +2107,25 @@ class Mod(commands.Cog):
                 await ctx.send('\N{THUMBS UP SIGN}')
             return
         try:
-            await ctx.channel.set_permissions(member, send_messages=False, add_reactions=False, create_public_threads=False, create_private_threads=False, send_messages_in_threads=False, reason=reason)
+            await ctx.channel.set_permissions(
+                member,
+                send_messages=False,
+                add_reactions=False,
+                create_public_threads=False,
+                create_private_threads=False,
+                send_messages_in_threads=False,
+                reason=reason,
+            )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
             await ctx.channel.send('\N{THUMBS UP SIGN}')
-            
+
     @commands.command()
     @can_use_block()
     async def unblock(self, ctx: ModGuildContext, *, member: discord.Member) -> None:
         """Unblocks a user from your channel."""
-        
+
         if member.top_role >= ctx.author.top_role and not self.bot.is_owner(ctx.author):
             return
         reason = f'Unblock by {ctx.author} (ID: {ctx.author.id})'
@@ -2129,29 +2138,37 @@ class Mod(commands.Cog):
                 await ctx.send('\N{THUMBS UP SIGN}')
             return
         try:
-            await ctx.channel.set_permissions(member, send_messages=None, add_reactions=None, create_public_threads=None, create_private_threads=None, send_messages_in_threads=None, reason=reason)
+            await ctx.channel.set_permissions(
+                member,
+                send_messages=None,
+                add_reactions=None,
+                create_public_threads=None,
+                create_private_threads=None,
+                send_messages_in_threads=None,
+                reason=reason,
+            )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
             await ctx.channel.send('\N{THUMBS UP SIGN}')
-            
+
     @commands.command()
     @can_use_block()
     async def tempblock(self, ctx: ModGuildContext, duration: time.FutureTime, *, member: discord.Member) -> None:
         """Temporarily blocks a user from your channel.
-        
+
         The duration can be a short time form, e.g. 30d or a more human
         duration such as "until thursday at 3PM" or a more concrete time
         such as "2017-12-31".
-        
+
         Note that times are in UTC.
         """
-        
+
         if member.top_role >= ctx.author.top_role and not self.bot.is_owner(ctx.author):
             return
-        
+
         created_at = ctx.message.created_at
-        
+
         reminder = self.bot.reminder
         if reminder is None:
             await ctx.send('Sorry, this functionality is currently unavailable. Try again later?')
@@ -2159,15 +2176,32 @@ class Mod(commands.Cog):
         if isinstance(ctx.channel, discord.Thread):
             await ctx.send('Cannot execute tempblock in threads. Use block instead.')
             return
-        await reminder.create_timer(duration.dt, 'tempblock', ctx.guild.id, ctx.author.id, ctx.channel.id, member.id, connection=ctx.db, created=created_at)
+        await reminder.create_timer(
+            duration.dt,
+            'tempblock',
+            ctx.guild.id,
+            ctx.author.id,
+            ctx.channel.id,
+            member.id,
+            connection=ctx.db,
+            created=created_at,
+        )
         reason = f'Tempblock by {ctx.author} (ID: {ctx.author.id}) until {duration.dt}'
         try:
-            await ctx.channel.set_permissions(member, send_messages=False, add_reactions=False, create_public_threads=False, create_private_threads=False, send_messages_in_threads=False, reason=reason)
+            await ctx.channel.set_permissions(
+                member,
+                send_messages=False,
+                add_reactions=False,
+                create_public_threads=False,
+                create_private_threads=False,
+                send_messages_in_threads=False,
+                reason=reason,
+            )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
             await ctx.channel.send(f'Blocked {member} for {time.format_relative(duration.dt)}.')
-    
+
     @commands.Cog.listener()
     async def on_tempblock_timer_complete(self, timer: Timer) -> None:
         guild_id, mod_id, channel_id, member_id = timer.args
@@ -2196,7 +2230,15 @@ class Mod(commands.Cog):
             moderator = f'{moderator} (ID: {mod_id})'
         reason = f'Automatic unblock from timer made on {timer.created_at} by {moderator}.'
         try:
-            await channel.set_permissions(to_unblock, send_messages=None, add_reactions=None, create_public_threads=None, create_private_threads=None, send_messages_in_threads=None, reason=reason)
+            await channel.set_permissions(
+                to_unblock,
+                send_messages=None,
+                add_reactions=None,
+                create_public_threads=None,
+                create_private_threads=None,
+                send_messages_in_threads=None,
+                reason=reason,
+            )
         except:
             pass
 

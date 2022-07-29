@@ -55,7 +55,9 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         if stat.st_size > max_len:
             file_loc.unlink(missing_ok=True)
             raise ValueError('Video exceeded the file size limit.')
-        proc = await asyncio.create_subprocess_exec('ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}', '-hide_banner', '-loglevel', 'warning')
+        proc = await asyncio.create_subprocess_exec(
+            'ffmpeg', '-y', '-i', f'{file_loc}', f'{fixed_file_loc}', '-hide_banner', '-loglevel', 'warning'
+        )
         await proc.communicate()
         if fixed_file_loc.stat().st_size > max_len:
             file_loc.unlink(missing_ok=True)
@@ -77,7 +79,11 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         if ctx.valid:
             return
 
-        matches = MOBILE_PATTERN.findall(message.content) or DESKTOP_PATTERN.findall(message.content) or INSTAGRAM_PATTERN.findall(message.content)
+        matches = (
+            MOBILE_PATTERN.findall(message.content)
+            or DESKTOP_PATTERN.findall(message.content)
+            or INSTAGRAM_PATTERN.findall(message.content)
+        )
         if not matches:
             return
         print(f'Processing {len(matches)} detected TikToks...')
@@ -101,7 +107,11 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                     content = ' '.join(m.mention for m in message.mentions) + '\n\n' + content
                 await message.reply(content[:1000], file=file)
                 if message.channel.permissions_for(message.guild.me).manage_messages and any(
-                    [INSTAGRAM_PATTERN.fullmatch(message.content), MOBILE_PATTERN.fullmatch(message.content), DESKTOP_PATTERN.fullmatch(message.content)]
+                    [
+                        INSTAGRAM_PATTERN.fullmatch(message.content),
+                        MOBILE_PATTERN.fullmatch(message.content),
+                        DESKTOP_PATTERN.fullmatch(message.content),
+                    ]
                 ):
                     await message.delete()
 

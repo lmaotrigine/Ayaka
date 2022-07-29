@@ -174,7 +174,9 @@ class Feeds(commands.Cog):
                     zoneinfo.available_timezones(),
                 )
             )
-            matching_utc_offsets = set(datetime.datetime.now(zoneinfo.ZoneInfo(t)).strftime('%z') for t in matching_timezones)
+            matching_utc_offsets = set(
+                datetime.datetime.now(zoneinfo.ZoneInfo(t)).strftime('%z') for t in matching_timezones
+            )
             if len(matching_utc_offsets) == 1:
                 self.tzinfos[timezone_abbreviation] = dateutil.tz.gettz(matching_timezones[0])
         self.new_feed = asyncio.Event()

@@ -16,20 +16,26 @@ import discord
 import orjson
 
 import config
+
 from ..utils.handlers import HTTPHandler, Token
 
 
-__all__ = ('DiscordLogin', 'DiscordLogout', 'DiscordIndex', 'DiscordInviteBot', 'DiscordAvatarHistory', 'DiscordAvatarHistoryUser')
+__all__ = (
+    'DiscordLogin',
+    'DiscordLogout',
+    'DiscordIndex',
+    'DiscordInviteBot',
+    'DiscordAvatarHistory',
+    'DiscordAvatarHistoryUser',
+)
 
 
 class DiscordIndex(HTTPHandler, abc.ABC):
-    
     async def get(self) -> None:
         return self.redirect('https://discord.gg/s44CFagYN2')
 
 
 class DiscordLogin(HTTPHandler, abc.ABC):
-    
     async def get(self) -> None:
         identifier = self.get_identifier()
         user_state = self.get_secure_cookie("state")
@@ -41,10 +47,7 @@ class DiscordLogin(HTTPHandler, abc.ABC):
 
             state = binascii.hexlify(os.urandom(16)).decode()
 
-            self.set_secure_cookie(
-                "state",
-                state
-            )
+            self.set_secure_cookie("state", state)
 
             return self.redirect(
                 f"https://discord.com/api/oauth2/authorize?"
@@ -60,7 +63,7 @@ class DiscordLogin(HTTPHandler, abc.ABC):
             return await self.finish({"error": "user state and server state must match."})
 
         self.clear_cookie("state")
-        
+
         guild_id = self.get_query_argument('guild_id', None)
         if guild_id is not None:
             user = await self.get_user()
@@ -71,18 +74,16 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 if not res:
                     return self.redirect('/not_gonna_happen')
         async with self.bot.session.post(
-                "https://discord.com/api/oauth2/token",
-                data={
-                    "client_secret": config.client_secret,
-                    "client_id":     config.application_id,
-                    "redirect_uri":  config.base_url + '/discord/login',
-                    "code":          code,
-                    "grant_type":    "authorization_code",
-                    "scope":         "identify guilds connections",
-                },
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+            "https://discord.com/api/oauth2/token",
+            data={
+                "client_secret": config.client_secret,
+                "client_id": config.application_id,
+                "redirect_uri": config.base_url + '/discord/login',
+                "code": code,
+                "grant_type": "authorization_code",
+                "scope": "identify guilds connections",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         ) as response:
             if 200 < response.status > 206:
                 raise discord.HTTPException(response, orjson.dumps(await response.json()).decode('utf-8'))
@@ -95,11 +96,11 @@ class DiscordLogin(HTTPHandler, abc.ABC):
 
         token_response = Token(data)
         await self.bot.redis.hset("tokens", identifier, token_response.json)
-        
+
         if 'bot' in token_response.scope:
             if guild_id is None:
-                    # thanks discord
-                    return
+                # thanks discord
+                return
             if auth_token is not None:
                 query = 'DELETE FROM auth_tokens WHERE token = $1;'
                 res = await self.bot.pool.execute(query, auth_token)
@@ -116,7 +117,7 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 await self.leave_guild(int(guild_id))
         print('hi')
         return self.redirect('/')
-    
+
     async def leave_guild(self, guild_id: int) -> None:
         for _ in range(10):
             if guild := self.bot.get_guild(guild_id):
@@ -132,15 +133,13 @@ class DiscordLogin(HTTPHandler, abc.ABC):
 
 
 class DiscordLogout(HTTPHandler, abc.ABC):
-    
     async def get(self) -> None:
         await self.bot.redis.hdel('tokens', self.get_identifier())
         self.clear_cookie('identifier')
         return self.redirect('/')
-    
+
 
 class DiscordInviteBot(HTTPHandler, abc.ABC):
-    
     async def get(self) -> None:
         user = await self.get_user()
         auth_token = self.request.headers.get('Authorization', None)
