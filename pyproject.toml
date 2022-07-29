@@ -2,7 +2,7 @@
 name = "ayaka"
 version = "0.1.0"
 description = "A general purpose and fun Discord bot."
-authors = ["Varun J <root@varunj.me>"]
+authors = ["Varun J <root@5ht2.me>"]
 license = "MPL 2.0"
 
 [tool.poetry.dependencies]
@@ -60,7 +60,7 @@ line_length = 125
 lines_after_imports = 2
 
 [tool.pyright]
-include = ["bot.py", "launcher.py", "utils/**.py", "cogs/**.py", "ipc/**.py", "web/**.py"]
+include = ["bot.py", "launcher.py", "utils/**.py", "cogs/**.py", "dashboard/**.py"]
 exclude = ["_testing/**.py", ".venv/"]
 useLibraryCodeForTypes = true
 typeCheckingMode = "basic"
