@@ -34,19 +34,19 @@ class DnD(commands.GroupCog, name='dnd', command_attrs=dict(hidden=True)):
         self._classes: list[str] = discord.utils.MISSING
         super().__init__()
 
-    @app_commands.command(name='data-for')
+    @commands.hybrid_command(name='data-for', usage='<class>')
     @app_commands.rename(class_='class')
-    async def dnd_data_for(self, interaction: discord.Interaction, class_: str) -> None:
+    async def dnd_data_for(self, ctx: Context, class_: str) -> None:
         """Returns data for the specified DnD class."""
         if class_ not in self._classes:
-            await interaction.response.send_message(f'`{class_}` is not a valid DnD Class choice.')
+            await ctx.send(f'`{class_}` is not a valid DnD Class choice.')
             return
-        await interaction.response.defer()
+        await ctx.defer()
         class_path = CLASS_PATH / f'class-{class_}.json'
         with open(class_path, 'r') as fp:
             data: DndClassTopLevel = json.load(fp)
         possible_subclasses = '\n'.join(x['name'] for x in data['subclass'])
-        await interaction.followup.send(f'Possible subclasses for {class_.title()}:\n\n{possible_subclasses}')
+        await ctx.send(f'Possible subclasses for {class_.title()}:\n\n{possible_subclasses}')
 
     @dnd_data_for.autocomplete(name='class_')
     async def data_for_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
