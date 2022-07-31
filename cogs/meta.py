@@ -9,6 +9,7 @@ from __future__ import annotations
 import colorsys
 import datetime
 import inspect
+from io import BytesIO
 import itertools
 import json
 import os
@@ -26,7 +27,7 @@ from discord.ext import commands, menus
 from utils import checks, formats, time
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
-from utils.paginator import RoboPages
+from utils.paginator import RoboPages, TextPageSource
 
 
 if TYPE_CHECKING:
@@ -828,9 +829,9 @@ class Meta(commands.Cog):
             raise commands.BadArgument(
                 f'Message with the ID of {message.id} cannot be found in {message.channel.mention}.'  # type: ignore
             ) from err
-        await ctx.send(
-            f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```'
-        )
+        source = TextPageSource(formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))), prefix='```json', suffix='```')
+        pages = RoboPages(source, ctx=ctx)
+        await pages.start()
 
     @commands.command(name='disconnect')
     @commands.check(lambda ctx: bool(ctx.guild and ctx.guild.voice_client))
@@ -889,9 +890,12 @@ class Meta(commands.Cog):
 async def raw_message(interaction: discord.Interaction, message: discord.Message) -> None:
     await interaction.response.defer()
     msg = await interaction.client.http.get_message(message.channel.id, message.id)
-    await interaction.followup.send(
-        f'```json\n{formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))}\n```'
-    )
+    fmt = formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))
+    if len(fmt) > 1985:
+        fp = BytesIO(fmt.encode('utf-8'))
+        await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'))
+        return
+    await interaction.followup.send(f'```json\n{fmt}\n```')
 
 
 async def setup(bot: Ayaka):
