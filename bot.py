@@ -80,6 +80,7 @@ EXTENSIONS = (
     'cogs.private.private',
     'cogs.private.logging',
     'cogs.private.games',
+    'cogs.private.roles',
 )
 
 
