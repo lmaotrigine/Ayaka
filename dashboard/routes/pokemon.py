@@ -10,6 +10,7 @@ import abc
 import os
 import pathlib
 
+import config
 from ..utils.handlers import HTTPHandler
 
 
@@ -31,4 +32,4 @@ class PokemonSprites(HTTPHandler, abc.ABC):
         regs = sorted(os.listdir(reg))
         shinies = sorted(os.listdir(shiny))
         sprites = list(zip(regs, shinies))
-        self.render('pokemon.html', sprites=sprites)
+        self.render('pokemon.html', sprites=sprites, base_url=config.base_url)
