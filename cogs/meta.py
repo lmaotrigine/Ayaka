@@ -9,7 +9,6 @@ from __future__ import annotations
 import colorsys
 import datetime
 import inspect
-from io import BytesIO
 import itertools
 import json
 import os
@@ -17,6 +16,7 @@ import pathlib
 import textwrap
 import unicodedata
 from collections import Counter, defaultdict
+from io import BytesIO
 from typing import TYPE_CHECKING, Any, Iterator
 from urllib.parse import urlencode
 
@@ -829,7 +829,13 @@ class Meta(commands.Cog):
             raise commands.BadArgument(
                 f'Message with the ID of {message.id} cannot be found in {message.channel.mention}.'  # type: ignore
             ) from err
-        source = TextPageSource(formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))), prefix='```json', suffix='```')
+        source = TextPageSource(
+            formats.clean_triple_backtick(
+                formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))
+            ),
+            prefix='```json',
+            suffix='```',
+        )
         pages = RoboPages(source, ctx=ctx)
         await pages.start()
 
@@ -890,7 +896,9 @@ class Meta(commands.Cog):
 async def raw_message(interaction: discord.Interaction, message: discord.Message) -> None:
     await interaction.response.defer()
     msg = await interaction.client.http.get_message(message.channel.id, message.id)
-    fmt = formats.clean_triple_backtick(formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True)))
+    fmt = formats.clean_triple_backtick(
+        formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))
+    )
     if len(fmt) > 1985:
         fp = BytesIO(fmt.encode('utf-8'))
         await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'))
