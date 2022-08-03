@@ -178,8 +178,8 @@ class Emoji(commands.Cog):
         e = discord.Embed(title='Emoji Leaderboard', colour=discord.Colour.og_blurple())
 
         query = """SELECT
-                       COALESCE(SUM(total), 0) AS 'Count',
-                       COUNT(*) AS 'Emoji',
+                       COALESCE(SUM(total), 0) AS "Count",
+                       COUNT(*) AS "Emoji"
                    FROM emoji_stats
                    WHERE guild_id = $1
                    GROUP BY guild_id;
