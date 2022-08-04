@@ -283,7 +283,7 @@ class SpamChecker:
         if mapping is None:
             return False
         # get_bucket can only return None if bucket type is default.
-        mention_bucket: commands.Cooldown = mapping.get_bucket(message, current) # type: ignore
+        mention_bucket: commands.Cooldown = mapping.get_bucket(message, current)  # type: ignore
         mention_count = sum(not m.bot and m.id != message.author.id for m in message.mentions)
         return mention_bucket.update_rate_limit(current, tokens=mention_count) is not None
 

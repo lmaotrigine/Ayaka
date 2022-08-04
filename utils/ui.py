@@ -101,7 +101,7 @@ class AvatarView(discord.ui.View):
         self.avatars: Sequence[discord.Asset] = (member.avatar or member.default_avatar, member.guild_avatar)
         self.index = 1
         self.embed: discord.Embed = discord.utils.MISSING
-    
+
     @discord.ui.button(label='View Global Avatar', style=discord.ButtonStyle.blurple)
     async def button(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         self.index ^= 1
