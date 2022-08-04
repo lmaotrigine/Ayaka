@@ -243,21 +243,22 @@ class SpamChecker:
 
         current = message.created_at.timestamp()
 
+        # CooldownMapping.get_bucket never returns None if bucket_type is not default.
         if message.author.id in self.fast_joiners:
-            bucket = self.hit_and_run.get_bucket(message)
+            bucket: commands.Cooldown = self.hit_and_run.get_bucket(message)  # type: ignore
             if bucket.update_rate_limit(current):
                 return True
 
-        if self.is_new(message.author):  # type: ignore
-            new_bucket = self.new_user.get_bucket(message)
+        if self.is_new(message.author):  # type: ignore  # guarded with the first if statement
+            new_bucket: commands.Cooldown = self.new_user.get_bucket(message)  # type: ignore
             if new_bucket.update_rate_limit(current):
                 return True
 
-        user_bucket = self.by_user.get_bucket(message)
+        user_bucket: commands.Cooldown = self.by_user.get_bucket(message)  # type: ignore
         if user_bucket.update_rate_limit(current):
             return True
 
-        content_bucket = self.by_content.get_bucket(message)
+        content_bucket: commands.Cooldown = self.by_content.get_bucket(message)  # type: ignore
         if content_bucket.update_rate_limit(current):
             return True
 
@@ -281,7 +282,8 @@ class SpamChecker:
         mapping = self.by_mentions(config)
         if mapping is None:
             return False
-        mention_bucket = mapping.get_bucket(message, current)
+        # get_bucket can only return None if bucket type is default.
+        mention_bucket: commands.Cooldown = mapping.get_bucket(message, current) # type: ignore
         mention_count = sum(not m.bot and m.id != message.author.id for m in message.mentions)
         return mention_bucket.update_rate_limit(current, tokens=mention_count) is not None
 
@@ -1052,14 +1054,14 @@ class Mod(commands.Cog):
             _joined_after_member = await converter.convert(ctx, str(args.joined_after))
 
             def joined_after(member, *, _other=_joined_after_member):
-                return member.joined_at and _other.joined_at and member.joined_at > _other.joined_at
+                return member.joined_at is not None and _other.joined_at is not None and member.joined_at > _other.joined_at
 
             predicates.append(joined_after)
         if args.joined_before:
             _joined_before_member = await converter.convert(ctx, str(args.joined_before))
 
             def joined_before(member, *, _other=_joined_before_member):
-                return member.joined_at and _other.joined_at and member.joined_at < _other.joined_at
+                return member.joined_at is not None and _other.joined_at is not None and member.joined_at < _other.joined_at
 
             predicates.append(joined_before)
 
