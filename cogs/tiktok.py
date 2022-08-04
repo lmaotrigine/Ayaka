@@ -115,7 +115,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                 ):
                     await message.delete()
 
-    @commands.hybrid_command(name='tiktok')
+    @commands.hybrid_command(name='tiktok', aliases=['tt'])
     async def tt(self, ctx: Context, url: str) -> None:
         """Download a TikTok video or an Instagram reel."""
         if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url) and not DESKTOP_PATTERN.fullmatch(url):
