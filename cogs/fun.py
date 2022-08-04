@@ -144,8 +144,9 @@ class SpoilerCooldown(commands.CooldownMapping):
         return tup
 
     def is_rate_limited(self, message_id, user_id):
-        bucket = self.get_bucket((message_id, user_id))  # type: ignore
-        return bucket.update_rate_limit() is not None  # type: ignore
+        # bucket won't be None since bucket type is set
+        bucket: commands.Cooldown = self.get_bucket((message_id, user_id))  # type: ignore
+        return bucket.update_rate_limit() is not None
 
 
 @app_commands.context_menu(name='View Pronouns')
