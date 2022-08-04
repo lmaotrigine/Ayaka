@@ -5,10 +5,10 @@
 [![discord.py version](https://img.shields.io/badge/discord.py-2.0-blue)](https://github.com/Rapptz/discord.py)
 [![python version](https://img.shields.io/badge/python-3.10-blue)](https://www.python.org/downloads/)
 [![PostgreSQL version](https://img.shields.io/badge/psql->=9-blue)](https://www.postgresql.org/download/)
-[![CodeQL][codeql-badge]](https://github.com/darthshittious/Ayaka/actions/workflows/codeql-analysis.yml)
+[![CodeQL][codeql-badge]](https://github.com/lmaotrigine/Ayaka/actions/workflows/codeql-analysis.yml)
 
-[licence-badge]: https://img.shields.io/github/license/darthshittious/Ayaka
-[codeql-badge]: https://github.com/darthshittious/Ayaka/actions/workflows/codeql-analysis.yml/badge.svg
+[licence-badge]: https://img.shields.io/github/license/lmaotrigine/Ayaka
+[codeql-badge]: https://github.com/lmaotrigine/Ayaka/actions/workflows/codeql-analysis.yml/badge.svg
 ***
 
 A personal bot for Discord, written with love and fun.

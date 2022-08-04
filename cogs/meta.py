@@ -161,7 +161,7 @@ class FrontPageSource(menus.PageSource):
                     "I'm a bot made by VJ#5945. I'm a fork of R. Danny#6348 with some edits. "
                     'I have features such as moderation, starboard, tags, reminders, and more. '
                     'You can get more information on my commands by using the dropdown below.\n\n'
-                    "I'm also open source. You can see my code on [GitHub](https://github.com/darthshittious/Ayaka)!"
+                    "I'm also open source. You can see my code on [GitHub](https://github.com/lmaotrigine/Ayaka)!"
                 ),
                 inline=False,
             )
@@ -493,7 +493,7 @@ class Meta(commands.Cog):
         periods, e.g. tag.create for the create subcommand of the tag command
         or by spaces.
         """
-        source_url = 'https://github.com/darthshittious/Ayaka'
+        source_url = 'https://github.com/lmaotrigine/Ayaka'
         branch = 'main'
         if command is None:
             await ctx.send(source_url)
@@ -504,7 +504,7 @@ class Meta(commands.Cog):
             module = src.__module__
             filename = inspect.getsourcefile(src)
         else:
-            obj = self.bot.get_command(command.replace('.', ''))
+            obj = self.bot.get_command(command.replace('.', ' '))
             if obj is None:
                 await ctx.send('Could not find comamnd.')
                 return
