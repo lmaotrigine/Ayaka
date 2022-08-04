@@ -536,7 +536,7 @@ class Meta(commands.Cog):
         embed.set_author(name=str(user), url=avatar)
         embed.set_image(url=avatar)
         if isinstance(user, discord.Member) and user.guild_avatar is not None:
-            view = AvatarView(user)
+            view = AvatarView(user, ctx.author.id)
             view.embed = embed
             await ctx.send(embed=embed, view=view)
         else:

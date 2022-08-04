@@ -92,9 +92,10 @@ class DisambiguationView(discord.ui.View, Generic[T]):
 
 
 class AvatarView(discord.ui.View):
-    def __init__(self, member: discord.Member) -> None:
+    def __init__(self, member: discord.Member, author_id: int) -> None:
         super().__init__()
         self.member = member
+        self.author_id = author_id
         self.labels = ('View Server Avatar', 'View Global Avatar')
         assert member.guild_avatar is not None
         self.avatars: Sequence[discord.Asset] = (member.avatar or member.default_avatar, member.guild_avatar)
@@ -109,3 +110,10 @@ class AvatarView(discord.ui.View):
         self.embed.set_author(name=self.member, url=avatar)
         self.embed.set_image(url=avatar)
         await interaction.response.edit_message(embed=self.embed, view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user and interaction.user.id in (self.author_id, interaction.client.owner_id):  # type: ignore # pain
+            return True
+        else:
+            await interaction.response.send_message('This view cannot be controlled by you.', ephemeral=True)
+            return False
