@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
 
 import discord
 
@@ -89,3 +89,23 @@ class DisambiguationView(discord.ui.View, Generic[T]):
         if self.message:
             await self.message.delete()
         self.stop()
+
+
+class AvatarView(discord.ui.View):
+    def __init__(self, member: discord.Member) -> None:
+        super().__init__()
+        self.member = member
+        self.labels = ('View Server Avatar', 'View Global Avatar')
+        assert member.guild_avatar is not None
+        self.avatars: Sequence[discord.Asset] = (member.avatar or member.default_avatar, member.guild_avatar)
+        self.index = 1
+        self.embed: discord.Embed = discord.utils.MISSING
+    
+    @discord.ui.button(label='View Global Avatar', style=discord.ButtonStyle.blurple)
+    async def button(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        self.index ^= 1
+        self.button.label = self.labels[self.index]
+        avatar = self.avatars[self.index].with_static_format('png')
+        self.embed.set_author(name=self.member, url=avatar)
+        self.embed.set_image(url=avatar)
+        await interaction.response.edit_message(embed=self.embed, view=self)

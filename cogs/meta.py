@@ -28,6 +28,7 @@ from utils import checks, formats, time
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.paginator import RoboPages, TextPageSource
+from utils.ui import AvatarView
 
 
 if TYPE_CHECKING:
@@ -534,7 +535,12 @@ class Meta(commands.Cog):
         avatar = user.display_avatar.with_static_format('png')
         embed.set_author(name=str(user), url=avatar)
         embed.set_image(url=avatar)
-        await ctx.send(embed=embed)
+        if isinstance(user, discord.Member) and user.guild_avatar is not None:
+            view = AvatarView(user)
+            view.embed = embed
+            await ctx.send(embed=embed, view=view)
+        else:
+            await ctx.send(embed=embed)
 
     @commands.command(aliases=['userinfo'])
     async def info(self, ctx: Context, *, user: discord.Member | discord.User | None = None):
