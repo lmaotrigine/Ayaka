@@ -464,6 +464,14 @@ class Meta(commands.Cog):
         await self.bot.set_guild_prefixes(ctx.guild, [])
         await ctx.send(ctx.tick(True))
 
+    @commands.command(name='quit', aliases=['shutdown', 'logout', 'sleep', 'die', 'restart'])
+    @commands.is_owner()
+    async def _quit(self, ctx: Context) -> None:
+        """Quits the bot."""
+        
+        await ctx.send('さようなら')
+        await self.bot.close()
+
     @staticmethod
     def _iterate_source_line_counts(root: pathlib.Path) -> Iterator[int]:
         for child in root.iterdir():
