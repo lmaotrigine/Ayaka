@@ -224,7 +224,7 @@ class Stats(commands.Cog):
 
         # [`hash`](url) message (offset)
         offset = time.format_relative(commit_time.astimezone(datetime.timezone.utc))
-        return f'[`{short_sha2}`](https://github.com/Rapptz/RoboDanny/commit/{commit.hex}) {short} ({offset})'
+        return f'[`{short_sha2}`](https://github.com/lmaotrigine/Ayaka/commit/{commit.hex}) {short} ({offset})'
 
     def get_last_commits(self, count=3):
         repo = pygit2.Repository('.git')
