@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import weakref
 from collections import deque
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 from urllib.parse import quote
@@ -65,6 +64,18 @@ class Route:
 
 
 class Ratelimit:
+
+    __slots__ = (
+        'limit',
+        'remaining',
+        'outgoing',
+        'reset_after',
+        'expires',
+        'dirty',
+        '_loop',
+        '_pending_requests',
+        '_sleeping',
+    )
     def __init__(self) -> None:
         self.limit: int = 1
         self.remaining: int = self.limit
@@ -124,7 +135,6 @@ class Ratelimit:
             future = self._pending_requests.popleft()
             if not future.done():
                 future.set_result(None)
-                self._has_just_awaken = True
                 awaken += 1
 
             if awaken >= count:
@@ -190,14 +200,30 @@ class HTTPClient:
         # Route key -> bucket hash
         self._bucket_hashes: dict[str, str] = {}
         # Bucket hash + Major parameters -> Rate limit
-        self._buckets: weakref.WeakValueDictionary[str, Ratelimit] = weakref.WeakValueDictionary()
+        # or
         # Route key + Major parameters -> Rate limit
-        # Used for temporary oneshot requests that don't have a bucket hash
-        # While I'd love to use a single mapping for these, doing this would cause the rate limit objects
-        # to inexplicably be evicted from the dictionary before we're done with it
-        self._oneshots: weakref.WeakValueDictionary[str, Ratelimit] = weakref.WeakValueDictionary()
+        # When the key is the latter, it is used for temporary
+        # one shot requests that don't have a bucket hash
+        # When this reaches 256 elements, it will try to evict based off of expiry
+        self._buckets: dict[str, Ratelimit] = {}
         self._global_over: asyncio.Event = asyncio.Event()
         self._global_over.set()
+    
+    def _try_clear_expired_ratelimits(self) -> None:
+        if len(self._buckets) < 256:
+            return
+        
+        keys = [key for key, bucket in self._buckets.items() if bucket.is_expired()]
+        for key in keys:
+            del self._buckets[key]
+    
+    def get_ratelimit(self, key: str) -> Ratelimit:
+        try:
+            value = self._buckets[key]
+        except KeyError:
+            self._buckets[key] = value = Ratelimit()
+            self._try_clear_expired_ratelimits()
+        return value
 
     async def request(self, route: Route, **kwargs: Any) -> Any:
         route_key = route.key
@@ -205,17 +231,11 @@ class HTTPClient:
         try:
             bucket_hash = self._bucket_hashes[route_key]
         except KeyError:
-            key = route_key + route.major_parameters
-
-            mapping = self._oneshots
+            key = f'{route_key}:{route.major_parameters}'
         else:
-            key = bucket_hash + route.major_parameters
-            mapping = self._buckets
+            key = f'{bucket_hash}:{route.major_parameters}'
 
-        try:
-            ratelimit = mapping[key]
-        except KeyError:
-            mapping[key] = ratelimit = Ratelimit()
+        ratelimit = self.get_ratelimit(key)
 
         kwargs['headers'] = {'Authorization': f'Bearer {route.token}'}
 
