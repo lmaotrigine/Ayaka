@@ -258,7 +258,7 @@ class Snipe(commands.Cog):
         g_id = message.guild.id
         c_id = message.channel.id
         m_id = message.id
-        m_content = message.content
+        m_content = message.clean_content
         attachs = [attachment.proxy_url for attachment in message.attachments]
         async with self._snipe_lock:
             self.snipe_deletes.append(
@@ -304,8 +304,8 @@ class Snipe(commands.Cog):
         g_id = before.guild.id
         c_id = after.channel.id
         m_id = after.id
-        before_content = before.content
-        after_content = after.content
+        before_content = before.clean_content
+        after_content = after.clean_content
         async with self._snipe_lock:
             self.snipe_edits.append(
                 {
