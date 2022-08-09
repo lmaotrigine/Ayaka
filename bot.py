@@ -46,7 +46,7 @@ Hello! I'm a bot written by VJ#5945 to provide some nice utilities.
 
 LOGGER = logging.getLogger(__name__)
 
-EXTENSIONS = (
+EXTENSIONS: tuple[str, ...] = (
     'jishaku',
     'cogs.admin',
     'cogs.anime',

@@ -522,6 +522,9 @@ class Meta(commands.Cog):
             src = obj.callback.__code__
             module = obj.callback.__module__
             filename = src.co_filename
+            if 'cogs.private' in module:
+                await ctx.send('That command is private.')
+                return
 
         lines, firstlineno = inspect.getsourcelines(src)
         if not module.startswith('discord'):
