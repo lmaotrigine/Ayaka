@@ -120,10 +120,11 @@ class MangaCog(commands.Cog, name='Manga'):
         self.get_personal_feed.add_exception_type(mangadex.APIException)
         self.get_personal_feed.start()
 
-    @commands.group(aliases=['dex'])
+    @commands.hybrid_group(name='mangadex', aliases=['dex'])
     async def mangadex(self, ctx: Context) -> None:
+        """commands for interacting with MangaDex!"""
         if not ctx.invoked_subcommand:
-            return await ctx.send_help(self)
+            await ctx.send_help(self)
 
     @mangadex.command(name='get')
     async def get_(
@@ -155,29 +156,16 @@ class MangaCog(commands.Cog, name='Manga'):
         return collection.manga
 
     @mangadex.command(name='search')
-    async def search_(self, ctx: Context, *, search: str) -> None:
-        """Search mangadex for a manga given its name."""
-        manga = await self.perform_search(search)
-        if manga is None:
-            await ctx.send('No results found!')
-            return
-
-        view = MangaView(ctx.author, ctx.bot, manga)
-        await ctx.send(view=view)
-
-    mangadex_group = app_commands.Group(name='mangadex', description='commands for interacting with MangaDex!')
-
-    @mangadex_group.command(name='search')
     @app_commands.describe(query='The manga name to search for')
-    async def slash_search(self, interaction: discord.Interaction, query: str) -> None:
+    async def search_(self, ctx: Context, *, query: str) -> None:
         """Search mangadex for a manga given its name."""
         manga = await self.perform_search(query)
         if manga is None:
-            await interaction.response.send_message('No results found!', ephemeral=True)
+            await ctx.send('No results found!', ephemeral=True)
             return
 
-        view = MangaView(interaction.user, self.bot, manga)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        view = MangaView(ctx.author, self.bot, manga)
+        await ctx.send(view=view, ephemeral=True)
 
     @search_.error
     async def search_error(self, ctx: Context, error: commands.CommandError) -> None:
@@ -187,6 +175,7 @@ class MangaCog(commands.Cog, name='Manga'):
             return
 
     @mangadex.command(name='manga')
+    @app_commands.describe(manga_id='The ID of the manga')
     async def manga_(self, ctx: Context, *, manga_id: str) -> None:
         """
         Uses a MangaDex UUID (for manga) to retrieve the data for it.
@@ -204,24 +193,6 @@ class MangaCog(commands.Cog, name='Manga'):
 
         embed = await MangadexEmbed.from_manga(manga)
         await ctx.send(embed=embed)
-
-    @mangadex_group.command(name='manga')
-    @app_commands.describe(manga_id='The ID of the manga')
-    async def slash_manga(self, interaction: discord.Interaction, manga_id: str) -> None:
-        """Fetch details about a manga from MangaDex."""
-        manga = await self.bot.manga_client.get_manga(manga_id)
-
-        if manga.content_rating in (
-            mangadex.ContentRating.pornographic,
-            mangadex.ContentRating.suggestive,
-            mangadex.ContentRating.erotica,
-        ):
-            if not getattr(interaction.channel, 'is_nsfw', lambda: True)():
-                await interaction.response.send_message('This manga is a bit too lewd for a non-lewd channel.')
-                return
-
-        embed = await MangadexEmbed.from_manga(manga)
-        await interaction.response.send_message(embed=embed)
 
     @mangadex.command(name='chapter')
     async def chapter_(self, ctx: Context, *, chapter_id: str) -> None:

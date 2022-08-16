@@ -387,7 +387,7 @@ class Meta(commands.Cog):
     async def slash_prefix(self, interaction: discord.Interaction) -> None:
         """Lists currently configured prefixes."""
 
-        prefixes = self.bot.get_guild_prefixes(interaction.guild)  # type: ignore
+        prefixes = self.bot.get_guild_prefixes(interaction.guild)
         del prefixes[1]
         e = discord.Embed(title='Prefixes', colour=discord.Colour.blurple())
         e.set_footer(text=f'{len(prefixes)} prefixes')
@@ -468,7 +468,7 @@ class Meta(commands.Cog):
     @commands.is_owner()
     async def _quit(self, ctx: Context) -> None:
         """Quits the bot."""
-        
+
         await ctx.send('さようなら')
         await self.bot.close()
 

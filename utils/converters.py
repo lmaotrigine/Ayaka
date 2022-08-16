@@ -8,6 +8,7 @@ import re
 import zoneinfo
 from typing import Any, Literal, Optional, Sequence, Type, TypedDict
 
+import discord
 import yarl
 from discord.ext import commands
 from typing_extensions import Self
@@ -212,3 +213,21 @@ class WhenAndWhatConverter(commands.Converter[tuple[datetime.datetime, str]]):
                 what = what[len(prefix) :]
 
         return when, what
+
+
+class MessageOrContent(commands.Converter[discord.Message | str]):
+    async def convert(self, ctx: Context, argument: str) -> discord.Message | str:
+        try:
+            msg = await commands.MessageConverter().convert(ctx, argument)
+        except commands.BadArgument:
+            return argument
+        return msg
+
+
+class MessageOrCleanContent(commands.Converter[discord.Message | commands.clean_content]):
+    async def convert(self, ctx: Context, argument: str) -> discord.Message | str:
+        try:
+            msg = await commands.MessageConverter().convert(ctx, argument)
+        except commands.BadArgument:
+            return await commands.clean_content().convert(ctx, argument)
+        return msg

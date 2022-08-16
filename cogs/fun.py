@@ -31,7 +31,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from utils import checks, languages
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
-from utils.converters import RedditMediaURL
+from utils.converters import MessageOrCleanContent, MessageOrContent, RedditMediaURL
 from utils.formats import plural
 from utils.paginator import RoboPages
 
@@ -288,9 +288,7 @@ class Fun(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def translate(
-        self, ctx: Context, *, message: Optional[Union[discord.Message, commands.clean_content]] = None
-    ) -> None:
+    async def translate(self, ctx: Context, *, message: Optional[MessageOrCleanContent] = None) -> None:
         """Translates a message using Google Translate.
 
         The following optional flags are allowed:
@@ -428,29 +426,19 @@ class Fun(commands.Cog):
         """UwU"""
         await ctx.send(self.build_uwu(text, cute=3))
 
-    bottom = app_commands.Group(name='bottom', description='💖✨✨✨✨🥺,,,👉👈💖💖✨,👉👈💖💖✨🥺,👉👈💖💖✨🥺,👉👈💖💖✨,👉👈💖💖🥺,,,,👉👈')
-
-    @bottom.command(name='encode')
-    async def bottom_encode(self, interaction: discord.Interaction, text: str) -> None:
-        """Encode text to bottom."""
-        await interaction.response.send_message(bottom.encode(text))  # type: ignore # pyright is high
-
-    @bottom.command(name='decode')
-    async def bottom_decode(self, interaction: discord.Interaction, text: str) -> None:
-        """Decode text from bottom."""
-        try:
-            await interaction.response.send_message(bottom.decode(text))  # type: ignore # pyright is high
-        except ValueError:
-            await interaction.response.send_message('Invalid bottom text.', ephemeral=True)
-
-    @commands.group(name='bottom')
+    @commands.hybrid_group(name='bottom')
     async def bottom_group(self, ctx: Context) -> None:
         """💖✨✨✨✨🥺,,,👉👈💖💖✨,👉👈💖💖✨🥺,👉👈💖💖✨🥺,👉👈💖💖✨,👉👈💖💖🥺,,,,👉👈"""
         if ctx.invoked_subcommand is None:
             await ctx.send_help(ctx.command)
 
     @bottom_group.command(name='encode')
-    async def _bottom_encode(self, ctx: Context, *, text: discord.Message | str | None = None) -> None:
+    async def _bottom_encode(
+        self,
+        ctx: Context,
+        *,
+        text: discord.Message | str | None = commands.param(converter=MessageOrContent, default=None, displayed_default=''),
+    ) -> None:
         """Encode text to bottom."""
         if isinstance(text, discord.Message):
             text = text.content
@@ -459,12 +447,17 @@ class Fun(commands.Cog):
             if ref and isinstance(ref.resolved, discord.Message):
                 text = ref.resolved.content
             else:
-                await ctx.send('Missing text to encode.')
+                await ctx.send('Missing text to encode.', ephemeral=True)
                 return
         await ctx.send(bottom.encode(text))  # type: ignore # pyright is high
 
     @bottom_group.command(name='decode')
-    async def _bottom_decode(self, ctx: Context, *, text: discord.Message | str | None = None) -> None:
+    async def _bottom_decode(
+        self,
+        ctx: Context,
+        *,
+        text: discord.Message | str | None = commands.param(converter=MessageOrContent, default=None, displayed_default=''),
+    ) -> None:
         """Decode text from bottom."""
         if isinstance(text, discord.Message):
             text = text.content
@@ -473,12 +466,12 @@ class Fun(commands.Cog):
             if ref and isinstance(ref.resolved, discord.Message):
                 text = ref.resolved.content
             else:
-                await ctx.send('Missing text to decode.')
+                await ctx.send('Missing text to decode.', ephemeral=True)
                 return
         try:
             await ctx.send(bottom.decode(text))  # type: ignore # pyright is high
         except ValueError:
-            await ctx.send('Invalid bottom text.')
+            await ctx.send('Invalid bottom text.', ephemeral=True)
 
     @commands.command(hidden=True)
     async def cat(self, ctx: Context) -> None:

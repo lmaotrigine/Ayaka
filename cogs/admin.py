@@ -171,21 +171,6 @@ class Admin(commands.GroupCog, group_name='dev'):
         else:
             raise error
 
-    @commands.Cog.listener()
-    async def on_interaction(self, interaction: discord.Interaction) -> None:
-        if interaction.type is not discord.InteractionType.application_command:
-            return
-
-        if not interaction.command:
-            name = interaction.data['name']  # type: ignore
-            log.warn('Received command "%s" which was not found.', name)
-            return
-
-        command_name = ' '.join(self.bot.tree.full_command_name(interaction.command))
-        command_args = ' '.join([f'{k}: {v!r}' for k, v in interaction.namespace.__dict__.items()])
-
-        log.info('[%s/#%s/%s]: /%s %s', interaction.user, interaction.channel, interaction.guild, command_name, command_args)
-
     cog = app_commands.Group(name='cog', description='Cog related commands.')
 
     @cog.command(name='load')

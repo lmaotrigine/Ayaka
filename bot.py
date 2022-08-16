@@ -14,7 +14,7 @@ import pathlib
 import sys
 import traceback
 from collections import Counter, defaultdict, deque
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Generator, Iterable, Optional
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable, Optional
 
 import aiohttp
 import discord
@@ -95,25 +95,17 @@ def _prefix_callable(bot: Ayaka, msg: discord.Message) -> list[str]:
 
 
 class ProxyObject(discord.Object):
-    def __init__(self, guild: discord.abc.Snowflake) -> None:
+    def __init__(self, guild: discord.abc.Snowflake | None) -> None:
         super().__init__(id=0)
-        self.guild: discord.abc.Snowflake = guild
+        self.guild: discord.abc.Snowflake | None = guild
 
 
 class Tree(app_commands.CommandTree):
-    @staticmethod
-    def full_command_name(
-        command: app_commands.Command[Any, Any, Any] | app_commands.Group | app_commands.ContextMenu
-    ) -> Generator[str, None, None]:
-        if not isinstance(command, app_commands.ContextMenu):
-            if command.parent:
-                yield from Tree.full_command_name(command.parent)
-        yield command.name
-
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         assert interaction.command is not None
+        self.client.dispatch('app_command_error', interaction, error)
         e = discord.Embed(title='Tree Error', colour=0xA32952)
-        e.add_field(name='Name', value=' '.join(self.full_command_name(interaction.command)))
+        e.add_field(name='Name', value=interaction.command.qualified_name)
         e.add_field(
             name='Type',
             value='Context Menu' if isinstance(interaction.command, app_commands.ContextMenu) else 'Slash Command',
@@ -247,7 +239,10 @@ class Ayaka(commands.AutoShardedBot):
             await ctx.send(str(error))
 
     def get_guild_prefixes(
-        self, guild: discord.abc.Snowflake, *, local_inject: Callable[[Ayaka, discord.Message], list[str]] = _prefix_callable
+        self,
+        guild: discord.abc.Snowflake | None,
+        *,
+        local_inject: Callable[[Ayaka, discord.Message], list[str]] = _prefix_callable,
     ) -> list[str]:
         proxy_msg = ProxyObject(guild=guild)
         return local_inject(self, proxy_msg)  # type: ignore # lying

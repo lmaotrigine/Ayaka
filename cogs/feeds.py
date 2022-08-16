@@ -35,6 +35,8 @@ from utils._types.discord_ import MessageableGuildChannel
 
 
 if TYPE_CHECKING:
+    import asyncpg
+
     from bot import Ayaka
     from utils.context import Context
 
@@ -460,7 +462,7 @@ class Feeds(commands.Cog):
             try:
                 async with self.bot.session.get(feed) as resp:
                     feed_text = await resp.text()
-                feed_info = await self.bot.loop.run_in_executor(
+                feed_info: feedparser.FeedParserDict = await self.bot.loop.run_in_executor(
                     None,
                     functools.partial(
                         feedparser.parse, io.BytesIO(feed_text.encode('UTF-8')), response_headers={'Content-Location': feed}
@@ -483,7 +485,7 @@ class Feeds(commands.Cog):
                 for entry in feed_info.entries:
                     if 'id' not in entry:
                         continue
-                    inserted = await self.bot.pool.fetchrow(
+                    inserted: asyncpg.Record = await self.bot.pool.fetchrow(
                         """
                         INSERT INTO rss_entries (entry, feed)
                         VALUES ($1, $2)
@@ -515,12 +517,10 @@ class Feeds(commands.Cog):
                         description = re.sub(r'\n\s*\n', '\n', description)
                         if len(description) > 4096:
                             space_index = description.rfind(' ', 0, 4093)
-                            # EDCL: Embed Description Character Limit
                             description = description[:space_index] + '...'
                     if title := entry.get('title'):
                         title = textwrap.shorten(entry.get('title'), width=256, placeholder='...')
                         title = html.unescape(title)
-                    # ETiCL: Embed Title Character Limit
                     embed = discord.Embed(
                         title=title,
                         url=entry.link,
@@ -529,6 +529,10 @@ class Feeds(commands.Cog):
                         colour=0xFA9B39,
                     )
                     # Get and set thumbnail url
+                    media_image: feedparser.FeedParserDict | None
+                    image_link: feedparser.FeedParserDict | None
+                    media_content: feedparser.FeedParserDict | None
+
                     thumbnail_url = (
                         (media_thumbnail := entry.get('media_thumbnail'))
                         and media_thumbnail[0].get('url')
@@ -539,7 +543,7 @@ class Feeds(commands.Cog):
                         )
                         or (
                             (links := entry.get('links'))
-                            and (image_link := discord.utils.find(lambda l: 'image' in l.get('type', ''), links))
+                            and (image_link := discord.utils.find(lambda l: 'image' in l.get('type', ''), links))  # type: ignore # idk
                             and image_link.get('href')
                         )
                         or (

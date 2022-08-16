@@ -25,6 +25,7 @@ import discord
 import pkg_resources
 import psutil
 import pygit2
+from discord import app_commands
 from discord.ext import commands, menus, tasks
 from typing_extensions import Annotated
 
@@ -42,7 +43,7 @@ LOGGING_CHANNEL = 956838275438489651
 
 class DataBatchEntry(TypedDict):
     guild: int | None
-    channel: int
+    channel: int | None  # context menus may not have this
     author: int
     used: str
     prefix: str
@@ -169,6 +170,37 @@ class Stats(commands.Cog):
     @commands.Cog.listener()
     async def on_command_completion(self, ctx: Context):
         await self.register_command(ctx)
+
+    @commands.Cog.listener()
+    async def on_app_command_completion(
+        self, interaction: discord.Interaction, command: app_commands.Command | app_commands.ContextMenu
+    ):
+        # manually filter out hybrids
+        if not isinstance(command, app_commands.ContextMenu):
+            if command.root_parent and command.root_parent.qualified_name != 'dev':
+                return
+            if command.qualified_name != 'prefix':
+                return
+        command_name = command.qualified_name
+        self.bot.command_stats[command_name] += 1
+        if interaction.guild is None:
+            destination = 'Private Message'
+            guild_id = None
+        else:
+            destination = f'#{interaction.channel} ({interaction.guild})'
+            guild_id = interaction.guild.id
+        log.info(f'{interaction.created_at}: {interaction.user} in {destination}: {command_name}')
+        data: DataBatchEntry = {
+            'guild': guild_id,
+            'channel': interaction.channel_id,
+            'author': interaction.user.id,
+            'used': interaction.created_at.isoformat(),
+            'prefix': '/' if isinstance(command, app_commands.Command) else '[Context Menu]',
+            'command': command_name,
+            'failed': False,  # Interaction.command_failed when
+        }
+        async with self._batch_lock:
+            self._data_batch.append(data)
 
     @commands.Cog.listener()
     async def on_socket_event_type(self, event_type: str):

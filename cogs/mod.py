@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Callable, List, MutableMapping, Optional
 
 import asyncpg
 import discord
-from discord import app_commands
 from discord.ext import commands, tasks
 from typing_extensions import Annotated
 
@@ -2039,11 +2038,10 @@ class Mod(commands.Cog):
 
         return discord.File(out, filename='hoisters.txt', spoiler=False)
 
-    @commands.command(name='hoisters')
+    @commands.hybrid_command(name='hoisters')
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def hoister_message(self, ctx: Context, guild: discord.Guild | None = None) -> None:
-        """
-        Sends the author a list of members who are currently hosting in the member list.
+        """List the members who are currently hosting in the member list.
 
         This is currently any punctuation character.
         """
@@ -2067,21 +2065,6 @@ class Mod(commands.Cog):
             await ctx.author.send(file=file)
         except discord.Forbidden:
             await ctx.send("I couldn't DM you so here it is...", file=file)
-
-    @app_commands.command()
-    async def hoisters(self, interaction: discord.Interaction) -> None:
-        """List the members who are currently hosting in the member list."""
-
-        if interaction.guild is None:
-            await interaction.response.send_message("Can't do this in DMs!", ephemeral=True)
-            return
-
-        file = self._hoisters_magic(interaction.guild)
-        if file is None:
-            await interaction.response.send_message('No hoisters here!', ephemeral=True)
-            return
-
-        await interaction.response.send_message(file=file, ephemeral=True)
 
     @commands.command(enabled=False)
     @commands.guild_only()

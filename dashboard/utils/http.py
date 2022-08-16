@@ -76,6 +76,7 @@ class Ratelimit:
         '_pending_requests',
         '_sleeping',
     )
+
     def __init__(self) -> None:
         self.limit: int = 1
         self.remaining: int = self.limit
@@ -208,15 +209,15 @@ class HTTPClient:
         self._buckets: dict[str, Ratelimit] = {}
         self._global_over: asyncio.Event = asyncio.Event()
         self._global_over.set()
-    
+
     def _try_clear_expired_ratelimits(self) -> None:
         if len(self._buckets) < 256:
             return
-        
+
         keys = [key for key, bucket in self._buckets.items() if bucket.is_expired()]
         for key in keys:
             del self._buckets[key]
-    
+
     def get_ratelimit(self, key: str) -> Ratelimit:
         try:
             value = self._buckets[key]
