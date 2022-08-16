@@ -42,7 +42,7 @@ async-lru = "^1.0.3"
 chess = "^1.9.1"
 CairoSVG = "^2.5.2"
 tornado = "^6.1"
-dice-parser = {git = "https://github.com/lmaotrigine/dice-parser"}
+dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 black = "*"
