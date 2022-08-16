@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  #- name: Ask a question
+  #  about: Ask questions and discuss with other users of the bot.
+  #  url: https://github.com/lmaotrigine/Ayaka/discussions
+  - name: Discord Server
+    about: Official Support Server
+    url: https://discord.gg/s44CFagYN2
