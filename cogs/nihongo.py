@@ -162,14 +162,14 @@ class JishoKanji:
         if raw is None:
             raise ValueError("Something is None that shouldn'nt be None.")
         fmt = defaultdict(list)
-        for x in raw:  # type: ignore # bs4 types are bad
+        for x in raw:  
             if isinstance(x, bs4.NavigableString):
                 continue
-            if hmm := x.select('h2'):
+            if hmm := x.select('h2'):  # type: ignore # bs4 types are bad
                 if hmm[0].text == 'On reading compounds':
-                    fmt['On'] = [item.text.strip() for item in x.select('ul')]
+                    fmt['On'] = [item.text.strip() for item in x.select('ul')]  # type: ignore # bs4 types are bad
                 if hmm[0].text == 'Kun reading compounds':
-                    fmt['Kun'] = [item.text.strip() for item in x.select('ul')]
+                    fmt['Kun'] = [item.text.strip() for item in x.select('ul')]  # type: ignore # bs4 types are bad
         return fmt
 
     def symbols(self, key: Literal['on', 'kun']) -> Optional[list[tuple[str, str]]]:
@@ -185,7 +185,7 @@ class JishoKanji:
 
         fmt = []
 
-        for item in raw:  # type: ignore # bs4 types are bad
+        for item in raw:
             if isinstance(item, bs4.element.Tag):
                 text = item.text
                 href = item.get('href')

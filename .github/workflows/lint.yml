@@ -1,0 +1,48 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    name: check 3.10
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Set up CPython 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        id: install-deps
+        run: |
+          curl -fsSL https://install.python-poetry.org | python3 -
+          export PATH=$HOME/.local/bin:$PATH
+          poetry config virtualenvs.create false
+          poetry install
+      
+      - name: Setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Run Pyright
+        uses: jakebailey/pyright-action@v1
+        with:
+          version: '1.1.266'
+      
+      - name: Run black
+        if: ${{ always() && steps.install-deps.outcome == 'success' }}
+        run: |
+          black --check .
+      
+      - name: Run isort
+        if: ${{ always() && steps.install-deps.outcome == 'success' }}
+        run: |
+          isort -c .
