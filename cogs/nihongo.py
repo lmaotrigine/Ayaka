@@ -162,7 +162,7 @@ class JishoKanji:
         if raw is None:
             raise ValueError("Something is None that shouldn'nt be None.")
         fmt = defaultdict(list)
-        for x in raw:  
+        for x in raw:
             if isinstance(x, bs4.NavigableString):
                 continue
             if hmm := x.select('h2'):  # type: ignore # bs4 types are bad
