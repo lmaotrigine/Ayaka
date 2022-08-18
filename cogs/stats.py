@@ -197,7 +197,7 @@ class Stats(commands.Cog):
             'used': interaction.created_at.isoformat(),
             'prefix': '/' if isinstance(command, app_commands.Command) else '[Context Menu]',
             'command': command_name,
-            'failed': False,  # Interaction.command_failed when
+            'failed': interaction.command_failed,
         }
         async with self._batch_lock:
             self._data_batch.append(data)
