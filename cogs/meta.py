@@ -362,6 +362,7 @@ class Meta(commands.Cog):
             js = await resp.json()
         decancered = js['decancered']
         await user.edit(nick=decancered, reason=f'decancer by {ctx.author}')
+        await ctx.send('\N{OK HAND SIGN}')
 
     @commands.group(name='prefix', invoke_without_command=True)
     async def prefix(self, ctx: GuildContext) -> None:
