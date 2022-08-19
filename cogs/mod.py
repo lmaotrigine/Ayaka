@@ -2040,7 +2040,9 @@ class Mod(commands.Cog):
 
     @commands.hybrid_command(name='hoisters')
     @commands.cooldown(1, 15, commands.BucketType.user)
-    async def hoister_message(self, ctx: Context, guild: discord.Guild | None = None) -> None:
+    async def hoisters_(
+        self, ctx: Context, guild: discord.Guild | None = commands.param(converter=commands.GuildConverter(), default=None)
+    ) -> None:
         """List the members who are currently hosting in the member list.
 
         This is currently any punctuation character.
@@ -2059,6 +2061,10 @@ class Mod(commands.Cog):
         file = self._hoisters_magic(guild)
         if file is None:
             await ctx.send('No hoisters here!')
+            return
+
+        if ctx.interaction is not None:
+            await ctx.send(file=file, ephemeral=True)
             return
 
         try:
