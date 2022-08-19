@@ -492,10 +492,58 @@
 		{
 			"name": "Bonus Proficiencies",
 			"source": "TCE",
+			"className": "Expert Sidekick",
+			"classSource": "TCE",
+			"level": 1,
+			"entryData": {
+				"armorProficiencies": [
+					{
+						"light": true
+					}
+				],
+				"savingThrowProficiencies": [
+					{
+						"choose": {
+							"from": [
+								"dex",
+								"int",
+								"cha"
+							],
+							"count": 1
+						}
+					}
+				],
+				"skillProficiencies": [
+					{
+						"any": 5
+					}
+				]
+			}
+		},
+		{
+			"name": "Bonus Proficiencies",
+			"source": "TCE",
 			"className": "Spellcaster Sidekick",
 			"classSource": "TCE",
 			"level": 1,
 			"entryData": {
+				"armorProficiencies": [
+					{
+						"light": true
+					}
+				],
+				"savingThrowProficiencies": [
+					{
+						"choose": {
+							"from": [
+								"wis",
+								"int",
+								"cha"
+							],
+							"count": 1
+						}
+					}
+				],
 				"skillProficiencies": [
 					{
 						"choose": {
@@ -522,6 +570,25 @@
 			"classSource": "TCE",
 			"level": 1,
 			"entryData": {
+				"armorProficiencies": [
+					{
+						"light": true,
+						"medium": true,
+						"heavy": true
+					}
+				],
+				"savingThrowProficiencies": [
+					{
+						"choose": {
+							"from": [
+								"str",
+								"dex",
+								"con"
+							],
+							"count": 1
+						}
+					}
+				],
 				"skillProficiencies": [
 					{
 						"choose": {
@@ -536,6 +603,34 @@
 							],
 							"count": 2
 						}
+					}
+				]
+			}
+		},
+		{
+			"name": "Expertise",
+			"source": "TCE",
+			"className": "Expert Sidekick",
+			"classSource": "TCE",
+			"level": 3,
+			"entryData": {
+				"expertise": [
+					{
+						"anyProficientSkill": 2
+					}
+				]
+			}
+		},
+		{
+			"name": "Expertise",
+			"source": "TCE",
+			"className": "Expert Sidekick",
+			"classSource": "TCE",
+			"level": 15,
+			"entryData": {
+				"expertise": [
+					{
+						"anyProficientSkill": 2
 					}
 				]
 			}
@@ -4323,27 +4418,6 @@
 					]
 				]
 			}
-		},
-		{
-			"name": "Disciple of Life",
-			"source": "PHB",
-			"className": "Cleric",
-			"classSource": "PHB",
-			"subclassShortName": "Life",
-			"subclassSource": "PHB",
-			"level": 1,
-			"effects": [
-				{
-					"name": "Bonus Healing",
-					"changes": [
-						{
-							"key": "data.bonuses.heal.damage",
-							"mode": "ADD",
-							"value": "@item.level + 2"
-						}
-					]
-				}
-			]
 		},
 		{
 			"name": "Radiant Sun Bolt",

@@ -372,7 +372,7 @@ resolved_reference = "8686b5d1bbc1d3c862292eb436ab630d6e9c9b53"
 
 [[package]]
 name = "discord.py"
-version = "2.1.0a4536+g4abea7ba"
+version = "2.1.0a4542+g59677c67"
 description = "A Python wrapper for the Discord API"
 category = "main"
 optional = false
@@ -383,13 +383,12 @@ develop = false
 aiodns = {version = ">=1.1", optional = true, markers = "extra == \"speed\""}
 aiohttp = ">=3.7.4,<4"
 Brotli = {version = "*", optional = true, markers = "extra == \"speed\""}
-cchardet = {version = "*", optional = true, markers = "extra == \"speed\""}
 orjson = {version = ">=3.5.4", optional = true, markers = "extra == \"speed\""}
 PyNaCl = {version = ">=1.3.0,<1.6", optional = true, markers = "extra == \"voice\""}
 
 [package.extras]
 docs = ["sphinx (==4.4.0)", "sphinxcontrib_trio (==1.1.2)", "sphinxcontrib-websupport", "typing-extensions (>=4.3,<5)"]
-speed = ["orjson (>=3.5.4)", "aiodns (>=1.1)", "brotli", "cchardet"]
+speed = ["orjson (>=3.5.4)", "aiodns (>=1.1)", "brotli", "cchardet (==2.1.7)"]
 test = ["coverage", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mock", "typing-extensions (>=4.3,<5)"]
 voice = ["PyNaCl (>=1.3.0,<1.6)"]
 
@@ -1178,7 +1177,7 @@ websockets = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "9201ee452b6cedf82558d900083519ef792c5ba137ed3075e28483420a1e7af4"
+content-hash = "7eefeba73b567fceb7482744091bf9764905892607afc8533fcea621b867f34b"
 
 [metadata.files]
 aiodns = [

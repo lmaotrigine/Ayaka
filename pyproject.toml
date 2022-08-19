@@ -14,6 +14,7 @@ mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"
 "nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}
 bottom = {git = "https://git.5ht2.me/darthshittious/bottom", rev = "main"}
 py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
+dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
 asyncpg = "*"
 aiohttp = {extras = ["speedups"], version = "^3.8.1"}
 googletrans = "3.1.0a0"
@@ -32,7 +33,7 @@ Pillow = "*"
 pygit2 = "^1.5.0"
 yt-dlp = "^2022.3.8"
 typing-extensions = "^4.1.1"
-uvloop = {version = "*", markers = "platform_system != 'Windows'"}
+uvloop = {version = "*", markers = "platform_system != 'Windows' and implementation_name == 'cpython'"}
 python-Levenshtein = "^0.12.2"
 redis = "^4.2.1"
 hiredis = "^2.0.0"
@@ -42,7 +43,6 @@ async-lru = "^1.0.3"
 chess = "^1.9.1"
 CairoSVG = "^2.5.2"
 tornado = "^6.1"
-dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 black = "*"
