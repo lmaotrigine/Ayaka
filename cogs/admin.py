@@ -351,7 +351,7 @@ class Admin(commands.GroupCog, group_name='dev'):
 
         await modal.interaction.response.defer(ephemeral=True, thinking=True)
         self._last_eval = modal.code.value
-        code = f'async def _eval_func0():\n{textwrap.indent(modal.code.value, "  ")}'  # type: ignore
+        code = f'async def _eval_func0():\n{textwrap.indent(modal.code.value, "  ")}'
         self._eval_globals['interaction'] = interaction
 
         lcls = {}
