@@ -151,7 +151,7 @@ class Ratelimit:
 
     def is_expired(self) -> bool:
         return self.expires is not None and self._loop.time() > self.expires
-    
+
     def is_inactive(self) -> bool:
         delta = self._loop.time() - self._last_request
         return delta >= 300 and self.outgoing == 0 and len(self._pending_requests) == 0

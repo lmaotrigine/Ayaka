@@ -524,13 +524,17 @@ class Meta(commands.Cog):
             module = obj.callback.__module__
             filename = src.co_filename
             if 'cogs.private' in module:
-                await ctx.send('That command is private.')
-                return
+                source_url = 'https://github.com/lmaotrigine/ayaka-private'
 
         lines, firstlineno = inspect.getsourcelines(src)
         if not module.startswith('discord'):
             # not a built-in command
-            location = os.path.relpath(filename).replace('\\', '/')  # type: ignore
+            if 'cogs.private' in module:
+                # private commands
+                source_url = 'https://github.com/lmaotrigine/ayaka-private'
+                location = module[13:].replace('.', '/') + '.py'
+            else:
+                location = os.path.relpath(filename).replace('\\', '/')  # type: ignore
         else:
             location = module.replace('.', '/') + '.py'
             source_url = 'https://github.com/Rapptz/discord.py'
