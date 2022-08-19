@@ -72,6 +72,7 @@ class Ratelimit:
         'reset_after',
         'expires',
         'dirty',
+        '_last_request',
         '_loop',
         '_pending_requests',
         '_sleeping',
@@ -90,6 +91,7 @@ class Ratelimit:
         # The object that is sleeping is ultimately responsible for freeing the semaphore
         # for the requests currently pending.
         self._sleeping: asyncio.Lock = asyncio.Lock()
+        self._last_request: float = self._loop.time()
 
     def __repr__(self) -> str:
         return (
@@ -149,8 +151,13 @@ class Ratelimit:
 
     def is_expired(self) -> bool:
         return self.expires is not None and self._loop.time() > self.expires
+    
+    def is_inactive(self) -> bool:
+        delta = self._loop.time() - self._last_request
+        return delta >= 300 and self.outgoing == 0 and len(self._pending_requests) == 0
 
     async def acquire(self) -> None:
+        self._last_request = self._loop.time()
         if self.is_expired():
             self.reset()
 
@@ -214,7 +221,7 @@ class HTTPClient:
         if len(self._buckets) < 256:
             return
 
-        keys = [key for key, bucket in self._buckets.items() if bucket.is_expired()]
+        keys = [key for key, bucket in self._buckets.items() if bucket.is_inactive()]
         for key in keys:
             del self._buckets[key]
 
