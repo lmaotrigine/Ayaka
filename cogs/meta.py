@@ -761,7 +761,6 @@ class Meta(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
     async def botpermissions(self, ctx: GuildContext, *, channel: MessageableGuildChannel | None = None) -> None:
         """hows the bot's permissions in a specific channel.
 
@@ -770,7 +769,6 @@ class Meta(commands.Cog):
         This is a good way of checking if the bot has the permissions needed
         to execute the commands it wants to execute.
 
-        To execute this command you must have Manage Roles permission.
         You cannot use this in private messages.
         """
         channel = channel or ctx.channel
