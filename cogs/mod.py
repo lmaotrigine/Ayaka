@@ -15,7 +15,7 @@ import logging
 import re
 import shlex
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, Callable, List, MutableMapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Literal, List, MutableMapping, Optional
 
 import asyncpg
 import discord
