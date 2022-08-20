@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Callable, Generator
 
 import asyncpg  # type: ignore # rtfs
 import discord
+from discord import app_commands
 from discord.ext import commands, menus, tasks  # type: ignore # rtfs
 from jishaku.codeblocks import Codeblock, codeblock_converter
 from jishaku.shell import ShellReader
@@ -224,34 +225,60 @@ class RTFX(commands.Cog):
         e.set_footer(text=f'{len(matches)} possible results.')
         await ctx.send(embed=e)
 
-    @commands.group(aliases=['rtfd'], invoke_without_command=True)
-    async def rtfm(self, ctx: Context, *, obj: str | None = None) -> None:
+    async def rtfm_slash_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        # Degenerate case: not having built caching yet
+        if not hasattr(self, '_rtfm_cache'):
+            await interaction.response.autocomplete([])
+            await self.build_rtfm_lookup_table()
+            return []
+        
+        if not current:
+            return []
+        
+        if len(current) < 3:
+            return [app_commands.Choice(name=current, value=current)]
+        
+        assert interaction.command is not None
+        key = interaction.command.name
+        matches = fuzzy.finder(current, self._rtfm_cache[key], lazy=False)[:10]
+        return [app_commands.Choice(name=m, value=m) for m in matches]
+    
+    @commands.hybrid_group(aliases=['rtfd'], fallback='python')
+    @app_commands.describe(entity='The object to search for')
+    @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
+    async def rtfm(self, ctx: Context, *, entity: str | None = None) -> None:
         """Gives you a documentation link for a Python entity."""
-        await self.do_rtfm(ctx, 'python', obj)
+        await self.do_rtfm(ctx, 'python', entity)
 
     @rtfm.command(name='discord.py', aliases=['dpy', 'dpys'])
-    async def rtfm_dpy(self, ctx: Context, *, obj: str | None = None) -> None:
+    @app_commands.describe(entity='The object to search for')
+    @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
+    async def rtfm_dpy(self, ctx: Context, *, entity: str | None = None) -> None:
         """Gives you a documentation link for a discord.py entity.
 
         Events, objects, and functions are all supported through a
         a cruddy fuzzy algorithm.
         """
-        await self.do_rtfm(ctx, 'discord.py', obj)
+        await self.do_rtfm(ctx, 'discord.py', entity)
 
-    @rtfm.command(name='discord.py-master', aliases=['dpym', 'dpy2.0', 'dpy2', 'dpy-latest', 'dpyl'])
-    async def rtfm_dpy_master(self, ctx: Context, *, obj: str | None = None) -> None:
+    @rtfm.command(name='discord.py-latest', aliases=['dpym', 'dpy-latest', 'dpyl', 'dpy-master'])
+    @app_commands.describe(entity='The object to search for')
+    @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
+    async def rtfm_dpy_master(self, ctx: Context, *, entity: str | None = None) -> None:
         """Gives you a documentation link for a discord.py entity (master branch)."""
-        await self.do_rtfm(ctx, 'discord.py-master', obj)
+        await self.do_rtfm(ctx, 'discord.py-master', entity)
 
     @rtfm.command(name='asyncpg')
-    async def rtfm_asyncpg(self, ctx: Context, *, obj: str | None = None) -> None:
+    @app_commands.describe(entity='The object to search for')
+    @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
+    async def rtfm_asyncpg(self, ctx: Context, *, entity: str | None = None) -> None:
         """Gives you the documentation link for an `asyncpg` entity."""
-        await self.do_rtfm(ctx, 'asyncpg', obj)
+        await self.do_rtfm(ctx, 'asyncpg', entity)
 
     @rtfm.command(name='aiohttp')
-    async def rtfm_aiohttp(self, ctx: Context, *, obj: str | None = None) -> None:
+    async def rtfm_aiohttp(self, ctx: Context, *, entity: str | None = None) -> None:
         """Gives you the documentation link for an `aiohttp` entity."""
-        await self.do_rtfm(ctx, 'aiohttp', obj)
+        await self.do_rtfm(ctx, 'aiohttp', entity)
 
     @rtfm.command(name='refresh')
     @commands.is_owner()
