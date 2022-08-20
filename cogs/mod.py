@@ -21,6 +21,7 @@ from discord.ext import commands, tasks
 from typing_extensions import Annotated
 
 from utils import cache, checks, flags, time
+from utils.converters import Snowflake
 from utils.formats import plural, human_join
 from utils.paginator import SimplePages
 
@@ -335,8 +336,12 @@ class MassbanFlags(commands.FlagConverter):
     ends: Optional[str] = commands.flag(description='The substring to search if the message ends with.', default=None)
     match: Optional[str] = commands.flag(description='The regex to match the message content to.', default=None)
     search: commands.Range[int, 1, 2000] = commands.flag(description='How many messages to search for', default=100)
-    after: Optional[str] = commands.flag(description='Messages must come after this message ID.', default=None)
-    before: Optional[str] = commands.flag(description='Messages must come before this message ID.', default=None)
+    after: Annotated[Optional[int], Snowflake] = commands.flag(
+        description='Messages must come after this message ID.', default=None
+    )
+    before: Annotated[Optional[int], Snowflake] = commands.flag(
+        description='Messages must come before this message ID.', default=None
+    )
     files: Optional[bool] = commands.flag(description='Whether the message should have attachments.', default=None)
     embeds: Optional[bool] = commands.flag(description='Whether the message should have embeds.', default=None)
 
@@ -352,8 +357,12 @@ class PurgeFlags(commands.FlagConverter):
     suffix: Optional[str] = commands.flag(
         description='Remove messages that end with this string (case sensitive)', default=None
     )
-    after: Optional[str] = commands.flag(description='Search for messages that come after this message ID', default=None)
-    before: Optional[str] = commands.flag(description='Search for messages that come before this message ID', default=None)
+    after: Annotated[Optional[int], Snowflake] = commands.flag(
+        description='Search for messages that come after this message ID', default=None
+    )
+    before: Annotated[Optional[int], Snowflake] = commands.flag(
+        description='Search for messages that come before this message ID', default=None
+    )
     bot: bool = commands.flag(description='Remove messages from bots (not webhooks!)', default=False)
     webhooks: bool = commands.flag(description='Remove messages from webhooks', default=False)
     embeds: bool = commands.flag(description='Remove messages that have embeds', default=False)
@@ -1382,8 +1391,8 @@ class Mod(commands.Cog):
         members = []
 
         if args.channel:
-            before = discord.Object(id=int(args.before)) if args.before else None
-            after = discord.Object(id=int(args.after)) if args.after else None
+            before = discord.Object(id=args.before) if args.before else None
+            after = discord.Object(id=args.after) if args.after else None
             predicates_: list[Callable[[discord.Message], bool]] = []
             # pyright can't narrow these
             if args.contains:
@@ -1712,8 +1721,8 @@ class Mod(commands.Cog):
         if search is None:
             search = 100
 
-        before = discord.Object(id=int(flags.before)) if flags.before else None
-        after = discord.Object(id=int(flags.after)) if flags.after else None
+        before = discord.Object(id=flags.before) if flags.before else None
+        after = discord.Object(id=flags.after) if flags.after else None
         await ctx.defer()
 
         try:
