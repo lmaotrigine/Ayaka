@@ -23,7 +23,7 @@ from aiohttp import BasicAuth
 from asyncpg import Connection, Pool, Record
 from discord.ext import commands, tasks
 
-from utils import cache, checks, db
+from utils import cache, checks
 from utils._types.danbooru import DanbooruPayload
 from utils._types.gelbooru import GelbooruPayload, GelbooruPostPayload
 from utils.context import Context, GuildContext
@@ -113,12 +113,6 @@ class NHentaiEmbed(discord.Embed):
         if gt:
             self.description += '... (truncated at 25)'
         return self
-
-
-class LewdConfigTable(db.Table, table_name='lewd_config'):
-    guild_id = db.Column(db.Integer(big=True), primary_key=True)
-    blacklist = db.Column(db.Array(db.String()))
-    auto_six_digits = db.Column(db.Boolean)
 
 
 class BooruConfig:

@@ -15,7 +15,7 @@ from discord import app_commands
 from discord.ext import commands, menus
 from fuzzywuzzy import process
 
-from utils import db, time
+from utils import time
 from utils.paginator import RoboPages
 
 
@@ -32,14 +32,6 @@ class TZMenuSource(menus.ListPageSource):
 
     async def format_page(self, _, page: int) -> discord.Embed:
         return self.embeds[page]
-
-
-class TimeTable(db.Table, table_name='tz_store'):
-    """Table for timezones. Unique per user, with guild array."""
-
-    user_id = db.Column(db.Integer(big=True), primary_key=True)
-    guild_ids = db.Column(db.Array(db.Integer(big=True)))
-    tz = db.Column(db.String)
 
 
 class TimezoneConverter(commands.Converter):

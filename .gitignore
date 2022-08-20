@@ -6,7 +6,7 @@ cogs/private/
 cogs/testing.py
 cogs/dead/
 static/
-migrations/
+migrations/*.json
 *.log
 /config.py
 configs/*.json

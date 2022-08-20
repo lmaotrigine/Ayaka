@@ -14,7 +14,7 @@ import typing
 import discord
 from discord.ext import commands, menus, tasks
 
-from utils import cache, db, formats
+from utils import cache, formats
 from utils.paginator import RoboPages
 
 
@@ -40,40 +40,6 @@ class SnipePageSource(menus.ListPageSource):
 
     async def format_page(self, menu, entries):
         return self.embeds[entries]
-
-
-class SnipeDeleteTable(db.Table, table_name='snipe_deletes'):
-    id = db.PrimaryKeyColumn()
-
-    user_id = db.Column(db.Integer(big=True))
-    guild_id = db.Column(db.Integer(big=True), index=True)
-    channel_id = db.Column(db.Integer(big=True), index=True)
-    parent_id = db.Column(db.Integer(big=True), index=True)
-    message_id = db.Column(db.Integer(big=True))
-    message_content = db.Column(db.String)
-    attachment_urls = db.Column(db.Array(db.String), nullable=True)
-    delete_time = db.Column(db.Integer(big=True))
-
-
-class SnipeEditTable(db.Table, table_name='snipe_edits'):
-    id = db.PrimaryKeyColumn()
-
-    user_id = db.Column(db.Integer(big=True))
-    guild_id = db.Column(db.Integer(big=True), index=True)
-    channel_id = db.Column(db.Integer(big=True), index=True)
-    parent_id = db.Column(db.Integer(big=True), index=True)
-    message_id = db.Column(db.Integer(big=True))
-    before_content = db.Column(db.String)
-    after_content = db.Column(db.String)
-    edited_time = db.Column(db.Integer(big=True))
-    jump_url = db.Column(db.String)
-
-
-class SnipeConfigTable(db.Table, table_name='snipe_config'):
-    id = db.Column(db.Integer(big=True), primary_key=True)
-
-    blacklisted_channels = db.Column(db.Array(db.Integer(big=True)))
-    blacklisted_members = db.Column(db.Array(db.Integer(big=True)))
 
 
 class SnipeConfig:

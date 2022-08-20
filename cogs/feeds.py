@@ -30,7 +30,7 @@ import tweepy.asynchronous
 from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
 
-from utils import checks, db
+from utils import checks
 from utils._types.discord_ import MessageableGuildChannel
 
 
@@ -41,32 +41,6 @@ if TYPE_CHECKING:
     from utils.context import Context
 
 log = logging.getLogger(__name__)
-
-
-class TwitterHandles(db.Table, table_name='twitter_handles'):
-    channel_id = db.Column(db.Integer(big=True), primary_key=True)
-    handle = db.Column(db.String, primary_key=True)
-    replies = db.Column(db.Boolean)
-    retweets = db.Column(db.Boolean)
-
-
-class RSSFeeds(db.Table, table_name='rss_feeds'):
-    channel_id = db.Column(db.Integer(big=True), primary_key=True)
-    feed = db.Column(db.String, primary_key=True)
-    last_checked = db.Column(db.Datetime(timezone=True))
-    ttl = db.Column(db.Integer)
-
-
-class RSSEntries(db.Table, table_name='rss_entries'):
-    entry = db.Column(db.String, primary_key=True)
-    feed = db.Column(db.String, primary_key=True)
-
-
-class RSSErrors(db.Table, table_name='rss_errors'):
-    time_stamp = db.Column(db.Datetime(timezone=True), primary_key=True)
-    feed = db.Column(db.String)
-    type = db.Column(db.String)
-    message = db.Column(db.String)
 
 
 TWITTER_COLOUR = 0x00ACED

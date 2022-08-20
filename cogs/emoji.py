@@ -18,7 +18,7 @@ import discord
 import yarl
 from discord.ext import commands, tasks
 
-from utils import checks, db
+from utils import checks
 from utils.paginator import RoboPages, TextPageSource
 
 
@@ -86,22 +86,6 @@ def usage_per_day(dt: datetime.datetime, usages: int) -> float:
     if int(days) == 0:
         return usages
     return usages / days
-
-
-class EmojiStats(db.Table, table_name='emoji_stats'):
-    id = db.Column(db.Integer(big=True, auto_increment=True), primary_key=True)
-
-    guild_id = db.Column(db.Integer(big=True), index=True)
-    emoji_id = db.Column(db.Integer(big=True), index=True)
-    total = db.Column(db.Integer, default=0)
-
-    @classmethod
-    def create_table(cls, *, exists_ok: bool = True) -> str:
-        statement = super().create_table(exists_ok=exists_ok)
-
-        # create the indexes
-        sql = 'CREATE UNIQUE INDEX IF NOT EXISTS emoji_stats_uniq_idx ON emoji_stats (guild_id, emoji_id);'
-        return statement + '\n' + sql
 
 
 class Emoji(commands.Cog):

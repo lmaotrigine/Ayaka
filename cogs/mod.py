@@ -22,7 +22,7 @@ import discord
 from discord.ext import commands, tasks
 from typing_extensions import Annotated
 
-from utils import cache, checks, db, time
+from utils import cache, checks, time
 from utils.formats import plural
 
 
@@ -53,19 +53,6 @@ class RaidMode(enum.Enum):
 
     def __str__(self) -> str:
         return self.name
-
-
-## Tables
-
-
-class GuildConfig(db.Table, table_name='guild_mod_config'):
-    id = db.Column(db.Integer(big=True), primary_key=True)
-    raid_mode = db.Column(db.Integer(small=True))
-    broadcast_channel = db.Column(db.Integer(big=True))
-    mention_count = db.Column(db.Integer(small=True))
-    safe_mention_channel_ids = db.Column(db.Array(db.Integer(big=True)))
-    mute_role_id = db.Column(db.Integer(big=True))
-    muted_members = db.Column(db.Array(db.Integer(big=True)))
 
 
 ## Configuration

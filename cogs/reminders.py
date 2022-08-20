@@ -15,7 +15,7 @@ import asyncpg
 import discord
 from discord.ext import commands
 
-from utils import db, formats, time
+from utils import formats, time
 from utils.context import Context, GuildContext
 from utils.converters import WhenAndWhatConverter
 
@@ -26,14 +26,22 @@ if TYPE_CHECKING:
     from bot import Ayaka
 
 
-class Reminders(db.Table):
-    id = db.PrimaryKeyColumn()
-
-    expires = db.Column(db.Datetime(timezone=True), index=True)
-    created = db.Column(db.Datetime(timezone=True), default="now() at time zone 'utc'")
-    event = db.Column(db.String)
-    extra = db.Column(db.JSON, default="'{}'::jsonb")
-
+class MaybeAcquire:
+    def __init__(self, connection: asyncpg.Connection | None, *, pool: asyncpg.Pool) -> None:
+        self.connection = connection
+        self.pool = pool
+        self._cleanup = False
+    
+    async def __aenter__(self) -> asyncpg.Connection:
+        if self.connection is None:
+            self._cleanup = True
+            self._connection = c = await self.pool.acquire()
+            return c
+        return self.connection
+    
+    async def __aexit__(self, *args) -> None:
+        if self._cleanup:
+            await self.pool.release(self._connection)
 
 class DucklingConverter(commands.Converter[datetime.datetime]):
     async def get_tz(self, ctx: GuildContext) -> str | None:
@@ -140,7 +148,7 @@ class Reminder(commands.Cog):
         return Timer(record=record) if record else None
 
     async def wait_for_active_timers(self, *, connection: asyncpg.Connection | None = None, days: int = 7) -> Timer:
-        async with db.MaybeAcquire(connection=connection, pool=self.bot.pool) as con:
+        async with MaybeAcquire(connection=connection, pool=self.bot.pool) as con:
             timer = await self.get_active_timer(connection=con, days=days)
             if timer is not None:
                 self._have_data.set()

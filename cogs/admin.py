@@ -30,7 +30,7 @@ from discord import app_commands, ui
 from discord.ext import commands
 
 from bot import EXTENSIONS
-from utils import db, formats
+from utils import formats
 from utils.context import Context, GuildContext
 from utils.paginator import RoboPages, TextPageSource
 
@@ -42,14 +42,6 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from bot import Ayaka
-
-
-class AuthTokens(db.Table, table_name='auth_tokens'):
-    id = db.PrimaryKeyColumn()
-    user_id = db.Column(db.Integer(big=True), index=True)
-    guild_id = db.Column(db.Integer(big=True), index=True)
-    token = db.Column(db.String, unique=True, nullable=False)
-    created_at = db.Column(db.Datetime(timezone=True), default="(now() at time zone 'utc')", nullable=False)
 
 
 class PerformanceMocker:

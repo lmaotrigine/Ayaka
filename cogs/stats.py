@@ -29,7 +29,7 @@ from discord import app_commands
 from discord.ext import commands, menus, tasks
 from typing_extensions import Annotated
 
-from utils import db, formats, time
+from utils import formats, time
 
 
 if TYPE_CHECKING:
@@ -61,18 +61,6 @@ class GatewayHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         self.cog.add_record(record)
-
-
-class Commands(db.Table):
-    id = db.PrimaryKeyColumn()
-
-    guild_id = db.Column(db.Integer(big=True), index=True)
-    channel_id = db.Column(db.Integer(big=True))
-    author_id = db.Column(db.Integer(big=True), index=True)
-    used = db.Column(db.Datetime, index=True)
-    prefix = db.Column(db.String)
-    command = db.Column(db.String, index=True)
-    failed = db.Column(db.Boolean, index=True)
 
 
 _INVITE_REGEX = re.compile(r'(?:https?:\/\/)?discord(?:\.gg|\.com|app\.com\/invite)?\/[A-Za-z0-9]+')

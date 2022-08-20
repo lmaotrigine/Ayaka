@@ -12,20 +12,13 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from utils import checks, db, time
+from utils import checks, time
 from utils.paginator import SimplePages
 
 
 if TYPE_CHECKING:
     from bot import Ayaka
     from utils.context import Context
-
-
-class TodoTable(db.Table, table_name='todo'):
-    id = db.PrimaryKeyColumn()
-    entity_id = db.Column(db.Integer(big=True))
-    content = db.Column(db.String)
-    created_at = db.Column(db.Datetime, default="now() at time zone 'utc'")
 
 
 class TodoEntry:

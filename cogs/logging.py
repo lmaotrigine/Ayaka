@@ -15,18 +15,11 @@ import asyncpg
 import discord
 from discord.ext import commands, tasks
 
-from utils import cache, db
+from utils import cache
 
 
 if TYPE_CHECKING:
     from bot import Ayaka
-
-
-class Avatars(db.Table):
-    id = db.PrimaryKeyColumn()
-    user_id = db.Column(db.Integer(big=True), index=True)
-    attachment = db.Column(db.String)
-    avatar = db.Column(db.String, index=True)
 
 
 class AvatarCache:
