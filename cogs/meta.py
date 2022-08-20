@@ -296,6 +296,25 @@ class PaginatedHelpCommand(commands.HelpCommand):
         await menu.start()
 
 
+class FeedbackModal(discord.ui.Modal, title='Submit Feedback'):
+    summary = discord.ui.TextInput(label='Summary', placeholder='A brief explanation of what you want')
+    details = discord.ui.TextInput(label='Details', style=discord.TextStyle.long, required=False)
+
+    def __init__(self, cog: Meta) -> None:
+        super().__init__()
+        self.cog = cog
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        channel = self.cog.feedback_channel
+        if channel is None:
+            await interaction.response.send_message('Could not submit your feedback, sorry about this.', ephemeral=True)
+            return
+        
+        embed = self.cog.get_feedback_embed(interaction, summary=str(self.summary), details=self.details.value)
+        await channel.send(embed=embed)
+        await interaction.response.send_message('Successfully submitted feedback', ephemeral=True)
+
+
 class Meta(commands.Cog):
     """Commands for utilities related to Discord or the Bot itself."""
 
@@ -789,7 +808,40 @@ class Meta(commands.Cog):
             """
         embed.add_field(name='No permissions enabled by default', value=textwrap.dedent(s), inline=False)
         await ctx.send(embed=embed)
+    
+    def get_feedback_embed(self, obj: Context | discord.Interaction, *, summary: str, details: str | None = None) -> discord.Embed:
+        e = discord.Embed(title='Feedback', colour=0x738BD7)
 
+        if details is not None:
+            e.description = details
+            e.title = summary[:256]
+        else:
+            e.description = summary
+        
+        if obj.guild is not None:
+            e.add_field(name='Server', value=f'{obj.guild.name} (ID: {obj.guild.id})', inline=False)
+        
+        if obj.channel is not None:
+            e.add_field(name='Channel', value=f'{obj.channel} (ID: {obj.channel.id})', inline=False)
+        
+        if isinstance(obj, discord.Interaction):
+            e.timestamp = obj.created_at
+            user = obj.user
+        else:
+            e.timestamp = obj.message.created_at
+            user = obj.author
+        
+        e.set_author(name=str(user), icon_url=user.display_avatar.url)
+        e.set_footer(text=f'Author ID: {user.id}')
+        return e
+
+    @property
+    def feedback_channel(self) -> discord.TextChannel | None:
+        guild = self.bot.get_guild(932533101530349568)
+        if guild is None:
+            return None
+        return guild.get_channel(956838318937636894)  # type: ignore
+    
     @commands.command()
     @commands.cooldown(rate=1, per=60.0, type=commands.BucketType.user)
     async def feedback(self, ctx: Context, *, content: str) -> None:
@@ -804,23 +856,19 @@ class Meta(commands.Cog):
         You can only request feedback once a minute.
         """
 
-        embed = discord.Embed(title='Feedback', colour=0x738BD7)
-        channel: discord.TextChannel = self.bot.get_channel(956838318937636894)  # type: ignore # this exists
+        channel = self.feedback_channel
         if channel is None:
             return
-
-        embed.set_author(name=str(ctx.author), icon_url=ctx.author.display_avatar.url)
-        embed.description = content
-        embed.timestamp = ctx.message.created_at
-
-        if ctx.guild is not None:
-            embed.add_field(name='Server', value=f'{ctx.guild.name} (ID: {ctx.guild.id})', inline=False)
-
-        embed.add_field(name='Channel', value=f'{ctx.channel} (ID: {ctx.channel.id})', inline=False)
-        embed.set_footer(text=f'Author ID: {ctx.author.id}')
-
+        
+        embed = self.get_feedback_embed(ctx, summary=content)
         await channel.send(embed=embed)
         await ctx.send(f'{ctx.tick(True)} Successfully sent feedback')
+    
+    @app_commands.command(name='feedback')
+    async def feedback_slash(self, interaction: discord.Interaction) -> None:
+        """Give feedback about the bot directly to the owner."""
+
+        await interaction.response.send_modal(FeedbackModal(self))
 
     @commands.command(name='pm', hidden=True)
     @commands.is_owner()
