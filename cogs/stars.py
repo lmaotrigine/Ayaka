@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import asyncpg
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 from typing_extensions import Annotated
 
@@ -123,7 +124,7 @@ class Stars(commands.Cog):
 
     async def cog_command_error(self, ctx: StarboardContext, error: commands.CommandError):
         if isinstance(error, StarError):
-            await ctx.send(str(error))
+            await ctx.send(str(error), ephemeral=True)
 
     @tasks.loop(hours=1.0)
     async def clean_message_cache(self):
@@ -602,8 +603,9 @@ class Stars(commands.Cog):
             content, embed = self.get_emoji_message(msg, count)
             await bot_message.edit(content=content, embed=embed)
 
-    @commands.group(invoke_without_command=True)
+    @commands.hybrid_group(fallback='create')
     @checks.is_manager()
+    @app_commands.describe(name='The starboard channel name')
     async def starboard(self, ctx: GuildContext, *, name: str = 'starboard'):
         """Sets up the starboard for this server.
 
@@ -613,6 +615,8 @@ class Stars(commands.Cog):
 
         You must have Manage Server permission to use this.
         """
+
+        await ctx.defer()
 
         # bypass the cache just in case someone used the star
         # reaction earlier before having it set up, or they
@@ -688,8 +692,9 @@ class Stars(commands.Cog):
         data.append(f'Max Age: {plural(starboard.max_age.days):day}')
         await ctx.send('\n'.join(data))
 
-    @commands.group(invoke_without_command=True, ignore_extra=False)
+    @commands.hybrid_group(fallback='post', ignore_extra=False)
     @commands.guild_only()
+    @app_commands.describe(message='The message ID to star')
     async def star(self, ctx: GuildContext, message: Annotated[int, MessageID]):
         """Stars a message via message ID.
 
@@ -702,15 +707,21 @@ class Stars(commands.Cog):
         You can only star a message once.
         """
 
+        await ctx.defer(ephemeral=True)
+
         try:
             await self.star_message(ctx.channel, message, ctx.author.id)
         except StarError as e:
-            await ctx.send(str(e))
+            await ctx.send(str(e), ephemeral=True)
         else:
-            await ctx.message.delete()
+            if ctx.interaction is None:
+                await ctx.message.delete()
+            else:
+                await ctx.send('Successfully starred message', ephemeral=True)
 
     @commands.command()
     @commands.guild_only()
+    @app_commands.describe(message='The message ID to remove a star from')
     async def unstar(self, ctx: GuildContext, message: Annotated[int, MessageID]):
         """Unstars a message via message ID.
 
@@ -718,17 +729,23 @@ class Stars(commands.Cog):
         click "Copy ID". You must have Developer Mode enabled to get that
         functionality.
         """
+
+        await ctx.defer(ephemeral=True)
         try:
             await self.unstar_message(ctx.channel, message, ctx.author.id, verify=True)
         except StarError as e:
-            return await ctx.send(str(e))
+            return await ctx.send(str(e), ephemeral=True)
         else:
-            await ctx.message.delete()
+            if ctx.interaction is None:
+                await ctx.message.delete()
+            else:
+                await ctx.send('Successfully unstarred message', ephemeral=True)
 
     @star.command(name='clean')
     @checks.is_manager()
     @requires_starboard()
-    async def star_clean(self, ctx: StarboardContext, stars: int = 1):
+    @app_commands.describe(stars='Remove messages that have less than or equal to this number')
+    async def star_clean(self, ctx: StarboardContext, stars: commands.Range[int, 1, None] = 1):
         """Cleans the starboard
 
         This removes messages in the starboard that only have less
@@ -739,6 +756,7 @@ class Stars(commands.Cog):
         This command requires the Manage Server permission.
         """
 
+        await ctx.defer()
         stars = max(stars, 1)
         channel = ctx.starboard.channel
 
@@ -775,6 +793,7 @@ class Stars(commands.Cog):
 
     @star.command(name='show')
     @requires_starboard()
+    @app_commands.describe(message='The message ID to show star information of')
     async def star_show(self, ctx: StarboardContext, message: Annotated[int, MessageID]):
         """Shows a starred message via its ID.
 
@@ -784,6 +803,8 @@ class Stars(commands.Cog):
 
         You can only use this command once per 10 seconds.
         """
+
+        await ctx.defer()
 
         query = """SELECT entry.channel_id,
                           entry.message_id,
@@ -828,6 +849,7 @@ class Stars(commands.Cog):
 
     @star.command(name='who')
     @requires_starboard()
+    @app_commands.describe(message='The message ID to show starrer information of')
     async def star_who(self, ctx: StarboardContext, message: Annotated[int, MessageID]):
         """Show who starred a message.
 
@@ -835,6 +857,7 @@ class Stars(commands.Cog):
         or the message ID in the starboard channel.
         """
 
+        await ctx.defer()
         query = """SELECT starrers.author_id
                    FROM starrers
                    INNER JOIN starboard_entries entry
@@ -1009,9 +1032,11 @@ class Stars(commands.Cog):
 
     @star.command(name='stats')
     @requires_starboard()
+    @app_commands.describe(member='The member to show stats of, if not given then shows server stats')
     async def star_stats(self, ctx: StarboardContext, *, member: discord.Member | None = None):
         """Shows statistics on the starboard usage of the server or a member."""
 
+        await ctx.defer()
         if member is None:
             await self.star_guild_stats(ctx)
         else:
@@ -1034,6 +1059,8 @@ class Stars(commands.Cog):
                    ))
                    LIMIT 1
                 """
+        
+        await ctx.defer()
 
         record = await ctx.db.fetchrow(query, ctx.guild.id)
 
@@ -1092,6 +1119,7 @@ class Stars(commands.Cog):
     @star.command(name='limit', aliases=['threshold'])
     @checks.is_manager()
     @requires_starboard()
+    @app_commands.describe(stars='The number of stars required before it shows up on the board')
     async def star_limit(self, ctx: StarboardContext, stars: int):
         """Sets the minimum number of stars required to show up.
 
@@ -1118,6 +1146,18 @@ class Stars(commands.Cog):
     @star.command(name='age')
     @checks.is_manager()
     @requires_starboard()
+    @app_commands.describe(
+        number='The number of units to set the maximum age to',
+        units='The unit of time to use for the number',
+    )
+    @app_commands.choices(
+        units=[
+            app_commands.Choice(name='Days', value='days'),
+            app_commands.Choice(name='Weeks', value='weeks'),
+            app_commands.Choice(name='Months', value='months'),
+            app_commands.Choice(name='Years', value='years'),
+        ]
+    )
     async def star_age(
         self,
         ctx: StarboardContext,
@@ -1164,7 +1204,7 @@ class Stars(commands.Cog):
 
         await ctx.send(f'Messages must now be less than {age} old to be starred.')
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True, with_app_command=False)
     @commands.is_owner()
     async def star_announce(self, ctx: GuildContext, *, message: str):
         """Announce stuff to every starboard."""
