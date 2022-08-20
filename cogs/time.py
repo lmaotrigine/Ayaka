@@ -99,7 +99,7 @@ class Time(commands.Cog):
             return dt_obj
         return time.hf_time(dt_obj)
 
-    @commands.hybrid_group(name='timezone', aliases=['tz'])
+    @commands.hybrid_group(name='timezone', aliases=['tz'], fallback='get')
     async def timezone(self, ctx: Context, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)):
         """This will return the time in a specified timezone."""
         embed = discord.Embed(
@@ -109,7 +109,7 @@ class Time(commands.Cog):
         embed.timestamp = datetime.utcnow()
         return await ctx.send(embed=embed)
 
-    @commands.hybrid_command(aliases=['tzs'])
+    @timezone.command(name='list', aliases=['all'])
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def timezones(self, ctx):
         tz_list = [

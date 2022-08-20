@@ -54,9 +54,16 @@ def has_guild_permissions(*, check: Callable[[Iterable[Any]], bool] = all, **per
 
 
 # These do not take channel overrides into account
-def is_mod() -> Callable[[T], T]:
+def is_manager() -> Callable[[T], T]:
     async def pred(ctx: GuildContext) -> bool:
         return await check_guild_permissions(ctx, {'manage_guild': True})
+
+    return commands.check(pred)
+
+
+def is_mod() -> Callable[[T], T]:
+    async def pred(ctx: GuildContext) -> bool:
+        return await check_guild_permissions(ctx, {'ban_members': True, 'manage_messages': True})
 
     return commands.check(pred)
 
@@ -64,12 +71,13 @@ def is_mod() -> Callable[[T], T]:
 def is_admin() -> Callable[[T], T]:
     async def pred(ctx: GuildContext) -> bool:
         return await check_guild_permissions(ctx, {'administrator': True})
-
+    
     return commands.check(pred)
 
 
 def mod_or_permissions(**perms: bool) -> Callable[[T], T]:
-    perms['manage_guild'] = True
+    perms['ban_members'] = True
+    perms['manage_messages'] = True
 
     async def pred(ctx: GuildContext) -> bool:
         return await check_guild_permissions(ctx, perms, check=any)

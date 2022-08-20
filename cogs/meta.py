@@ -412,7 +412,7 @@ class Meta(commands.Cog):
         await interaction.response.send_message(embed=e)
 
     @prefix.command(name='add', ignore_extra=False)
-    @checks.is_mod()
+    @checks.is_manager()
     async def prefix_add(self, ctx: GuildContext, prefix: str = commands.param(converter=Prefix)) -> None:
         """Appends a prefix to the list of custom prefixes.
 
@@ -443,7 +443,7 @@ class Meta(commands.Cog):
             await ctx.send("You've given too many prefixes. Either quote it or only do it one by one.")
 
     @prefix.command(name='remove', aliases=['delete'], ignore_extra=False)
-    @checks.is_mod()
+    @checks.is_manager()
     async def prefix_remove(self, ctx: GuildContext, prefix: str = commands.param(converter=Prefix)) -> None:
         """Removes a prefix from the list of custom prefixes.
 
@@ -469,7 +469,7 @@ class Meta(commands.Cog):
             await ctx.send(ctx.tick(True))
 
     @prefix.command(name='clear')
-    @checks.is_mod()
+    @checks.is_manager()
     async def prefix_clear(self, ctx: GuildContext) -> None:
         """Removes all custom prefixes.
 

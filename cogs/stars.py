@@ -603,7 +603,7 @@ class Stars(commands.Cog):
             await bot_message.edit(content=content, embed=embed)
 
     @commands.group(invoke_without_command=True)
-    @checks.is_mod()
+    @checks.is_manager()
     async def starboard(self, ctx: GuildContext, *, name: str = 'starboard'):
         """Sets up the starboard for this server.
 
@@ -726,7 +726,7 @@ class Stars(commands.Cog):
             await ctx.message.delete()
 
     @star.command(name='clean')
-    @checks.is_mod()
+    @checks.is_manager()
     @requires_starboard()
     async def star_clean(self, ctx: StarboardContext, stars: int = 1):
         """Cleans the starboard
@@ -1051,7 +1051,7 @@ class Stars(commands.Cog):
             await ctx.send(message.content)
 
     @star.command(name='lock')
-    @checks.is_mod()
+    @checks.is_manager()
     @requires_starboard()
     async def star_lock(self, ctx: StarboardContext):
         """Locks the starboard from being processed.
@@ -1075,7 +1075,7 @@ class Stars(commands.Cog):
         await ctx.send('Starboard is now locked.')
 
     @star.command(name='unlock')
-    @checks.is_mod()
+    @checks.is_manager()
     @requires_starboard()
     async def star_unlock(self, ctx: StarboardContext):
         """Unlocks the starboard for re-processing.
@@ -1090,7 +1090,7 @@ class Stars(commands.Cog):
         await ctx.send('Starboard is now unlocked.')
 
     @star.command(name='limit', aliases=['threshold'])
-    @checks.is_mod()
+    @checks.is_manager()
     @requires_starboard()
     async def star_limit(self, ctx: StarboardContext, stars: int):
         """Sets the minimum number of stars required to show up.
@@ -1116,7 +1116,7 @@ class Stars(commands.Cog):
         await ctx.send(f'Messages now require {plural(stars):star} to show up in the starboard.')
 
     @star.command(name='age')
-    @checks.is_mod()
+    @checks.is_manager()
     @requires_starboard()
     async def star_age(
         self,
