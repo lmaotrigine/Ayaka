@@ -22,7 +22,7 @@ import time
 import traceback
 from collections import Counter  # type: ignore eval
 from contextlib import redirect_stdout
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Union
 
 import discord
 from discord.ext import commands
@@ -516,38 +516,29 @@ class Admin(commands.Cog):
             return
         
         await self.send_sql_results(ctx, results)
-    @commands.command()
+    
+    @commands.group()
     @commands.guild_only()
-    async def sync(
-        self, ctx: GuildContext, guilds: commands.Greedy[discord.Object], spec: Optional[Literal['~', '*', '^']] = None
-    ) -> None:
-        """Syncs the bot's command tree."""
+    async def sync(self, ctx: GuildContext, guild_id: int | None, copy: bool = False) -> None:
+        """Syncs the slash commands with the given guild."""
 
-        if not guilds:
-            if spec == '~':
-                fmt = await ctx.bot.tree.sync(guild=ctx.guild)
-            elif spec == '*':
-                ctx.bot.tree.copy_global_to(guild=ctx.guild)
-                fmt = await self.bot.tree.sync(guild=ctx.guild)
-            elif spec == '^':
-                ctx.bot.tree.clear_commands(guild=ctx.guild)
-                await ctx.bot.tree.sync(guild=ctx.guild)
-                fmt = []
-            else:
-                fmt = await ctx.bot.tree.sync()
-            await ctx.send(
-                f'Synced {formats.plural(len(fmt)):command} {"globally" if spec is None else "to the current guild."}'
-            )
-            return
-        fmt = 0
-        for guild in guilds:
-            try:
-                await ctx.bot.tree.sync(guild=guild)
-            except discord.HTTPException:
-                pass
-            else:
-                fmt += 1
-        await ctx.send(f'Synced the tree to {formats.plural(fmt):guild}.')
+        if guild_id:
+            guild = discord.Object(id=guild_id)
+        else:
+            guild = ctx.guild
+        
+        if copy:
+            self.bot.tree.copy_global_to(guild=guild)
+        
+        commands = await self.bot.tree.sync(guild=guild)
+        await ctx.send(f'Successfully synced {len(commands)} commands.')
+    
+    @sync.command(name='global')
+    async def sync_global(self, ctx: Context) -> None:
+        """Syncs the slash commands globally."""
+
+        commands = await self.bot.tree.sync(guild=None)
+        await ctx.send(f'Successfully synced {len(commands)} commands.')
 
     @commands.command()
     async def sudo(
