@@ -12,7 +12,6 @@ import datetime  # type: ignore eval
 import importlib
 import inspect
 import io
-import logging
 import os
 import re
 import secrets
@@ -26,7 +25,6 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Literal, Optional, Union
 
 import discord
-from discord import app_commands, ui
 from discord.ext import commands
 
 from bot import EXTENSIONS
@@ -88,287 +86,17 @@ class PerformanceMocker:
         return False
 
 
-MISSING = discord.utils.MISSING
-
-log = logging.getLogger(__name__)
-
-
-def trim(text: str, *, max: int = MISSING, code_block: bool = False, lang: str = 'py', end: str = '…') -> str:
-    new_max: int = max or (1900 if code_block else 1990)
-
-    trimmed = text[:new_max]
-
-    if len(text) >= new_max:
-        trimmed += end
-
-    if code_block:
-        return f'```{lang}\n{trimmed}\n```'
-    return trimmed
-
-
-REMOVE_CODEBLOCK = re.compile(r'```([a-zA-Z\-]+)?([\s\S]+?)```')
-
-
-def remove_codeblock(text: str) -> tuple[str | None, str]:
-    find = REMOVE_CODEBLOCK.match(text)
-    if not find:
-        return None, text
-    lang, txt = find.groups()
-    return lang, txt
-
-
-class EvalModal(ui.Modal):
-    def __init__(self, *, sql: bool = False, prev_code: str | None = None, prev_extras: str | None = None):
-        super().__init__(title=('SQL' if sql else 'Python') + ' Evaluation')
-        self.code = ui.TextInput(
-            label='Code to evaluate', style=discord.TextStyle.paragraph, required=True, default=prev_code
-        )
-        self.add_item(self.code)
-        self.interaction: discord.Interaction = MISSING
-        self.extras: ui.TextInput = MISSING
-
-        if sql:
-            self.extras = ui.TextInput(label='Semicolon-separated SQL args', required=False, default=prev_extras)
-            self.add_item(self.extras)
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        self.interaction = interaction
-        self.stop()
-
-
-class Admin(commands.GroupCog, group_name='dev'):
+class Admin(commands.Cog):
     """Admin-only commands that make the bot dynamic."""
 
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
-        self._last_eval: str | None = None
-        self._eval_globals: dict[str, Any] = {'bot': self.bot}
-        self._last_sql: str | None = None
-        self._last_sql_args: str | None = None
         self._last_result = None
         self.sessions = set()
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
         return discord.PartialEmoji(name='stafftools', id=957327255825178706)
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if not await self.bot.is_owner(interaction.user):
-            raise app_commands.CheckFailure('boo')
-        return True
-
-    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        if isinstance(error, app_commands.CheckFailure):
-            return await interaction.response.send_message("Don't even try.", ephemeral=True)
-        else:
-            raise error
-
-    cog = app_commands.Group(name='cog', description='Cog related commands.')
-
-    @cog.command(name='load')
-    async def slash_load(self, interaction: discord.Interaction, extension: Optional[str] = None) -> None:
-        await interaction.response.defer(ephemeral=True, thinking=True)
-
-        success: list[str] = []
-        fail: list[str] = []
-
-        if not extension:
-            for ext in EXTENSIONS:
-                if not ext in self.bot.extensions:
-                    try:
-                        await self.bot.load_extension(ext)
-                    except Exception as e:
-                        log.exception('Failed to load extension "%s"', ext, exc_info=e)
-                        fail.append(f'{ext}: {e}')
-                    else:
-                        success.append(ext)
-        else:
-            try:
-                await self.bot.load_extension(extension)
-            except Exception as e:
-                log.exception('Failed to load extension "%s"', extension, exc_info=e)
-                fail.append(f'{extension}: {e}')
-            else:
-                success.append(extension)
-
-        embed = discord.Embed(colour=discord.Colour.green() if not fail else discord.Colour.red())
-        if success:
-            embed.add_field(name='\U0001f4e5', value='\n'.join(success))
-        if fail:
-            embed.add_field(name='\U0001f4e4', value='\n'.join(fail))
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @slash_load.autocomplete('extension')
-    async def _load_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        if not await self.bot.is_owner(interaction.user):
-            return []
-        current = current.lower()
-        unloaded = sorted(set(EXTENSIONS) - set(self.bot.extensions.keys()))
-        return [app_commands.Choice(name=k, value=k) for k in unloaded if current in k]
-
-    @cog.command(name='unload')
-    async def slash_unload(self, interaction: discord.Interaction, extension: str) -> None:
-        try:
-            await self.bot.unload_extension(extension)
-        except Exception as e:
-            exc = traceback.format_exception(type(e), e, e.__traceback__)
-            exc_text = trim(''.join(exc), code_block=True)
-            await interaction.response.send_message(f'Failed to unload extension "{extension}{exc_text}"', ephemeral=True)
-        else:
-            await interaction.response.send_message(self.bot.emoji[True], ephemeral=True)
-
-    @cog.command(name='reload')
-    async def slash_reload(self, interaction: discord.Interaction, extension: Optional[str]) -> None:
-        await interaction.response.defer(ephemeral=True, thinking=True)
-
-        success: list[str] = []
-        fail: list[str] = []
-
-        if not extension:
-            for ext in EXTENSIONS:
-                if not ext in self.bot.extensions:
-                    try:
-                        await self.bot.reload_extension(ext)
-                    except Exception as e:
-                        log.exception('Failed to reload extension "%s"', ext, exc_info=e)
-                        fail.append(f'{ext}: {e}')
-                    else:
-                        success.append(ext)
-        else:
-            try:
-                await self.bot.reload_extension(extension)
-            except Exception as e:
-                log.exception('Failed to reload extension "%s"', extension, exc_info=e)
-                fail.append(f'{extension}: {e}')
-            else:
-                success.append(extension)
-
-        embed = discord.Embed(colour=discord.Colour.green() if not fail else discord.Colour.red())
-        if success:
-            embed.add_field(name='\U0001f504', value='\n'.join(success))
-        if fail:
-            embed.add_field(name='\U0001f4e4', value='\n'.join(fail))
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @slash_reload.autocomplete('extension')
-    @slash_unload.autocomplete('extension')
-    async def _reload_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        if not await self.bot.is_owner(interaction.user):
-            return []
-        current = current.lower()
-        exts = list(self.bot.extensions.keys())
-        return [app_commands.Choice(name=k, value=k) for k in sorted(exts) if current in k]
-
-    @cog.command(name='list')
-    async def _list(self, interaction: discord.Interaction) -> None:
-        loaded = self.bot.extensions.keys()
-        unloaded = set(EXTENSIONS) - set(loaded)
-        embed = discord.Embed(colour=discord.Colour.og_blurple())
-        embed.add_field(name='\U0001f4e5', value='\n'.join(loaded))
-        if unloaded:
-            embed.add_field(name='\U0001f4e4', value='\n'.join(unloaded))
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name='sync')
-    async def slash_sync(self, interaction: discord.Interaction, guild_id: Optional[str] = None):
-        guild: discord.Guild | None = None
-        if guild_id is not None:
-            new_id = int(guild_id)
-            guild = self.bot.get_guild(new_id)
-
-            if guild is None:
-                await interaction.response.send_message(f'No guild with ID {guild_id} found.', ephemeral=True)
-                return
-
-        await interaction.response.defer(ephemeral=True, thinking=True)
-
-        try:
-            commands = await self.bot.tree.sync(guild=guild)
-        except discord.HTTPException as e:
-            exc = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
-            trimmed = trim(exc, code_block=True, max=1850)
-            await interaction.followup.send(f'Failed to sync commands.\n{trimmed}')
-        else:
-            await interaction.followup.send(f'Synced `{len(commands)}` commands successfully.')
-
-    @app_commands.command()
-    async def shutdown(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message('さようなら')
-        await self.bot.close()
-
-    @app_commands.command(name='sql')
-    async def slash_sql(self, interaction: discord.Interaction) -> None:
-        modal = EvalModal(sql=True, prev_code=self._last_sql, prev_extras=self._last_sql_args)
-        await interaction.response.send_modal(modal)
-        if await modal.wait():
-            return
-
-        await modal.interaction.response.defer(ephemeral=True, thinking=True)
-        self._last_sql = modal.code.value
-        self._last_sql_args = modal.extras.value
-
-        args: list[Any]
-        if modal.extras.value:
-            args = [
-                eval(a.strip(), globals() | {'interaction': interaction, 'bot': self.bot}, {})
-                for a in modal.extras.value.split(';')
-            ]
-        else:
-            args = []
-
-        try:
-            async with self.bot.pool.acquire() as c, c.transaction():
-                result = await c.fetch(modal.code.value, *args)
-        except Exception as e:
-            await modal.interaction.followup.send(f'```sql\n{e}\n```')
-            return
-
-        res = formats.TabularData()
-        res.set_columns(list(result[0].keys()))
-        res.add_rows(list(r.values()) for r in result)
-        fmt = res.render() or '\u200b'
-        if len(fmt) > 1900:
-            await modal.interaction.followup.send(
-                'Output too long...', file=discord.File(io.BytesIO(fmt.encode('utf-8')), filename='output.txt')
-            )
-        else:
-            await modal.interaction.followup.send(f'```sql\n{fmt}\n```')
-
-    @app_commands.command(name='eval')
-    async def slash_eval(self, interaction: discord.Interaction) -> None:
-        modal = EvalModal(sql=False, prev_code=self._last_eval)
-        await interaction.response.send_modal(modal)
-        if await modal.wait():
-            return
-
-        await modal.interaction.response.defer(ephemeral=True, thinking=True)
-        self._last_eval = modal.code.value
-        code = f'async def _eval_func0():\n{textwrap.indent(modal.code.value, "  ")}'
-        self._eval_globals['interaction'] = interaction
-
-        lcls = {}
-        try:
-            exec(code, self._eval_globals | globals(), lcls)
-        except Exception as e:
-            fmt = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
-            await modal.interaction.followup.send(f'```py\n{fmt}\n```')
-            return
-
-        func: Callable[[], Awaitable[Any]] = lcls.pop('_eval_func0')
-        try:
-            result = await func()
-        except Exception as e:
-            fmt = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
-            if len(fmt) > 1900:
-                await modal.interaction.followup.send(
-                    'Error too long...', file=discord.File(io.BytesIO(fmt.encode('utf-8')), filename='error.txt')
-                )
-                return
-            await modal.interaction.followup.send(f'```py\n{fmt}\n```')
-            return
-
-        self._eval_globals['_'] = result
-        await modal.interaction.followup.send(f'```py\n{result}\n```')
 
     async def run_process(self, command: str) -> list[str]:
         process = await asyncio.create_subprocess_shell(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -428,6 +156,17 @@ class Admin(commands.GroupCog, group_name='dev'):
             await ctx.send(f'{err.__class__.__name__}: {err}')
         else:
             await ctx.message.add_reaction(self.bot.emoji[True])
+    
+    @commands.command(aliases=['cogs'])
+    async def extensions(self, ctx: Context) -> None:
+        """Lists the bot's extensions"""
+        loaded = set(self.bot.extensions.keys())
+        _all = set(EXTENSIONS)
+        unloaded = _all - loaded
+        embed = discord.Embed(colour=discord.Colour.og_blurple())
+        embed.add_field(name='\U0001f4e6 Loaded', value='\n'.join(sorted(loaded)))
+        embed.add_field(name='\U0001f4e7 Unloaded', value='\n'.join(sorted(unloaded)))
+        await ctx.send(embed=embed)
 
     def get_submodules_from_extension(self, module: ModuleType) -> set[str]:
         submodules = set()
@@ -669,7 +408,7 @@ class Admin(commands.GroupCog, group_name='dev'):
             except discord.HTTPException as e:
                 await ctx.send(f'Unexpected error: `{e}`')
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(hidden=True, invoke_without_command=True)
     async def sql(self, ctx: Context, *, query: str) -> None:
         """Run some SQL."""
         query = self.cleanup_code(query)
@@ -707,21 +446,12 @@ class Admin(commands.GroupCog, group_name='dev'):
             await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
         else:
             await ctx.send(fmt)
-
-    @sql.command(name='table')
-    async def sql_table(self, ctx: Context, *, table_name: str) -> None:
-        """Runs a query describing the table schema."""
-        query = """SELECT column_name, data_type, column_default, is_nullable
-                   FROM INFORMATION_SCHEMA.COLUMNS
-                   WHERE table_name =$1;
-                """
-
-        results = await ctx.db.fetch(query, table_name)
-
-        headers = list(results[0].keys())
+    
+    async def send_sql_results(self, ctx: Context, records: list[Any]):
+        headers = list(records[0].keys())
         table = formats.TabularData()
         table.set_columns(headers)
-        table.add_rows(list(r.values()) for r in results)
+        table.add_rows(list(r.values()) for r in records)
         render = table.render()
 
         fmt = f'```\n{render}\n```'
@@ -731,6 +461,61 @@ class Admin(commands.GroupCog, group_name='dev'):
         else:
             await ctx.send(fmt)
 
+    @sql.command(name='schema', hidden=True)
+    async def sql_schema(self, ctx: Context, *, table_name: str) -> None:
+        """Runs a query describing the table schema."""
+        query = """SELECT column_name, data_type, column_default, is_nullable
+                   FROM INFORMATION_SCHEMA.COLUMNS
+                   WHERE table_name =$1;
+                """
+
+        results = await ctx.db.fetch(query, table_name)
+
+        if len(results) == 0:
+            await ctx.send('Could not find a table with that name.')
+            return
+        
+        await self.send_sql_results(ctx, results)
+    
+    @sql.command(name='tables', hidden=True)
+    async def sql_tables(self, ctx: Context) -> None:
+        """Lists all SQL tables in the database."""
+
+        query = """SELECT table_name
+                   FROM information_schema.tables
+                   WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+                """
+        
+        results = await ctx.db.fetch(query)
+
+        if len(results) == 0:
+            await ctx.send('Could not find any tables')
+            return
+        
+        await self.send_sql_results(ctx, results)
+    
+    @sql.command(name='sizes', hidden=True)
+    async def sql_sizes(self, ctx: Context) -> None:
+        """Display how much space the database is taking up."""
+
+        # Credit: https://wiki.postgresql.org/wiki/Disk_Usage
+        query = """
+            SELECT nspname || '.' || relname AS "relation",
+                pg_size_pretty(pg_relation_size(C.oid)) AS "size"
+            FROM pg_class C
+            LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+            WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY pg_relation_size(C.oid) DESC;
+            LIMIT 20;
+        """
+
+        results = await ctx.db.fetch(query)
+
+        if len(results) == 0:
+            await ctx.send('Could not find any tables')
+            return
+        
+        await self.send_sql_results(ctx, results)
     @commands.command()
     @commands.guild_only()
     async def sync(
