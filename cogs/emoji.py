@@ -11,11 +11,12 @@ import datetime
 import logging
 import re
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 import asyncpg
 import discord
 import yarl
+from discord import app_commands
 from discord.ext import commands, tasks
 
 from utils import checks
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 EMOJI_REGEX = re.compile(r'<a?:.+?:([0-9]{15,21})>')
-EMOJI_NAME_REGEX = re.compile(r'[0-9a-zA-Z\_]{2,32}')
+EMOJI_NAME_REGEX = re.compile(r'^[0-9a-zA-Z\_]{2,32}$')
 
 
 def partial_emoji(argument: str, *, regex: re.Pattern = EMOJI_REGEX) -> int:
@@ -144,6 +145,88 @@ class Emoji(commands.Cog):
 
         async with self._batch_lock:
             self._batch_of_data[message.guild.id].update(map(int, matches))
+    
+    @commands.hybrid_group(name='emoji')
+    @commands.guild_only()
+    @app_commands.guild_only()
+    async def _emoji(self, ctx: GuildContext) -> None:
+        """Emoji management commands."""
+        await ctx.send_help(ctx.command)
+    
+    @_emoji.command(name='create')
+    @checks.has_guild_permissions(manage_emojis=True)
+    @commands.guild_only()
+    @app_commands.describe(
+        name='The emoji name',
+        file='The image file to use for uploading',
+        emoji='The emoji or its URL to use for uploading',
+    )
+    async def _emoji_create(
+        self,
+        ctx: GuildContext,
+        name: Annotated[str, emoji_name],
+        file: discord.Attachment | None,
+        *,
+        emoji: str | None,
+    ) -> None:
+        """Create an emoji for the server under the given name.
+        
+        You must have Manage Emoji permission to use this.
+        The bot must have this permission too.
+        """
+        if not ctx.me.guild_permissions.manage_emojis:
+            await ctx.send('Bot does not have permission to add emoji.')
+            return
+        
+        reason = f'Action done by {ctx.author} (ID: {ctx.author.id})'
+
+        if file is None and emoji is None:
+            await ctx.send('Missing emoji file or url to upload with.')
+            return
+        
+        if file is not None and emoji is not None:
+            await ctx.send('Cannot mix both file and emoji arguments. Choose only one.')
+            return
+        
+        is_animated = False
+        request_url = ''
+        if emoji is not None:
+            upgraded = await EmojiURL.convert(ctx, emoji)
+            is_animated = upgraded.animated
+            request_url = upgraded.url
+        elif file is not None:
+            if not file.filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                await ctx.send('Unsupported file type given, expected png, jpg, or gif.')
+                return
+            
+            is_animated = file.filename.endswith('.gif')
+            request_url = file.url
+        
+        emoji_count = sum(e.animated == is_animated for e in ctx.guild.emojis)
+        if emoji_count >= ctx.guild.emoji_limit:
+            await ctx.send('There are no more emoji slots in this server.')
+            return
+        
+        async with self.bot.session.get(request_url) as resp:
+            if resp.status >= 400:
+                await ctx.send('Could not fetch the image.')
+                return
+            if int(resp.headers['Content-Length']) >= (256 * 1024):
+                await ctx.send('Image is too large.')
+                return
+            
+            data = await resp.read()
+            coro = ctx.guild.create_custom_emoji(name=name, image=data, reason=reason)
+            async with ctx.typing():
+                try:
+                    created = await asyncio.wait_for(coro, timeout=10.0)
+                except asyncio.TimeoutError:
+                    await ctx.send('Sorry, the bot is rate limited or it took too long.')
+                    return
+                except discord.HTTPException as e:
+                    await ctx.send(f'Failed to create emoji somehow: {e}')
+                else:
+                    await ctx.send(f'Created {created}')
 
     def emoji_fmt(self, emoji_id: int, count: int, total: int) -> str:
         emoji = self.bot.get_emoji(emoji_id)
@@ -235,9 +318,10 @@ class Emoji(commands.Cog):
         e.set_footer(text='These statistics are for the servers I am in')
         await ctx.send(embed=e)
 
-    @commands.group(invoke_without_command=True)
+    @_emoji.group(name='stats', fallback='show')
     @commands.guild_only()
-    async def emojistats(self, ctx: GuildContext, *, emoji: partial_emoji = None) -> None:  # type: ignore
+    @app_commands.describe(emoji='The emoji to show the stats for. If not given then it shows server stats')
+    async def emojistats(self, ctx: GuildContext, *, emoji: Annotated[int | None, partial_emoji] = None) -> None:
         """Shows you statistics about the emoji usage in this server.
 
         If no emoji is given, then it gives you the top 10 emoji used.
@@ -283,15 +367,7 @@ class Emoji(commands.Cog):
 
         await ctx.send(embed=e)
 
-    @commands.group(name='emoji')
-    @commands.guild_only()
-    @checks.has_guild_permissions(manage_emojis=True)
-    async def _emoji(self, ctx: Context) -> None:
-        """Emoji management commands."""
-        if ctx.subcommand_passed is None:
-            await ctx.send_help(ctx.command)
-
-    @_emoji.command(name='list')
+    @_emoji.command(name='list', with_app_command=False)
     @commands.guild_only()
     async def _emoji_list(self, ctx: GuildContext) -> None:
         """Fancy post server emojis."""
@@ -300,53 +376,6 @@ class Emoji(commands.Cog):
         source = TextPageSource(fmt, prefix='', suffix='')
         pages = RoboPages(source, ctx=ctx)
         await pages.start()
-
-    @_emoji.command(name='create')
-    async def _emoji_create(self, ctx: GuildContext, name: emoji_name, *, emoji: EmojiURL = None) -> None:  # type: ignore
-        """Create an for the server under the given name.
-
-        You must have Manage Emoji permission to use this.
-        The bot must have this permission too.
-        """
-
-        if not ctx.guild.me.guild_permissions.manage_emojis:
-            await ctx.send('I do not have permission to add emoji.')
-            return
-
-        reason = f'Action done by {ctx.author} (ID: {ctx.author.id})'
-
-        if emoji is None:
-            try:
-                url = ctx.message.attachments[0].url
-            except IndexError:
-                await ctx.send('You must provide either an image URL or an attachment.')
-                return
-            else:
-                emoji = await EmojiURL.convert(ctx, url)
-        emoji_count = sum(e.animated == emoji.animated for e in ctx.guild.emojis)
-        if emoji_count >= ctx.guild.emoji_limit:
-            await ctx.send('There are no more emoji slots in this server.')
-            return
-
-        async with self.bot.session.get(emoji.url) as resp:
-            if resp.status >= 400:
-                await ctx.send('Could not fetch the image.')
-                return
-            if int(resp.headers['Content-Length']) >= (256 * 1024):
-                await ctx.send('Image is too big.')
-                return
-            data = await resp.read()
-            coro = ctx.guild.create_custom_emoji(name=name, image=data, reason=reason)
-            async with ctx.typing():
-                try:
-                    created = await asyncio.wait_for(coro, timeout=10.0)
-                except asyncio.TimeoutError:
-                    await ctx.send('Sorry, the bot is rate limited or it took too long.')
-                    return
-                except discord.HTTPException as e:
-                    await ctx.send(f'Failed to create emoji somehow: {e}')
-                else:
-                    await ctx.send(f'Created {created}')
 
 
 async def setup(bot: Ayaka) -> None:
