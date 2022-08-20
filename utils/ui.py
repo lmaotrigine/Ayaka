@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, Sequence, TypeVar
 
 import discord
 
@@ -54,37 +54,33 @@ class ConfirmationView(discord.ui.View):
         self.stop()
 
 
-class DisambiguationView(discord.ui.View, Generic[T]):
-    def __init__(self, matches: dict[int, tuple[T, Any]], author_id: int, ctx: Context) -> None:
+class DisambiguatorView(discord.ui.View, Generic[T]):
+    message: discord.Message
+    selected: T
+
+    def __init__(self, ctx: Context, data: list[T], entry: Callable[[T], str]):
         super().__init__()
-        self.matches = matches
-        self.value: T | None = None
-        self.message: discord.Message | None = None
-        self.select.options.clear()
-        for k, v in matches.items():
-            self.select.add_option(label=str(v[1]), value=str(k))
-        self.author_id = author_id
         self.ctx = ctx
+        self.data = data
 
-    @discord.ui.select(options=[])
-    async def select(self, interaction: discord.Interaction, item: discord.ui.Select) -> None:
-        self.value = self.matches[int(item.values[0])][0]
-        if self.message:
-            await self.message.delete()
-            self.message = None
-        await interaction.response.send_message(self.ctx.tick(True), ephemeral=True)
-        self.stop()
+        options = [discord.SelectOption(label=entry(x), value=str(i)) for i, x in enumerate(data)]
+        select = discord.ui.Select(options=options)
 
+        select.callback = self.on_select_submit
+        self.select = select
+        self.add_item(select)
+    
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user and interaction.user.id in (self.author_id, self.ctx.bot.owner_id):
-            return True
-        else:
-            await interaction.response.send_message('This disambiguation dialog is not for you.', ephemeral=True)
+        if interaction.user.id not in (self.ctx.author.id, self.ctx.bot.owner.id):
+            await interaction.response.send_message('This select menu is not meant for you, sorry!', ephemeral=True)
             return False
-
-    async def on_timeout(self) -> None:
-        if self.message:
-            await self.message.delete()
+        return True
+    
+    async def on_select_submit(self, interaction: discord.Interaction):
+        index = int(self.select.values[0])
+        self.selected = self.data[index]
+        await interaction.response.defer()
+        await self.message.delete()
         self.stop()
 
 

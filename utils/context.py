@@ -13,7 +13,7 @@ import asyncpg
 import discord
 from discord.ext import commands
 
-from .ui import ConfirmationView, DisambiguationView
+from .ui import ConfirmationView, DisambiguatorView
 
 
 if TYPE_CHECKING:
@@ -108,16 +108,14 @@ class Context(commands.Context['Ayaka']):
 
         if len(matches) == 1:
             return matches[0]
+        
+        if len(matches) > 25:
+            raise ValueError('Too many results... sorry.')
 
-        matches_ = {i: (m, entry(m)) for i, m in enumerate(matches)}
-        view = DisambiguationView(matches_, self.author.id, self)
-
+        view = DisambiguatorView(self, matches, entry)
         view.message = await self.send('There are too many matches... Which one did you mean?', view=view)
-        if await view.wait():
-            raise ValueError('Took too long, goodbye.')
-        else:
-            assert view.value is not None
-            return view.value
+        await view.wait()
+        return view.selected
 
     async def prompt(
         self,
