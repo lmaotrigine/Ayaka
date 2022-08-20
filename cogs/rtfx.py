@@ -280,7 +280,7 @@ class RTFX(commands.Cog):
         """Gives you the documentation link for an `aiohttp` entity."""
         await self.do_rtfm(ctx, 'aiohttp', entity)
 
-    @rtfm.command(name='refresh')
+    @rtfm.command(name='refresh', with_app_command=False)
     @commands.is_owner()
     async def rtfm_refresh(self, ctx: Context) -> None:
         """Refreshes the RTFM cache."""
