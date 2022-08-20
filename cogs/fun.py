@@ -125,7 +125,7 @@ class SpoilerCache:
         return embed
 
     def to_spoiler_embed(self, ctx: Context, storage_message: discord.Message):
-        description = f'React with <:spoiler:956843179213209620> to reveal the spoiler.'
+        description = 'This spoiler has been hidden. Press the button to reveal it!'
         embed = discord.Embed(title=f'{self.title} Spoiler', description=description)
         if self.has_single_image() and self.text is None:
             embed.title = f'{self.title} Spoiler Image'
@@ -134,6 +134,29 @@ class SpoilerCache:
         embed.colour = 0x01AEEE
         embed.set_author(name=ctx.author, icon_url=ctx.author.display_avatar.with_format('png'))
         return embed
+
+
+class SpoilerView(discord.ui.View):
+    def __init__(self, cog: Fun) -> None:
+        super().__init__(timeout=None)
+        self.cog = cog
+    
+    @discord.ui.button(
+        label='Reveal Spoiler',
+        style=discord.ButtonStyle.grey,
+        emoji=discord.PartialEmoji(name='spoiler', id=956843179213209620),
+        custom_id='cogs:buttons:reveal_spoiler',
+    )
+    async def reveal_spoiler(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        assert interaction.message is not None
+        assert interaction.channel_id is not None
+
+        cache = await self.cog.get_spoiler_cache(interaction.channel_id, interaction.message.id)
+        if cache is not None:
+            embed = cache.to_embed(self.cog.bot)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message('Could not find this message in storage', ephemeral=True)
 
 
 class SpoilerCooldown(commands.CooldownMapping):
@@ -196,10 +219,15 @@ class Fun(commands.Cog):
         self.translator = googletrans.Translator()
         self._spoiler_cache = LRU(128)
         self._spoiler_cooldown = SpoilerCooldown()
+        self._spoiler_view = SpoilerView(self)
+        bot.add_view(self._spoiler_view)
         self.currency_conv = CurrencyConverter()
         self.valid_langs = googletrans.LANGCODES.keys() | googletrans.LANGUAGES.keys()
         self.valid_source = self.valid_langs | set(['auto'])
         self.currency_codes = json.loads(open('utils/currency_codes.json').read())
+    
+    def cog_unload(self) -> None:
+        self._spoiler_view.stop()
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -726,7 +754,7 @@ class Fun(commands.Cog):
         Only 8MiB of total media can be uploaded at once.
         Sorry, Discord limitation.
 
-        To opt-in to a post's spoiler you must click the reaction.
+        To opt-in to a post's spoiler you must press the button.
         """
 
         if len(title) > 100:
@@ -737,9 +765,8 @@ class Fun(commands.Cog):
         except Exception as e:
             return await ctx.send(str(e))
 
-        spoiler_message = await ctx.send(embed=cache.to_spoiler_embed(ctx, storage_message))
+        spoiler_message = await ctx.send(embed=cache.to_spoiler_embed(ctx, storage_message), view=self._spoiler_view)
         self._spoiler_cache[spoiler_message.id] = cache
-        await spoiler_message.add_reaction(f'<:spoiler:{SPOILER_EMOJI_ID}>')
 
     @commands.command(usage='<url>')
     @commands.cooldown(1, 5.0, commands.BucketType.member)
