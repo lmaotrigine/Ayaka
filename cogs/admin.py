@@ -775,7 +775,6 @@ class Admin(commands.GroupCog, group_name='dev'):
         msg.author = who
         msg.content = ctx.prefix + command
         new_ctx = await self.bot.get_context(msg)
-        new_ctx._db = ctx._db
         await self.bot.invoke(new_ctx)
 
     @commands.command()
@@ -784,7 +783,6 @@ class Admin(commands.GroupCog, group_name='dev'):
         msg = copy.copy(ctx.message)
         msg.content = ctx.prefix + ' '.join(command)
         new_ctx = await self.bot.get_context(msg)
-        new_ctx._db = ctx._db
         for _ in range(times):
             await new_ctx.reinvoke()
 
@@ -811,7 +809,6 @@ class Admin(commands.GroupCog, group_name='dev'):
         msg.content = ctx.prefix + command
 
         new_ctx = await self.bot.get_context(msg)
-        new_ctx._db = PerformanceMocker()  # type: ignore
 
         # Intercepts the Messageable interface a bit
         new_ctx._state = PerformanceMocker()  # type: ignore

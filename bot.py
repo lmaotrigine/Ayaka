@@ -386,11 +386,7 @@ class Ayaka(commands.AutoShardedBot):
         else:
             self._auto_spam_count.pop(author_id, None)
 
-        try:
-            await self.invoke(ctx)
-        finally:
-            # just in case we have any outstanding db connections
-            await ctx.release()
+        await self.invoke(ctx)
 
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:

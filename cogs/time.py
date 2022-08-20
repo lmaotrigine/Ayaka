@@ -177,7 +177,7 @@ class Time(commands.Cog):
                    SET guild_ids = tz_store.guild_ids || $2, tz = $3
                    WHERE tz_store.user_id = $1;
                 """
-        confirm = await ctx.prompt('This will make your timezone public in this guild. confirm?', reacquire=False)
+        confirm = await ctx.prompt('This will make your timezone public in this guild. confirm?')
         if not confirm:
             return
         await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], timezone.key)

@@ -261,13 +261,11 @@ class PaginatedHelpCommand(commands.HelpCommand):
 
         menu = HelpMenu(FrontPageSource(), ctx=self.context)
         menu.add_categories(all_commands)
-        await self.context.release()
         await menu.start()
 
     async def send_cog_help(self, cog: commands.Cog):
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         menu = HelpMenu(GroupHelpPageSource(cog, entries, prefix=self.context.clean_prefix), ctx=self.context)
-        await self.context.release()
         await menu.start()
 
     def common_command_formatting(self, embed_like, command):
@@ -295,7 +293,6 @@ class PaginatedHelpCommand(commands.HelpCommand):
         source = GroupHelpPageSource(group, entries, prefix=self.context.clean_prefix)
         self.common_command_formatting(source, group)
         menu = HelpMenu(source, ctx=self.context)
-        await self.context.release()
         await menu.start()
 
 

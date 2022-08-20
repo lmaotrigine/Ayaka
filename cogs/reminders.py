@@ -197,6 +197,7 @@ class Reminder(commands.Cog):
 
     async def create_timer(self, when: datetime.datetime, event: str, *args: Any, **kwargs: Any) -> Timer:
         r"""Creates a timer.
+        
         Parameters
         -----------
         when: datetime.datetime
@@ -214,17 +215,16 @@ class Reminder(commands.Cog):
         created: datetime.datetime
             Special keyword-only argument to use as the creation time.
             Should make the timedeltas a bit more consistent.
+        
         Note
         ------
         Arguments and keyword arguments must be JSON serialisable.
+        
         Returns
         --------
         :class:`Timer`
         """
-        try:
-            connection: asyncpg.Connection | asyncpg.Pool = kwargs.pop('connection')
-        except KeyError:
-            connection = self.bot.pool
+        pool = self.bot.pool
 
         try:
             now: datetime.datetime = kwargs.pop('created')
@@ -246,7 +246,7 @@ class Reminder(commands.Cog):
                    RETURNING id;
                 """
 
-        row: asyncpg.Record = await connection.fetchrow(query, event, {'args': args, 'kwargs': kwargs}, when, now)
+        row: asyncpg.Record = await pool.fetchrow(query, event, {'args': args, 'kwargs': kwargs}, when, now)
         timer.id = row[0]
 
         # only set the data check if it can be waited on
@@ -285,7 +285,6 @@ class Reminder(commands.Cog):
             ctx.author.id,
             ctx.channel.id,
             parsed_what or '...',
-            connection=ctx.db,
             created=ctx.message.created_at,
             message_id=ctx.message.id,
         )

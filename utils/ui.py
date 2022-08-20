@@ -18,13 +18,12 @@ T = TypeVar('T')
 
 
 class ConfirmationView(discord.ui.View):
-    def __init__(self, *, timeout: float, author_id: int, reacquire: bool, ctx: Context, delete_after: bool) -> None:
+    def __init__(self, *, timeout: float, author_id: int, ctx: Context, delete_after: bool) -> None:
         super().__init__(timeout=timeout)
         self.value: bool | None = None
         self.delete_after: bool = delete_after
         self.author_id: int = author_id
         self.ctx: Context = ctx
-        self.reacquire: bool = reacquire
         self.message: discord.Message | None = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -35,8 +34,6 @@ class ConfirmationView(discord.ui.View):
             return False
 
     async def on_timeout(self) -> None:
-        if self.reacquire:
-            await self.ctx.acquire()
         if self.delete_after and self.message:
             await self.message.delete()
 
