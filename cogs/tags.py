@@ -958,6 +958,16 @@ class Tags(commands.Cog):
         """This is a reserved tag command. Check back later."""
         pass
 
+    @tag.command()
+    async def random(self, ctx: GuildContext) -> None:
+        """Displays a random tag."""
+
+        tag = await self.get_random_tag(ctx.guild)
+        if tag is None:
+            await ctx.send('This server has no tags.')
+            return
+        await ctx.send(f'Random tag found: {tag["name"]}\n{tag["content"]}')
+
 
 async def setup(bot: Ayaka):
     await bot.add_cog(Tags(bot))
