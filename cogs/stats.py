@@ -30,6 +30,7 @@ from discord.ext import commands, menus, tasks
 from typing_extensions import Annotated
 
 from utils import formats, time
+from utils.paginator import FieldPageSource, RoboPages
 
 
 if TYPE_CHECKING:
@@ -49,6 +50,7 @@ class DataBatchEntry(TypedDict):
     prefix: str
     command: str
     failed: bool
+    app_command: bool
 
 
 class GatewayHandler(logging.Handler):
@@ -99,10 +101,19 @@ class Stats(commands.Cog):
         return discord.PartialEmoji(name='\N{BAR CHART}')
 
     async def bulk_insert(self) -> None:
-        query = """INSERT INTO commands (guild_id, channel_id, author_id, used, prefix, command, failed)
-                   SELECT x.guild, x.channel, x.author, x.used, x.prefix, x.command, x.failed
+        query = """INSERT INTO commands (guild_id, channel_id, author_id, used, prefix, command, failed, app_command)
+                   SELECT x.guild, x.channel, x.author, x.used, x.prefix, x.command, x.failed, x.app_command
                    FROM jsonb_to_recordset($1::jsonb) AS
-                   x(guild BIGINT, channel BIGINT, author BIGINT, used TIMESTAMP, prefix TEXT, command TEXT, failed BOOLEAN)
+                   x(
+                        guild BIGINT,
+                        channel BIGINT,
+                        author BIGINT,
+                        used TIMESTAMP,
+                        prefix TEXT,
+                        command TEXT,
+                        failed BOOLEAN,
+                        app_command BOOLEAN
+                    )
                 """
 
         if self._data_batch:
@@ -131,7 +142,9 @@ class Stats(commands.Cog):
             return
 
         command = ctx.command.qualified_name
+        is_app_command = ctx.interaction is not None
         self.bot.command_stats[command] += 1
+        self.bot.command_types_used[is_app_command] += 1
         message = ctx.message
         destination = None
         if ctx.guild is None:
@@ -152,6 +165,7 @@ class Stats(commands.Cog):
                     'prefix': ctx.prefix,
                     'command': command,
                     'failed': ctx.command_failed,
+                    'app_command': is_app_command,
                 }
             )
 
@@ -163,32 +177,13 @@ class Stats(commands.Cog):
     async def on_app_command_completion(
         self, interaction: discord.Interaction, command: app_commands.Command | app_commands.ContextMenu
     ):
-        # manually filter out hybrids
-        if not isinstance(command, app_commands.ContextMenu):
-            if command.root_parent and command.root_parent.qualified_name != 'dev':
-                return
-            if command.qualified_name != 'prefix':
-                return
-        command_name = command.qualified_name
-        self.bot.command_stats[command_name] += 1
-        if interaction.guild is None:
-            destination = 'Private Message'
-            guild_id = None
-        else:
-            destination = f'#{interaction.channel} ({interaction.guild})'
-            guild_id = interaction.guild.id
-        log.info(f'{interaction.created_at}: {interaction.user} in {destination}: {command_name}')
-        data: DataBatchEntry = {
-            'guild': guild_id,
-            'channel': interaction.channel_id,
-            'author': interaction.user.id,
-            'used': interaction.created_at.isoformat(),
-            'prefix': '/' if isinstance(command, app_commands.Command) else '[Context Menu]',
-            'command': command_name,
-            'failed': interaction.command_failed,
-        }
-        async with self._batch_lock:
-            self._data_batch.append(data)
+        # Hybrid commands are already counted via on_command_completion
+        # This does have a partial loss of data (i.e. the `failed` field) but that's ok.
+        if command is not None and not interaction._baton:
+            # This is technically bad, but since we only access Command.qualified_name and it's
+            # available on all types of commands then it's fine
+            ctx = await self.bot.get_context(interaction)
+            await self.register_command(ctx)
 
     @commands.Cog.listener()
     async def on_socket_event_type(self, event_type: str):
@@ -202,23 +197,33 @@ class Stats(commands.Cog):
 
     @commands.command(hidden=True)
     @commands.is_owner()
-    async def commandstats(self, ctx: Context, limit: int = 20):
+    async def commandstats(self, ctx: Context, limit: int = 12):
         """Shows command stats.
 
         Use a negative number for bottom instead of top.
         This is only for the current session.
         """
         counter = self.bot.command_stats
-        width = len(max(counter, key=len))
+        total = sum(counter.values())
+        slash_commands = self.bot.command_types_used[True]
+
+        delta = discord.utils.utcnow() - self.bot.uptime
+        minutes = delta.total_seconds() / 60
+        cpm = total / minutes
 
         if limit > 0:
             common = counter.most_common(limit)
+            title = f'Top {limit} Commands'
         else:
             common = counter.most_common()[limit:]
+            title = f'Bottom {limit} Commands'
 
-        output = '\n'.join(f'{k:<{width}}: {c}' for k, c in common)
+        source = FieldPageSource(common, inline=True, clear_description=False)
+        source.embed.title = title
+        source.embed.description = f'{total} total commands used ({slash_commands} slash command uses) ({cpm:.2f}/minute)'
 
-        await ctx.send(f'```\n{output}\n```')
+        pages = RoboPages(source, ctx=ctx, compact=True)
+        await pages.start()
 
     @commands.command(hidden=True)
     async def socketstats(self, ctx: Context):
@@ -1124,6 +1129,9 @@ async def setup(bot: Ayaka):
 
     if not hasattr(bot, 'socket_stats'):
         bot.socket_stats = Counter()
+    
+    if not hasattr(bot, 'command_types_used'):
+        bot.command_types_used = Counter()
 
     cog = Stats(bot)
     await bot.add_cog(cog)

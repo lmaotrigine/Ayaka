@@ -223,17 +223,20 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         self.stop()
 
 
-class FieldPageSource(menus.ListPageSource, Generic[T]):
-    def __init__(self, entries: list[tuple[str, str]], *, per_page: int = 12):
+class FieldPageSource(menus.ListPageSource):
+    def __init__(self, entries: list[tuple[Any, Any]], *, per_page: int = 12, inline: bool = False, clear_description: bool = True):
         super().__init__(entries, per_page=per_page)
         self.embed = discord.Embed(colour=discord.Colour.blurple())
+        self.clear_description = clear_description
+        self.inline = inline
 
-    async def format_page(self, menu: RoboPages, entries: list[tuple[str, str]]) -> discord.Embed:
+    async def format_page(self, menu: RoboPages, entries: list[tuple[Any, Any]]) -> discord.Embed:
         self.embed.clear_fields()
-        self.embed.description = None
+        if self.clear_description:
+            self.embed.description = None
 
         for key, value in entries:
-            self.embed.add_field(name=key, value=value, inline=False)
+            self.embed.add_field(name=key, value=value, inline=self.inline)
 
         maximum = self.get_max_pages()
         if maximum > 1:
