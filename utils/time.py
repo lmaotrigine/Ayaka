@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import datetime
 import re
+import zoneinfo
 
+import discord
 import parsedatetime as pdt
+from discord import app_commands
 from dateutil.relativedelta import relativedelta
 from discord.ext import commands
+from bot import Ayaka
 
 from utils.context import Context
 
@@ -97,6 +101,42 @@ class FutureTime(Time):
         super().__init__(argument, now=now)
         if self._past:
             raise commands.BadArgument('this time is in the past')
+
+
+class BadTimeTransform(app_commands.AppCommandError):
+    pass
+
+
+class TimeTransformer(app_commands.Transformer):
+    @staticmethod
+    async def get_timezone(interaction: discord.Interaction) -> zoneinfo.ZoneInfo: 
+        assert isinstance(interaction.client, Ayaka)
+        if interaction.guild is None:
+            tz = zoneinfo.ZoneInfo('UTC')
+        else:
+            row: str | None = await interaction.client.pool.fetchval(
+                'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', interaction.user.id, interaction.guild.id
+            )  # type: ignore  # asyncpg woes
+            if row:
+                tz = zoneinfo.ZoneInfo(row)
+            else:
+                tz = zoneinfo.ZoneInfo('UTC')
+        return tz
+    
+    @classmethod
+    def transform(cls, interaction: discord.Interaction, value: str) -> datetime.datetime:
+        now = interaction.created_at
+        try:
+            short = ShortTime(value, now=now)
+        except commands.BadArgument:
+            try:
+                human = FutureTime(value, now=now)
+            except commands.BadArgument as e:
+                raise BadTimeTransform(str(e)) from None
+            else:
+                return human.dt
+        else:
+            return short.dt
 
 
 class FriendlyTimeResult:

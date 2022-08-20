@@ -114,7 +114,7 @@ class DatetimeConverter(commands.Converter[datetime.datetime]):
         if ctx.guild is None:
             tz = zoneinfo.ZoneInfo('UTC')
         else:
-            row = await ctx.bot.pool.fetchval(
+            row: str | None = await ctx.bot.pool.fetchval(
                 'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', ctx.author.id, ctx.guild.id
             )
             if row:
