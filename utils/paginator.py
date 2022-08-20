@@ -173,32 +173,47 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         # The call here is safe because it's guarded by skip_if
         await self.show_page(interaction, self.source.get_max_pages() - 1)  # type: ignore
 
-    class SkipToPageModal(discord.ui.Modal):
-        page_number = discord.ui.TextInput(label='Page number', style=discord.TextStyle.short, required=True, min_length=1)
+    class SkipToPageModal(discord.ui.Modal, title='Go to page'):
+        page_number = discord.ui.TextInput(label='Page', min_length=1)
 
-        def __init__(self, menu: RoboPages) -> None:
-            super().__init__(title='Skip to page', timeout=menu.timeout)
-            self.menu = menu
-            self.page_number.label = f'Page number (1-{menu.source.get_max_pages()})'
-            self.page_number.min_length = 1
-            self.page_number.max_length = len(str(menu.source.get_max_pages()))
-
+        def __init__(self, max_pages: int | None) -> None:
+            super().__init__()
+            if max_pages is not None:
+                as_string = str(max_pages)
+                self.page_number.placeholder = f'Enter a number between 1 and {as_string}'
+                self.page_number.max_length = len(as_string)
+        
         async def on_submit(self, interaction: discord.Interaction) -> None:
-            try:
-                page = int(self.page_number.value or '') - 1
-                if not 0 <= page < self.menu.source.get_max_pages():
-                    raise ValueError()
-            except ValueError:
-                await interaction.response.send_message(
-                    f'``{self.page_number.value}`` could not be converted to a page number', ephemeral=True
-                )
-            else:
-                await self.menu.show_checked_page(interaction, page)
+            self.interaction = interaction
+            self.stop()
+    
 
     @discord.ui.button(label='Skip to page...', style=discord.ButtonStyle.grey)
     async def numbered_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         """Lets you type a page number to go to."""
-        await interaction.response.send_modal(self.SkipToPageModal(self))
+        if self.message is None:
+            return
+        modal = self.SkipToPageModal(self.source.get_max_pages())
+        await interaction.response.send_modal(modal)
+        timed_out = await modal.wait()
+
+        if timed_out:
+            await interaction.followup.send('Took too long', ephemeral=True)
+            return
+        elif self.is_finished():
+            await modal.interaction.response.send_message('Took too long', ephemeral=True)
+            return
+        
+        value = str(modal.page_number.value)
+        if not value.isdigit():
+            await modal.interaction.response.send_message(f'Expected a number not {value!r}', ephemeral=True)
+            return
+        
+        value = int(value)
+        await self.show_checked_page(modal.interaction, value - 1)
+        if not modal.interaction.response.is_done():
+            error = modal.page_number.placeholder.replace('Enter', 'Expected')  # type: ignore # Can't be None
+            await modal.interaction.response.send_message(error, ephemeral=True)
 
     @discord.ui.button(label='Quit', style=discord.ButtonStyle.red)
     async def stop_pages(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
