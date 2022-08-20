@@ -6,15 +6,14 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import datetime
 import io
-import shlex
 from typing import TYPE_CHECKING, TypedDict
 
 import asyncpg
 import discord
+from discord import app_commands
 from discord.ext import commands
 from typing_extensions import Annotated
 
@@ -27,15 +26,14 @@ if TYPE_CHECKING:
     from utils.context import Context, GuildContext
 
 
-class Arguments(argparse.ArgumentParser):
-    def error(self, message: str):
-        raise RuntimeError(message)
-
-
 class TagEntry(TypedDict):
     id: int
     name: str
     content: str
+
+
+class TagAllFlags(commands.FlagConverter):
+    text: bool = commands.flag(default=False, description='Whether to dump the tags as a text file.')
 
 
 class TagPageEntry:
@@ -80,6 +78,46 @@ class TagName(commands.clean_content):
         return converted if not self.lower else lower
 
 
+# Modals
+
+
+class TagEditModal(discord.ui.Modal, title='Edit Tag'):
+    content = discord.ui.TextInput(label='Tag Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000)
+
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self.content.default = text
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.interaction = interaction
+        self.text = str(self.content)
+        self.stop()
+
+
+class TagMakeModal(discord.ui.Modal, title='Create New Tag'):
+    name = discord.ui.TextInput(label='Name', required=True, max_length=100, min_length=1)
+    content = discord.ui.TextInput(label='Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000)
+
+    def __init__(self, cog: Tags, ctx: GuildContext) -> None:
+        super().__init__()
+        self.cog = cog
+        self.ctx = ctx
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild_id is not None
+        name = str(self.name)
+        if self.cog.is_tag_being_made(interaction.guild_id, name):
+            await interaction.response.send_message('This tag is already being made by someone else.', ephemeral=True)
+            return
+        
+        self.ctx.interaction = interaction
+        content = str(self.content)
+        if len(content) > 2000:
+            await interaction.response.send_message('Tag content is a maximum of 2000 characters.', ephemeral=True)
+        else:
+            await self.cog.create_tag(self.ctx, name, content)
+
+
 class Tags(commands.Cog):
     """Commands to fetch something by a tag name"""
 
@@ -100,6 +138,8 @@ class Tags(commands.Cog):
             else:
                 await ctx.send(str(error))
             ctx.command.extras['handled'] = True
+        elif isinstance(error, commands.FlagError):
+            await ctx.send(str(error))
 
     async def get_possible_tags(
         self,
@@ -228,8 +268,27 @@ class Tags(commands.Cog):
         if len(being_made) == 0:
             del self._reserved_tags_being_made[guild_id]
 
-    @commands.group(invoke_without_command=True)
+    # These are hopefully fast enough. Through a query planner these take around ~20ms each.
+
+    async def non_aliased_tag_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        query = """SELECT name FROM tags WHERE location_id=$1 AND LOWER(name) % $2 LIMIT 12;"""
+        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, current.lower())
+        return [app_commands.Choice(name=a, value=a) for a, in results]
+
+    async def aliased_tag_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        query = """SELECT name FROM tag_lookup WHERE location_id=$1 AND LOWER(name) % $2 LIMIT 12;"""
+        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, current.lower())
+        return [app_commands.Choice(name=a, value=a) for a, in results]
+
+    @commands.hybrid_group(fallback='get')
     @commands.guild_only()
+    @app_commands.guild_only()
+    @app_commands.describe(name='The tag to retrieve')
+    @app_commands.autocomplete(name=aliased_tag_autocomplete)
     async def tag(self, ctx: GuildContext, *, name: Annotated[str, TagName(lower=True)]):
         """Allows you to tag text for later retrieval.
 
@@ -250,6 +309,7 @@ class Tags(commands.Cog):
 
     @tag.command(aliases=['add'])
     @commands.guild_only()
+    @app_commands.describe(name='The tag name', content='The tag content')
     async def create(
         self, ctx: GuildContext, name: Annotated[str, TagName], *, content: Annotated[str, commands.clean_content]
     ):
@@ -271,6 +331,9 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.rename(new_name='aliased-name', old_name='original-tag')
+    @app_commands.describe(new_name='The name of the alias', old_name='The original tag to alias')
+    @app_commands.autocomplete(old_name=non_aliased_tag_autocomplete)
     async def alias(self, ctx: GuildContext, new_name: Annotated[str, TagName], *, old_name: Annotated[str, TagName]):
         """Creates an alias for a pre-existing tag.
 
@@ -308,6 +371,11 @@ class Tags(commands.Cog):
         its name and its content. This works similar to the tag
         create command.
         """
+
+        if ctx.interaction is not None:
+            modal = TagMakeModal(self, ctx)
+            await ctx.interaction.response.send_modal(modal)
+            return
 
         await ctx.send("Hello. What would you like the tag's name to be?")
 
@@ -530,6 +598,7 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(member='The member to get stats about, if not given then display server stats')
     async def stats(self, ctx: GuildContext, *, member: discord.User | None = None):
         """Gives tag statistics for a member or the server."""
 
@@ -540,12 +609,17 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(
+        name='The tag to edit',
+        content='The new content of the tag, if not given then a modal is opened',
+    )
+    @app_commands.autocomplete(name=non_aliased_tag_autocomplete)
     async def edit(
         self,
         ctx: GuildContext,
         name: Annotated[str, TagName(lower=True)],
         *,
-        content: Annotated[str, commands.clean_content],
+        content: Annotated[str | None, commands.clean_content] = None,
     ):
         """Modifies an existing tag that you own.
 
@@ -553,6 +627,23 @@ class Tags(commands.Cog):
         you want to get the old text back, consider using the
         tag raw command.
         """
+
+        if content is None:
+            if ctx.interaction is None:
+                raise commands.BadArgument('Missing content to edit tag with')
+            else:
+                query = "SELECT content FROM tags WHERE LOWER(name)=$1 AND location_id=$2 AND owner_id=$3"
+                row: tuple[str] | None = await ctx.db.fetchrow(query, name, ctx.guild.id, ctx.author.id)
+                if row is None:
+                    await ctx.send(
+                        'Could not find a tag with that name, are you sure it exists or you own it?', ephemeral=True
+                    )
+                    return
+                modal = TagEditModal(row[0])
+                await ctx.interaction.response.send_modal(modal)
+                await modal.wait()
+                ctx.interaction = modal.interaction
+                content = modal.text
 
         query = "UPDATE tags SET content=$1 WHERE LOWER(name)=$2 AND location_id=$3 AND owner_id=$4;"
         status = await ctx.db.execute(query, content, name, ctx.guild.id, ctx.author.id)
@@ -568,6 +659,8 @@ class Tags(commands.Cog):
 
     @tag.command(aliases=['delete'])
     @commands.guild_only()
+    @app_commands.describe(name='The tag to remove')
+    @app_commands.autocomplete(name=aliased_tag_autocomplete)
     async def remove(self, ctx: GuildContext, *, name: Annotated[str, TagName(lower=True)]):
         """Removes a tag that you own.
 
@@ -607,6 +700,8 @@ class Tags(commands.Cog):
 
     @tag.command(aliases=['delete_id'])
     @commands.guild_only()
+    @app_commands.describe(tag_id='The internal tag ID to delete')
+    @app_commands.rename(tag_id='id')
     async def remove_id(self, ctx: GuildContext, tag_id: int):
         """Removes a tag by ID.
 
@@ -698,6 +793,8 @@ class Tags(commands.Cog):
 
     @tag.command(aliases=['owner'])
     @commands.guild_only()
+    @app_commands.describe(name='The tag to retrieve information for')
+    @app_commands.autocomplete(name=aliased_tag_autocomplete)
     async def info(self, ctx: GuildContext, *, name: Annotated[str, TagName(lower=True)]):
         """Retrieves info about a tag.
 
@@ -726,6 +823,8 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(name='The tag to retrieve raw content for')
+    @app_commands.autocomplete(name=non_aliased_tag_autocomplete)
     async def raw(self, ctx: GuildContext, *, name: Annotated[str, TagName(lower=True)]):
         """Gets the raw content of the tag.
 
@@ -742,6 +841,7 @@ class Tags(commands.Cog):
 
     @tag.command(name='list')
     @commands.guild_only()
+    @app_commands.describe(member='The member to list tags of, if not given then it shows yours')
     async def _list(
         self,
         ctx: GuildContext,
@@ -765,8 +865,10 @@ class Tags(commands.Cog):
         else:
             await ctx.send(f'{member} has no tags.')
 
-    @commands.command()
+    @commands.hybrid_command()
     @commands.guild_only()
+    @app_commands.guild_only()
+    @app_commands.describe(member='The member to list tags of, if not given then it shows yours')
     async def tags(
         self,
         ctx: GuildContext,
@@ -775,15 +877,6 @@ class Tags(commands.Cog):
     ):
         """An alias for tag list command."""
         await ctx.invoke(self._list, member=member)
-
-    @staticmethod
-    def _get_tag_all_arguments(args: str | None):
-        parser = Arguments(add_help=False, allow_abbrev=False)
-        parser.add_argument('--text', action='store_true')
-        if args is not None:
-            return parser.parse_args(shlex.split(args))
-        else:
-            return parser.parse_args([])
 
     async def _tag_all_text_mode(self, ctx: GuildContext):
         query = """SELECT tag_lookup.id,
@@ -809,22 +902,17 @@ class Tags(commands.Cog):
         fp = io.BytesIO(table.render().encode('utf-8'))
         await ctx.send(file=discord.File(fp, 'tags.txt'))
 
-    @tag.command(name='all')
+    @tag.command(name='all', usage='[text: yes|no]')
     @commands.guild_only()
-    async def _all(self, ctx: GuildContext, *, arguments: str | None = None):
+    async def _all(self, ctx: GuildContext, *, flags: TagAllFlags):
         """Lists all server-specific tags for this server.
 
         You can pass specific flags to this command to control the output:
 
-        `--text`: Dumps into a text file
+        `text:`: Dumps into a text file
         """
 
-        try:
-            args = self._get_tag_all_arguments(arguments)
-        except RuntimeError as e:
-            return await ctx.send(str(e))
-
-        if args.text:
+        if flags.text:
             return await self._tag_all_text_mode(ctx)
 
         query = """SELECT name, id
@@ -845,6 +933,7 @@ class Tags(commands.Cog):
     @tag.command()
     @commands.guild_only()
     @checks.has_guild_permissions(manage_messages=True)
+    @app_commands.describe(member='The member to remove all tags of')
     async def purge(self, ctx: GuildContext, member: discord.User):
         """Removes all server-specific tags by a user.
 
@@ -871,6 +960,7 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(query='The tag name to search for')
     async def search(self, ctx: GuildContext, *, query: Annotated[str, commands.clean_content]):
         """Searches for a tag.
 
@@ -897,6 +987,8 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(tag='The tag to claim')
+    @app_commands.autocomplete(tag=aliased_tag_autocomplete)
     async def claim(self, ctx: GuildContext, *, tag: Annotated[str, TagName]):
         """Claims an unclaimed tag.
 
@@ -931,6 +1023,8 @@ class Tags(commands.Cog):
 
     @tag.command()
     @commands.guild_only()
+    @app_commands.describe(member='The member to transfer the tag to')
+    @app_commands.autocomplete(tag=aliased_tag_autocomplete)
     async def transfer(self, ctx: GuildContext, member: discord.Member, *, tag: Annotated[str, TagName]):
         """Transfers a tag to another member.
 
@@ -953,7 +1047,7 @@ class Tags(commands.Cog):
 
         await ctx.send(f'Successfully transferred tag ownership to {member}.')
 
-    @tag.command(hidden=True)
+    @tag.command(hidden=True, with_app_command=False)
     async def config(self, ctx: Context):
         """This is a reserved tag command. Check back later."""
         pass
