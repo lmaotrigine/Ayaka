@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from utils.context import Context
+from utils.context import Context, GuildContext
 from utils.formats import plural
 
 
@@ -40,7 +40,8 @@ class RNG(commands.Cog):
             await ctx.send(f'Incorrect random subcommand passed. Try {ctx.prefix}help random')
 
     @random.command()
-    async def tag(self, ctx: Context):
+    @commands.guild_only()
+    async def tag(self, ctx: GuildContext):
         """Displays a random tag.
 
         A tag showing up in this does not get its usage count increased.
