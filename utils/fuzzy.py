@@ -292,37 +292,37 @@ def extract_matches(
 
 @overload
 def finder(
-    text: str, collection: Iterable[str], *, key: Callable[[str], str] | None = ..., lazy: Literal[True]
-) -> Generator[str, None, None]:
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[True]
+) -> Generator[T, None, None]:
     ...
 
 
 @overload
 def finder(
-    text: str, collection: Iterable[str], *, key: Callable[[str], str] | None = ..., lazy: Literal[False]
-) -> list[str]:
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[False]
+) -> list[T]:
     ...
 
 
 @overload
 def finder(
-    text: str, collection: Iterable[str], *, key: Callable[[str], str] | None = ..., lazy: bool = ...
-) -> Generator[str, None, None] | list[str]:
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: bool = ...
+) -> Generator[T, None, None] | list[T]:
     ...
 
 
-def finder(text: str, collection: Iterable[str], *, key: Callable[[str], str] | None = None, lazy: bool = True):
-    suggestions = []
+def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = None, lazy: bool = True):
+    suggestions: list[tuple[int, int, T]] = []
     text = str(text)
     pat = '.*?'.join(map(re.escape, text))
     regex = re.compile(pat, flags=re.IGNORECASE)
     for item in collection:
-        to_search = key(item) if key else item
+        to_search = key(item) if key else str(item)
         r = regex.search(to_search)
         if r:
             suggestions.append((len(r.group()), r.start(), item))
 
-    def sort_key(tup: tuple[int, int, str]) -> tuple[int, int, str]:
+    def sort_key(tup: tuple[int, int, T]) -> tuple[int, int, str | T]:
         if key:
             return tup[0], tup[1], key(tup[2])
         return tup
