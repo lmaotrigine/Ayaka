@@ -7,6 +7,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from collections.abc import Iterable
 from typing import Any, Callable, TypeVar
 
+from discord import app_commands
 from discord.ext import commands
 
 from utils.context import Context, GuildContext
@@ -54,25 +55,33 @@ def has_guild_permissions(*, check: Callable[[Iterable[Any]], bool] = all, **per
 
 
 # These do not take channel overrides into account
-def is_manager() -> Callable[[T], T]:
-    async def pred(ctx: GuildContext) -> bool:
-        return await check_guild_permissions(ctx, {'manage_guild': True})
 
-    return commands.check(pred)
+
+def hybrid_permissions_check(**perms: bool) -> Callable[[T], T]:
+    async def pred(ctx: GuildContext):
+        if ctx.interaction is not None:
+            # For application commands just trust the admin to set it up properly
+            return True
+        return await check_guild_permissions(ctx, perms)
+    
+    def decorator(func: T) -> T:
+        commands.check(pred)(func)
+        app_commands.default_permissions(**perms)(func)
+        return func
+    
+    return decorator
+
+
+def is_manager() -> Callable[[T], T]:
+    return hybrid_permissions_check(manage_guild=True)
 
 
 def is_mod() -> Callable[[T], T]:
-    async def pred(ctx: GuildContext) -> bool:
-        return await check_guild_permissions(ctx, {'ban_members': True, 'manage_messages': True})
-
-    return commands.check(pred)
+    return hybrid_permissions_check(ban_members=True, manage_messages=True)
 
 
 def is_admin() -> Callable[[T], T]:
-    async def pred(ctx: GuildContext) -> bool:
-        return await check_guild_permissions(ctx, {'administrator': True})
-    
-    return commands.check(pred)
+    return hybrid_permissions_check(administrator=True)
 
 
 def mod_or_permissions(**perms: bool) -> Callable[[T], T]:
