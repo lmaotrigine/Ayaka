@@ -24,13 +24,12 @@ class Config(Generic[_T]):
         *,
         object_hook: ObjectHook | None = None,
         encoder: type[json.JSONEncoder] | None = None,
-        loop: asyncio.AbstractEventLoop,
         load_later: bool = False,
     ):
         self.name = name
         self.object_hook = object_hook
         self.encoder = encoder
-        self.loop = loop
+        self.loop = asyncio.get_running_loop()
         self.lock = asyncio.Lock()
         self._db: dict[str, _T | Any] = {}
         if load_later:

@@ -192,8 +192,8 @@ class Ayaka(commands.AutoShardedBot):
     async def setup_hook(self) -> None:
         self.server.bind(6789)
         self.server.start()
-        self.prefixes: Config[list[str]] = Config(pathlib.Path('configs/prefixes.json'), loop=self.loop)
-        self.blacklist: Config[bool] = Config(pathlib.Path('configs/blacklist.json'), loop=self.loop)
+        self.prefixes: Config[list[str]] = Config(pathlib.Path('configs/prefixes.json'))
+        self.blacklist: Config[bool] = Config(pathlib.Path('configs/blacklist.json'))
         self.bot_app_info = await self.application_info()
         self.owner_id = self.bot_app_info.owner.id
 
