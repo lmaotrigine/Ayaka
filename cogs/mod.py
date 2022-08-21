@@ -432,23 +432,22 @@ class SpamChecker:
 
         current = message.created_at.timestamp()
 
-        # CooldownMapping.get_bucket never returns None if bucket_type is not default.
         if message.author.id in self.fast_joiners:
-            bucket: commands.Cooldown = self.hit_and_run.get_bucket(message)  # type: ignore
-            if bucket.update_rate_limit(current):
+            bucket = self.hit_and_run.get_bucket(message)
+            if bucket and bucket.update_rate_limit(current):
                 return True
 
         if self.is_new(message.author):  # type: ignore  # guarded with the first if statement
-            new_bucket: commands.Cooldown = self.new_user.get_bucket(message)  # type: ignore
-            if new_bucket.update_rate_limit(current):
+            new_bucket = self.new_user.get_bucket(message)
+            if new_bucket and new_bucket.update_rate_limit(current):
                 return True
 
-        user_bucket: commands.Cooldown = self.by_user.get_bucket(message)  # type: ignore
-        if user_bucket.update_rate_limit(current):
+        user_bucket  = self.by_user.get_bucket(message)
+        if user_bucket and user_bucket.update_rate_limit(current):
             return True
 
-        content_bucket: commands.Cooldown = self.by_content.get_bucket(message)  # type: ignore
-        if content_bucket.update_rate_limit(current):
+        content_bucket = self.by_content.get_bucket(message)
+        if content_bucket and content_bucket.update_rate_limit(current):
             return True
 
         return False
@@ -470,10 +469,10 @@ class SpamChecker:
             return False
         
         current = message.created_at.timestamp()
-        # get_bucket can only return None if bucket type is default.
-        mention_bucket: commands.Cooldown = mapping.get_bucket(message, current)  # type: ignore
+
+        mention_bucket = mapping.get_bucket(message, current)
         mention_count = sum(not m.bot and m.id != message.author.id for m in message.mentions)
-        return mention_bucket.update_rate_limit(current, tokens=mention_count) is not None
+        return mention_bucket is not None and mention_bucket.update_rate_limit(current, tokens=mention_count) is not None
 
 
 ## Checks
