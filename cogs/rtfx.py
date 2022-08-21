@@ -225,24 +225,26 @@ class RTFX(commands.Cog):
         e.set_footer(text=f'{len(matches)} possible results.')
         await ctx.send(embed=e)
 
-    async def rtfm_slash_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    async def rtfm_slash_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
         # Degenerate case: not having built caching yet
         if not hasattr(self, '_rtfm_cache'):
             await interaction.response.autocomplete([])
             await self.build_rtfm_lookup_table()
             return []
-        
+
         if not current:
             return []
-        
+
         if len(current) < 3:
             return [app_commands.Choice(name=current, value=current)]
-        
+
         assert interaction.command is not None
         key = interaction.command.name
         matches = fuzzy.finder(current, self._rtfm_cache[key], lazy=False)[:10]
         return [app_commands.Choice(name=m, value=m) for m in matches]
-    
+
     @commands.hybrid_group(aliases=['rtfd'], fallback='python')
     @app_commands.describe(entity='The object to search for')
     @app_commands.autocomplete(entity=rtfm_slash_autocomplete)

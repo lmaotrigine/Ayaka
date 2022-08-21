@@ -235,9 +235,7 @@ class Config(commands.Cog):
                 return True
 
         # check if we're plonked
-        is_plonked = await self.is_plonked(
-            ctx.guild.id, ctx.author.id, channel=ctx.channel, check_bypass=False
-        )
+        is_plonked = await self.is_plonked(ctx.guild.id, ctx.author.id, channel=ctx.channel, check_bypass=False)
 
         return not is_plonked
 
@@ -433,7 +431,11 @@ class Config(commands.Cog):
                 try:
                     await connection.execute(query, guild_id, channel_id, name, whitelist)
                 except asyncpg.UniqueViolationError:
-                    msg = 'This command is already disabled.' if not whitelist else 'This command is already explicitly enabled.'
+                    msg = (
+                        'This command is already disabled.'
+                        if not whitelist
+                        else 'This command is already explicitly enabled.'
+                    )
                     raise RuntimeError(msg)
 
     @channel.command(name='disable')

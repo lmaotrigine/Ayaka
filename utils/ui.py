@@ -69,13 +69,13 @@ class DisambiguatorView(discord.ui.View, Generic[T]):
         select.callback = self.on_select_submit
         self.select = select
         self.add_item(select)
-    
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id not in (self.ctx.author.id, self.ctx.bot.owner.id):
             await interaction.response.send_message('This select menu is not meant for you, sorry!', ephemeral=True)
             return False
         return True
-    
+
     async def on_select_submit(self, interaction: discord.Interaction):
         index = int(self.select.values[0])
         self.selected = self.data[index]

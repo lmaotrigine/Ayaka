@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
+
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 

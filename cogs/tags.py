@@ -82,12 +82,14 @@ class TagName(commands.clean_content):
 
 
 class TagEditModal(discord.ui.Modal, title='Edit Tag'):
-    content = discord.ui.TextInput(label='Tag Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000)
+    content = discord.ui.TextInput(
+        label='Tag Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000
+    )
 
     def __init__(self, text: str) -> None:
         super().__init__()
         self.content.default = text
-    
+
     async def on_submit(self, interaction: discord.Interaction) -> None:
         self.interaction = interaction
         self.text = str(self.content)
@@ -96,20 +98,22 @@ class TagEditModal(discord.ui.Modal, title='Edit Tag'):
 
 class TagMakeModal(discord.ui.Modal, title='Create New Tag'):
     name = discord.ui.TextInput(label='Name', required=True, max_length=100, min_length=1)
-    content = discord.ui.TextInput(label='Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000)
+    content = discord.ui.TextInput(
+        label='Content', required=True, style=discord.TextStyle.long, min_length=1, max_length=2000
+    )
 
     def __init__(self, cog: Tags, ctx: GuildContext) -> None:
         super().__init__()
         self.cog = cog
         self.ctx = ctx
-    
+
     async def on_submit(self, interaction: discord.Interaction) -> None:
         assert interaction.guild_id is not None
         name = str(self.name)
         if self.cog.is_tag_being_made(interaction.guild_id, name):
             await interaction.response.send_message('This tag is already being made by someone else.', ephemeral=True)
             return
-        
+
         self.ctx.interaction = interaction
         content = str(self.content)
         if len(content) > 2000:

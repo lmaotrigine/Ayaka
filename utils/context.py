@@ -18,6 +18,7 @@ from .ui import ConfirmationView, DisambiguatorView
 
 if TYPE_CHECKING:
     from types import TracebackType
+
     from aiohttp import ClientSession
 
     from bot import Ayaka
@@ -33,31 +34,33 @@ T = TypeVar('T')
 # Right now, asyncpg is untyped so this is better than the current status quo
 # To actually receive the regular Pool type `Context.pool` can be used instead.
 
-class ConnectionContextManager(Protocol):
 
+class ConnectionContextManager(Protocol):
     async def __aenter__(self) -> asyncpg.Connection:
         ...
 
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
+    ) -> None:
         ...
 
 
 class DatabaseProtocol(Protocol):
     async def execute(self, query: str, *args: Any, timeout: float | None = None) -> str:
         ...
-    
+
     async def fetch(self, query: str, *args: Any, timeout: float | None = None) -> list[asyncpg.Record]:
         ...
-    
+
     async def fetchrow(self, query: str, *args: Any, timeout: float | None = None) -> asyncpg.Record | None:
         ...
-    
+
     async def fetchval(self, query: str, *args: Any, timeout: float | None = None) -> Any | None:
         ...
-    
+
     def acquire(self, *, timeout: float | None = None) -> ConnectionContextManager:
         ...
-    
+
     def release(self, connection: asyncpg.Connection) -> None:
         ...
 
@@ -108,7 +111,7 @@ class Context(commands.Context['Ayaka']):
 
         if len(matches) == 1:
             return matches[0]
-        
+
         if len(matches) > 25:
             raise ValueError('Too many results... sorry.')
 
@@ -126,9 +129,7 @@ class Context(commands.Context['Ayaka']):
         author_id: int | None = None,
     ) -> bool | None:
         author_id = author_id or self.author.id
-        view = ConfirmationView(
-            timeout=timeout, author_id=author_id, ctx=self, delete_after=delete_after
-        )
+        view = ConfirmationView(timeout=timeout, author_id=author_id, ctx=self, delete_after=delete_after)
         view.message = await self.send(message, view=view)
         await view.wait()
         return view.value
@@ -143,7 +144,7 @@ class Context(commands.Context['Ayaka']):
     @property
     def db(self) -> DatabaseProtocol:
         return self.bot.pool  # type: ignore
-    
+
     async def show_help(self, command: Any = None) -> None:
         cmd = self.bot.get_command('help')
         command = command or self.command.qualified_name

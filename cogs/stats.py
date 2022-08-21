@@ -1129,7 +1129,7 @@ async def setup(bot: Ayaka):
 
     if not hasattr(bot, 'socket_stats'):
         bot.socket_stats = Counter()
-    
+
     if not hasattr(bot, 'command_types_used'):
         bot.command_types_used = Counter()
 

@@ -12,7 +12,7 @@ import io
 import logging
 import re
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Literal, List, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping, Optional, Union
 
 import asyncpg
 import discord
@@ -22,7 +22,7 @@ from typing_extensions import Annotated
 
 from utils import cache, checks, flags, time
 from utils.converters import Snowflake
-from utils.formats import plural, human_join
+from utils.formats import human_join, plural
 from utils.paginator import SimplePages
 
 
@@ -46,7 +46,7 @@ class AutoModFlags(flags.BaseFlags):
     def joins(self) -> int:
         """Whether the server is broadcasting joins"""
         return 1
-    
+
     @flags.flag_value
     def raid(self) -> int:
         """Whether the server is autobanning spammers"""
@@ -100,11 +100,11 @@ class ModConfig:
     def broadcast_channel(self) -> Optional[discord.TextChannel]:
         guild = self.bot.get_guild(self.id)
         return guild and guild.get_channel(self.broadcast_channel_id)  # type: ignore
-    
+
     @property
     def requires_migration(self) -> bool:
         return self.broadcast_channel_id is not None and self.broadcast_webhook_url is None
-    
+
     @discord.utils.cached_slot_property('_cs_broadcast_webhook')
     def broadcast_webhook(self) -> discord.Webhook | None:
         if self.broadcast_webhook_url is None:
@@ -131,7 +131,7 @@ class MigrateJoinLogView(discord.ui.View):
     def __init__(self, cog: Mod) -> None:
         super().__init__(timeout=None)
         self.cog = cog
-    
+
     @discord.ui.button(label='Migrate', custom_id='migrate_robomod_join_logs', style=discord.ButtonStyle.green)
     async def migrate(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         assert interaction.message is not None
@@ -153,20 +153,20 @@ class PreExistingMuteRoleView(discord.ui.View):
         super().__init__(timeout=120.0)
         self.user = user
         self.merge: bool | None = None
-    
+
     async def on_timeout(self) -> None:
         try:
             await self.message.reply('Aborting.')
             await self.message.delete()
         except:
             pass
-    
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user.id:
             await interaction.response.send_message("Sorry, these buttons aren't for you", ephemeral=True)
             return False
         return True
-    
+
     @discord.ui.button(label='Merge', style=discord.ButtonStyle.blurple)
     async def merge_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.defer()
@@ -194,7 +194,7 @@ class LockdownPermissionIssueView(discord.ui.View):
         self.channel = channel
         self.me = me
         self.abort = False
-    
+
     async def on_timeout(self) -> None:
         self.abort = True
         try:
@@ -202,7 +202,7 @@ class LockdownPermissionIssueView(discord.ui.View):
             await self.message.delete()
         except:
             pass
-    
+
     @discord.ui.button(label='Resolve Permission Issue', style=discord.ButtonStyle.green)
     async def resolve_permissions(self, interaction: discord.Interaction, button: discord.ui.Button):
         overwrites = self.channel.overwrites
@@ -442,7 +442,7 @@ class SpamChecker:
             if new_bucket and new_bucket.update_rate_limit(current):
                 return True
 
-        user_bucket  = self.by_user.get_bucket(message)
+        user_bucket = self.by_user.get_bucket(message)
         if user_bucket and user_bucket.update_rate_limit(current):
             return True
 
@@ -467,7 +467,7 @@ class SpamChecker:
         mapping = self.by_mentions(config)
         if mapping is None:
             return False
-        
+
         current = message.created_at.timestamp()
 
         mention_bucket = mapping.get_bucket(message, current)
@@ -552,7 +552,7 @@ class Mod(commands.Cog):
 
     def __repr__(self) -> str:
         return '<cogs.Mod>'
-    
+
     async def cog_load(self) -> None:
         self._avatar: bytes = await self.bot.user.display_avatar.read()
 
@@ -562,7 +562,10 @@ class Mod(commands.Cog):
         self._automod_migration_view.stop()
 
     async def cog_command_error(self, ctx: GuildContext, error: commands.CommandError):
-        if isinstance(error, (commands.BadArgument, commands.BotMissingPermissions, NoMuteRole, commands.UserInputError, commands.FlagError)):
+        if isinstance(
+            error,
+            (commands.BadArgument, commands.BotMissingPermissions, NoMuteRole, commands.UserInputError, commands.FlagError),
+        ):
             await ctx.send(str(error))
         elif isinstance(error, commands.CommandInvokeError):
             original = error.original
@@ -654,7 +657,7 @@ class Mod(commands.Cog):
             log.info('[Robomod] Failed to ban %s (ID: %s) from server %s.', member, member.id, member.guild)
         else:
             log.info('[Robomod] Banned %s (ID: %s) from server %s.', member, member.id, member.guild)
-    
+
     async def ban_for_mention_spam(
         self,
         mention_count: int,
@@ -663,12 +666,12 @@ class Mod(commands.Cog):
         member: discord.Member,
         multiple: bool = False,
     ) -> None:
-        
+
         if multiple:
             reason = f'Spamming mentions over multiple messages ({mention_count} mentions)'
         else:
             reason = f'Spamming mentions ({mention_count} mentions)'
-        
+
         try:
             await member.ban(reason=reason)
         except Exception:
@@ -677,7 +680,7 @@ class Mod(commands.Cog):
             to_send = f'Banned {member} (ID: {member.id}) for spamming {mention_count} mentions.'
             async with self._batch_message_lock:
                 self.message_batches[(guild_id, message.channel.id)].append(to_send)
-            
+
             log.info('[Mention Spam] Member %s (ID: %s) has been banned from guild ID %s', member, member.id, guild_id)
 
     @commands.Cog.listener()
@@ -703,13 +706,13 @@ class Mod(commands.Cog):
         config = await self.get_guild_config(guild_id)
         if config is None:
             return
-        
+
         if message.channel.id in config.safe_automod_entity_ids:
             return
-        
+
         if author.id in config.safe_automod_entity_ids:
             return
-        
+
         if any(i in config.safe_automod_entity_ids for i in author._roles):
             return
 
@@ -723,7 +726,7 @@ class Mod(commands.Cog):
         if checker.is_mention_spam(message, config):
             await self.ban_for_mention_spam(config.mention_count, guild_id, message, author, multiple=True)
             return
-        
+
         # auto-ban tracking for mention spams begin here
         if len(message.mentions) <= 3:
             return
@@ -777,7 +780,7 @@ class Mod(commands.Cog):
         if config.requires_migration:
             await self.suggest_automod_migration(config, e, guild_id)
             return
-        
+
         if config.broadcast_webhook:
             try:
                 await config.broadcast_webhook.send(embed=e)
@@ -855,10 +858,10 @@ class Mod(commands.Cog):
 
         async with self._disable_lock:
             await self.disable_automod_broadcast(guild_id)
-        
+
         if channel is None:
             return
-        
+
         msg = (
             '**Notice**\n\n'
             'Join logs have been updated to use a webhook to prevent the bot from being '
@@ -873,7 +876,7 @@ class Mod(commands.Cog):
             await channel.send(embed=embed, content=msg, view=self._automod_migration_view)
         except discord.Forbidden:
             pass
-    
+
     @commands.hybrid_group(aliases=['automod'], fallback='info')
     @checks.is_mod()
     async def robomod(self, ctx: GuildContext):
@@ -887,7 +890,7 @@ class Mod(commands.Cog):
         if config is None:
             await ctx.send('This server does not have RoboMod set up!')
             return
-        
+
         e = discord.Embed(title='RoboMod information')
         if config.automod_flags.joins:
             channel = f'<#{config.broadcast_channel_id}>'
@@ -902,7 +905,7 @@ class Mod(commands.Cog):
                 broadcast = f'Enabled on {channel}'
         else:
             broadcast = 'Disabled'
-        
+
         e.add_field(name='Join Logs', value=broadcast)
         e.add_field(name='Raid Protection', value='Enabled' if config.automod_flags.raid else 'Disabled')
 
@@ -917,7 +920,7 @@ class Mod(commands.Cog):
                 if ctx.guild.get_channel_or_thread(x):
                     return f'<#{x}>'
                 return f'<@{x}>'
-            
+
             if len(config.safe_automod_entity_ids) <= 5:
                 ignored = '\n'.join(resolve_entity_id(c) for c in config.safe_automod_entity_ids)
             else:
@@ -944,9 +947,11 @@ class Mod(commands.Cog):
         await ctx.defer()
         config = await self.get_guild_config(ctx.guild.id)
         if config and config.automod_flags.joins:
-            await ctx.send(f'You already have join message loggin enabled. To disable, use "{ctx.prefix}robomod disable joins"')
+            await ctx.send(
+                f'You already have join message loggin enabled. To disable, use "{ctx.prefix}robomod disable joins"'
+            )
             return
-        
+
         channel_id = channel.id
 
         reason = f'{ctx.author} (ID: {ctx.author.id}) enabled RoboMod join logs'
@@ -975,7 +980,7 @@ class Mod(commands.Cog):
         await ctx.send(f'Join logs enabled. Broadcasting join messages to <#{channel_id}>.')
 
     async def disable_automod_broadcast(self, guild_id: int):
-         # Note: This is called when the webhook has been deleted
+        # Note: This is called when the webhook has been deleted
         query = """INSERT INTO guild_mod_config (id, automod_flags, broadcast_channel, broadcast_webhook_url)
                    VALUES ($1, 0, NULL, NULL) ON CONFLICT (id)
                    DO UPDATE SET
@@ -1001,7 +1006,9 @@ class Mod(commands.Cog):
         except discord.Forbidden:
             raise RuntimeError(f'The bot does not have permissions to create webhooks in {channel.mention}.') from None
         except discord.HTTPException:
-            raise RuntimeError('An error occurred while creating the webhook. Note you can only have 10 wevhooks per channel.') from None
+            raise RuntimeError(
+                'An error occurred while creating the webhook. Note you can only have 10 wevhooks per channel.'
+            ) from None
 
         query = 'UPDATE guild_mod_config SET broadcast_webhook_url = $2 WHERE id = $1'
         await self.bot.pool.execute(query, guild_id, webhook.url)
@@ -1010,13 +1017,17 @@ class Mod(commands.Cog):
     @robomod.command(name='disable', aliases=['off'])
     @checks.is_mod()
     @app_commands.describe(protection='The protection to disable')
-    @app_commands.choices(protection=[
-        app_commands.Choice(name='Everything', value='all'),
-        app_commands.Choice(name='Join logging', value='joins'),
-        app_commands.Choice(name='Raid protection', value='raid'),
-        app_commands.Choice(name='Mention spam protection', value='mentions'),
-    ])
-    async def robomod_disable(self, ctx: GuildContext, *, protection: Literal['all', 'joins', 'raid', 'mentions'] = 'all') -> None:
+    @app_commands.choices(
+        protection=[
+            app_commands.Choice(name='Everything', value='all'),
+            app_commands.Choice(name='Join logging', value='joins'),
+            app_commands.Choice(name='Raid protection', value='raid'),
+            app_commands.Choice(name='Mention spam protection', value='mentions'),
+        ]
+    )
+    async def robomod_disable(
+        self, ctx: GuildContext, *, protection: Literal['all', 'joins', 'raid', 'mentions'] = 'all'
+    ) -> None:
         """Disables RoboMod on this server.
 
         This can be one of these settings:
@@ -1025,7 +1036,7 @@ class Mod(commands.Cog):
         - "joins" to disable join logging
         - "raid" to disable raid protection
         - "mentions" to disable mention spam protection
-        
+
         If not given then it defaults to "all".
         """
 
@@ -1059,13 +1070,13 @@ class Mod(commands.Cog):
                 return
 
         await ctx.send(message)
-    
+
     @robomod.command(name='raid')
     @checks.is_mod()
     @app_commands.describe(enabled='Whether raid protection should be enabled or not, toggles if not given.')
     async def robomod_raid(self, ctx: GuildContext, enabled: bool | None = None) -> None:
         """Toggles raid protection on the server.
-        
+
         Raid protection automatically bans members that spam messages in your server.
         """
 
@@ -1090,7 +1101,7 @@ class Mod(commands.Cog):
         self.get_guild_config.invalidate(self, ctx.guild.id)
         fmt = 'enabled' if enabled else 'disabled'
         await ctx.send(f'Raid protection {fmt}.')
-    
+
     @robomod.command(name='mentions')
     @commands.guild_only()
     @app_commands.describe(count='The maximum amount of mentions before banning.')
@@ -1113,19 +1124,21 @@ class Mod(commands.Cog):
         await ctx.db.execute(query, ctx.guild.id, count)
         self.get_guild_config.invalidate(self, ctx.guild.id)
         await ctx.send(f'Mention spam protection threshold set to {count}.')
-    
+
     @robomod_mentions.error
     async def robomod_mentions_error(self, ctx: GuildContext, error: commands.CommandError):
         if isinstance(error, commands.RangeError):
             await ctx.send('\N{NO ENTRY SIGN} Mention spam protection threshold must be greater than three.')
-    
+
     @robomod.command(name='ignore')
     @commands.guild_only()
     @checks.hybrid_permissions_check(ban_members=True)
     @app_commands.describe(entities='Space separated list of roles, members, or channels to ignore')
-    async def robomod_ignore(self, ctx: GuildContext, entities: Annotated[list[IgnoreableEntity], commands.Greedy[IgnoreEntity]]):
+    async def robomod_ignore(
+        self, ctx: GuildContext, entities: Annotated[list[IgnoreableEntity], commands.Greedy[IgnoreEntity]]
+    ):
         """Specifies what roles, members, or channels ignore RoboMod auto-bans.
-    
+
         To use this command you must have the Ban Members permission.
         """
 
@@ -1154,7 +1167,7 @@ class Mod(commands.Cog):
         self, ctx: GuildContext, entities: Annotated[List[IgnoreableEntity], commands.Greedy[IgnoreEntity]]
     ):
         """Specifies what roles, members, or channels to take off the RoboMod ignore list.
-       
+
         To use this command you must have the Ban Members permission.
         """
 
@@ -1371,9 +1384,9 @@ class Mod(commands.Cog):
         `avatar:` Matches users who have no avatar.
         `roles:` Matches users that have no role.
         `show:` Show members instead of banning them.
-        
+
         Message history filters (Requires `channel:`):
-        
+
         `contains:` A substring to search for in the message.
         `starts:` A substring to search if the message starts with.
         `ends:` A substring to search if the message ends with.
@@ -1395,7 +1408,7 @@ class Mod(commands.Cog):
             predicates_: list[Callable[[discord.Message], bool]] = []
             # pyright can't narrow these
             if args.contains:
-                predicates_.append(lambda m: args.contains in m.content)  # type: ignore 
+                predicates_.append(lambda m: args.contains in m.content)  # type: ignore
             if args.starts:
                 predicates_.append(lambda m: m.content.startswith(args.starts))  # type: ignore
             if args.ends:
@@ -1471,7 +1484,7 @@ class Mod(commands.Cog):
                 return member.joined_at is not None and _other.joined_at is not None and member.joined_at < _other.joined_at
 
             predicates.append(joined_before)
-        
+
         if len(predicates) == 3:
             return await ctx.send('Missing at least one filter to use')
 
@@ -1648,9 +1661,9 @@ class Mod(commands.Cog):
         This command uses a syntax similar to Discord's search bar.
         The messages are only deleted if all options are met unless
         the `require:` flag is passed to override the behaviour.
-        
+
         The following flags are valid.
-        
+
         `user:` Remove messages from the given user.
         `contains:` Remove messages that contain a substring.
         `prefix:` Remove messages that start with a string.
@@ -1706,7 +1719,7 @@ class Mod(commands.Cog):
 
         if flags.suffix:
             predicates.append(lambda m: m.content.endswith(flags.suffix))  # type: ignore
-        
+
         if not predicates:
             # If nothing is passed then default to `True` to emulate "purge all" behaviour
             predicates.append(lambda m: True)
@@ -1755,10 +1768,10 @@ class Mod(commands.Cog):
     @checks.hybrid_permissions_check(manage_messages=True)
     async def clear_reactions(self, ctx: GuildContext, search: commands.Range[int, 1, 2000] = 100):
         """Removes all reactions from messages that have them.
-        
+
         You must have Manage Messages to use this command.
         """
-        
+
         total_reactions = 0
         async for message in ctx.history(limit=search, before=ctx.message):
             if len(message.reactions):
@@ -2408,7 +2421,7 @@ class Mod(commands.Cog):
             )
         except:
             pass
-    
+
     async def get_lockdown_information(
         self, guild_id: int, channel_ids: Optional[list[int]] = None
     ) -> dict[int, discord.PermissionOverwrite]:
@@ -2608,21 +2621,21 @@ class Mod(commands.Cog):
         channels: commands.Greedy[Union[discord.TextChannel, discord.VoiceChannel]],
     ):
         """Locks down specific channels for a specified amount of time.
-       
+
         A lockdown is done by forbidding users from communicating with the channels.
         This is implemented by blocking certain permissions for the default everyone
         role:
-       
+
         - Send Messages
         - Add Reactions
         - Use Application Commands
         - Create Public Threads
         - Create Private Threads
         - Send Messages in Threads
-       
+
         When the lockdown is over, the permissions are reverted into their previous
         state.
-       
+
         To use this command you must have Manage Roles and Ban Members permissions.
         The bot must also have Manage Members permissions.
         """
@@ -2682,7 +2695,7 @@ class Mod(commands.Cog):
     @commands.bot_has_guild_permissions(manage_roles=True)
     async def lockdown_end(self, ctx: GuildContext):
         """Ends all lockdowns set.
-       
+
         To use this command you must have Manage Roles and Ban Members permissions.
         The bot must also have Manage Members permissions.
         """
@@ -2731,6 +2744,7 @@ class Mod(commands.Cog):
             else:
                 valid = [f'<#{c}>' for c in channel_ids]
                 await channel.send(f'Lockdown successfully ended for {human_join(valid, final="and")}')
+
 
 async def setup(bot: Ayaka):
     await bot.add_cog(Mod(bot))

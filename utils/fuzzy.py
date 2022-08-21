@@ -298,9 +298,7 @@ def finder(
 
 
 @overload
-def finder(
-    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[False]
-) -> list[T]:
+def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[False]) -> list[T]:
     ...
 
 

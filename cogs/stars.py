@@ -1059,7 +1059,7 @@ class Stars(commands.Cog):
                    ))
                    LIMIT 1
                 """
-        
+
         await ctx.defer()
 
         record = await ctx.db.fetchrow(query, ctx.guild.id)

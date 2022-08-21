@@ -32,14 +32,14 @@ class MaybeAcquire:
         self.connection = connection
         self.pool = pool
         self._cleanup = False
-    
+
     async def __aenter__(self) -> asyncpg.Connection:
         if self.connection is None:
             self._cleanup = True
             self._connection = c = await self.pool.acquire()
             return c
         return self.connection
-    
+
     async def __aexit__(self, *args) -> None:
         if self._cleanup:
             await self.pool.release(self._connection)
@@ -53,18 +53,22 @@ class SnoozeModal(discord.ui.Modal, title='Snooze'):
         self.parent = parent
         self.timer = timer
         self.cog = cog
-    
+
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:
             when = time.FutureTime(str(self.duration)).dt
         except Exception:
-            await interaction.response.send_message('Duration could not be parsed, sorry. Try something like "5 minutes" or "1 hour"', ephemeral=True)
+            await interaction.response.send_message(
+                'Duration could not be parsed, sorry. Try something like "5 minutes" or "1 hour"', ephemeral=True
+            )
             return
-        
+
         self.parent.snooze.disabled = True
         await interaction.response.edit_message(view=self.parent)
 
-        refreshed = await self.cog.create_timer(when, self.timer.event, *self.timer.args, **self.timer.kwargs, created=interaction.created_at)
+        refreshed = await self.cog.create_timer(
+            when, self.timer.event, *self.timer.args, **self.timer.kwargs, created=interaction.created_at
+        )
         author_id, _, message = self.timer.args
         delta = time.human_timedelta(when, source=refreshed.created_at)
         await interaction.followup.send(f"Alright <@{author_id}>, I've snoozed your reminder for {delta}: {message}")
@@ -75,7 +79,7 @@ class SnoozeButton(discord.ui.Button['ReminderView']):
         super().__init__(label='Snooze', style=discord.ButtonStyle.blurple)
         self.timer = timer
         self.cog = cog
-    
+
     async def callback(self, interaction: discord.Interaction) -> None:
         assert self.view is not None
         await interaction.response.send_modal(SnoozeModal(self.view, self.cog, self.timer))
@@ -90,13 +94,13 @@ class ReminderView(discord.ui.View):
         self.snooze = SnoozeButton(cog, timer)
         self.add_item(discord.ui.Button(url=url, label='Go to original message'))
         self.add_item(self.snooze)
-    
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
             await interaction.response.send_message('This snooze button is not for you, sorry!', ephemeral=True)
             return False
         return True
-    
+
     async def on_timeout(self) -> None:
         self.snooze.disabled = True
         await self.message.edit(view=self)
@@ -256,7 +260,7 @@ class Reminder(commands.Cog):
 
     async def create_timer(self, when: datetime.datetime, event: str, *args: Any, **kwargs: Any) -> Timer:
         r"""Creates a timer.
-        
+
         Parameters
         -----------
         when: datetime.datetime
@@ -274,11 +278,11 @@ class Reminder(commands.Cog):
         created: datetime.datetime
             Special keyword-only argument to use as the creation time.
             Should make the timedeltas a bit more consistent.
-        
+
         Note
         ------
         Arguments and keyword arguments must be JSON serialisable.
-        
+
         Returns
         --------
         :class:`Timer`
@@ -328,15 +332,15 @@ class Reminder(commands.Cog):
         when: tuple[datetime.datetime, str] = commands.param(converter=WhenAndWhatConverter),
     ):
         """Reminds you of something after a certain amount of time.
-        
+
         The input can be any direct date (e.g. YYYY-MM-DD) or a human
         readable offset. Examples:
-        
+
         - 'next thursday at 3pm do something funny'
         - 'do the dishes tomorrow'
         - 'in 3 days do the thing'
         - '2d unmute someone'
-        
+
         Times are in UTC if you haven't set a time zone.
         """
         parsed_when, parsed_what = when
@@ -355,10 +359,17 @@ class Reminder(commands.Cog):
             f'Alright, at {human}: {parsed_what}',
             mention_author=False,
         )
-    
+
     @reminder.app_command.command(name='set')
-    @app_commands.describe(when='When to be reminded of something, in your timezone (defaults to UTC).', text='What to be reminded of')
-    async def reminder_set(self, interaction: discord.Interaction, when: app_commands.Transform[datetime.datetime, time.TimeTransformer], text: str = '…') -> None:
+    @app_commands.describe(
+        when='When to be reminded of something, in your timezone (defaults to UTC).', text='What to be reminded of'
+    )
+    async def reminder_set(
+        self,
+        interaction: discord.Interaction,
+        when: app_commands.Transform[datetime.datetime, time.TimeTransformer],
+        text: str = '…',
+    ) -> None:
         """Sets a reminder to remind you of something at a specific time."""
 
         timer = await self.create_timer(
@@ -372,7 +383,7 @@ class Reminder(commands.Cog):
         )
         delta = time.human_timedelta(when, source=timer.created_at)
         await interaction.response.send_message(f'Alright {interaction.user.mention}, in {delta}: {text}')
-    
+
     @reminder_set.error
     async def reminder_set_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         if isinstance(error, time.BadTimeTransform):

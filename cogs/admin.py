@@ -156,7 +156,7 @@ class Admin(commands.Cog):
             await ctx.send(f'{err.__class__.__name__}: {err}')
         else:
             await ctx.message.add_reaction(self.bot.emoji[True])
-    
+
     @commands.command(aliases=['cogs'])
     async def extensions(self, ctx: Context) -> None:
         """Lists the bot's extensions"""
@@ -446,7 +446,7 @@ class Admin(commands.Cog):
             await ctx.send('Too many results...', file=discord.File(fp, 'results.txt'))
         else:
             await ctx.send(fmt)
-    
+
     async def send_sql_results(self, ctx: Context, records: list[Any]):
         headers = list(records[0].keys())
         table = formats.TabularData()
@@ -474,9 +474,9 @@ class Admin(commands.Cog):
         if len(results) == 0:
             await ctx.send('Could not find a table with that name.')
             return
-        
+
         await self.send_sql_results(ctx, results)
-    
+
     @sql.command(name='tables', hidden=True)
     async def sql_tables(self, ctx: Context) -> None:
         """Lists all SQL tables in the database."""
@@ -485,15 +485,15 @@ class Admin(commands.Cog):
                    FROM information_schema.tables
                    WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
                 """
-        
+
         results = await ctx.db.fetch(query)
 
         if len(results) == 0:
             await ctx.send('Could not find any tables')
             return
-        
+
         await self.send_sql_results(ctx, results)
-    
+
     @sql.command(name='sizes', hidden=True)
     async def sql_sizes(self, ctx: Context) -> None:
         """Display how much space the database is taking up."""
@@ -514,9 +514,9 @@ class Admin(commands.Cog):
         if len(results) == 0:
             await ctx.send('Could not find any tables')
             return
-        
+
         await self.send_sql_results(ctx, results)
-    
+
     @commands.group()
     @commands.guild_only()
     async def sync(self, ctx: GuildContext, guild_id: int | None, copy: bool = False) -> None:
@@ -526,13 +526,13 @@ class Admin(commands.Cog):
             guild = discord.Object(id=guild_id)
         else:
             guild = ctx.guild
-        
+
         if copy:
             self.bot.tree.copy_global_to(guild=guild)
-        
+
         commands = await self.bot.tree.sync(guild=guild)
         await ctx.send(f'Successfully synced {len(commands)} commands.')
-    
+
     @sync.command(name='global')
     async def sync_global(self, ctx: Context) -> None:
         """Syncs the slash commands globally."""

@@ -145,14 +145,14 @@ class Emoji(commands.Cog):
 
         async with self._batch_lock:
             self._batch_of_data[message.guild.id].update(map(int, matches))
-    
+
     @commands.hybrid_group(name='emoji')
     @commands.guild_only()
     @app_commands.guild_only()
     async def _emoji(self, ctx: GuildContext) -> None:
         """Emoji management commands."""
         await ctx.send_help(ctx.command)
-    
+
     @_emoji.command(name='create')
     @checks.has_guild_permissions(manage_emojis=True)
     @commands.guild_only()
@@ -170,24 +170,24 @@ class Emoji(commands.Cog):
         emoji: str | None,
     ) -> None:
         """Create an emoji for the server under the given name.
-        
+
         You must have Manage Emoji permission to use this.
         The bot must have this permission too.
         """
         if not ctx.me.guild_permissions.manage_emojis:
             await ctx.send('Bot does not have permission to add emoji.')
             return
-        
+
         reason = f'Action done by {ctx.author} (ID: {ctx.author.id})'
 
         if file is None and emoji is None:
             await ctx.send('Missing emoji file or url to upload with.')
             return
-        
+
         if file is not None and emoji is not None:
             await ctx.send('Cannot mix both file and emoji arguments. Choose only one.')
             return
-        
+
         is_animated = False
         request_url = ''
         if emoji is not None:
@@ -198,15 +198,15 @@ class Emoji(commands.Cog):
             if not file.filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
                 await ctx.send('Unsupported file type given, expected png, jpg, or gif.')
                 return
-            
+
             is_animated = file.filename.endswith('.gif')
             request_url = file.url
-        
+
         emoji_count = sum(e.animated == is_animated for e in ctx.guild.emojis)
         if emoji_count >= ctx.guild.emoji_limit:
             await ctx.send('There are no more emoji slots in this server.')
             return
-        
+
         async with self.bot.session.get(request_url) as resp:
             if resp.status >= 400:
                 await ctx.send('Could not fetch the image.')
@@ -214,7 +214,7 @@ class Emoji(commands.Cog):
             if int(resp.headers['Content-Length']) >= (256 * 1024):
                 await ctx.send('Image is too large.')
                 return
-            
+
             data = await resp.read()
             coro = ctx.guild.create_custom_emoji(name=name, image=data, reason=reason)
             async with ctx.typing():

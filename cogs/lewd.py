@@ -334,7 +334,7 @@ class Lewd(commands.Cog):
     async def asmr(self, ctx: GuildContext) -> None:
         query = "SELECT * FROM audio TABLESAMPLE BERNOULLI (20)"
 
-        conn: asyncpg.Connection = await asyncpg.connect(ctx.bot.config.audio_postgresql)
+        conn: asyncpg.Connection = await asyncpg.connect(ctx.bot.config.audio_postgresql)  # type: ignore
         rows = await conn.fetch(query)
         await conn.close()
         if not rows:

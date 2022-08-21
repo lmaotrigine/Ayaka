@@ -14,12 +14,12 @@ import datetime
 import json
 import logging
 import os
-from pathlib import Path
 import re
 import sys
 import traceback
 import uuid
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Generator, TypedDict
 
 import asyncpg
@@ -58,10 +58,12 @@ class Revision:
         self.version: int = version
         self.description: str = description
         self.file: Path = file
-    
+
     @classmethod
     def from_match(cls, match: re.Match[str], file: Path):
-        return cls(kind=match.group('kind'), version=int(match.group('version')), description=match.group('description'), file=file)
+        return cls(
+            kind=match.group('kind'), version=int(match.group('version')), description=match.group('description'), file=file
+        )
 
 
 class Migrations:
@@ -70,20 +72,17 @@ class Migrations:
         self.root: Path = Path(filename).parent
         self.revisions: dict[int, Revision] = self.get_revisions()
         self.load()
-    
+
     def ensure_path(self) -> None:
         self.root.mkdir(exist_ok=True)
-    
+
     def load_metadata(self) -> Revisions:
         try:
             with open(self.filename, 'r', encoding='utf-8') as fp:
                 return json.load(fp)
         except FileNotFoundError:
-            return {
-                'version': 0,
-                'database_uri': discord.utils.MISSING
-            }
-    
+            return {'version': 0, 'database_uri': discord.utils.MISSING}
+
     def get_revisions(self) -> dict[int, Revision]:
         result: dict[int, Revision] = {}
         for file in self.root.glob('*.sql'):
@@ -92,34 +91,34 @@ class Migrations:
                 rev = Revision.from_match(match, file)
                 result[rev.version] = rev
         return result
-    
+
     def dump(self) -> Revisions:
         return {
             'version': self.version,
             'database_uri': self.database_uri,
         }
-    
+
     def load(self) -> None:
         self.ensure_path()
         data = self.load_metadata()
         self.version: int = data['version']
         self.database_uri: str = data['database_uri']
-    
+
     def save(self) -> None:
         temp = f'{self.filename}.{uuid.uuid4()}.tmp'
         with open(temp, 'w', encoding='utf-8') as tmp:
             json.dump(self.dump(), tmp)
-        
+
         # atomically move the file
         os.replace(temp, self.filename)
-    
+
     def is_next_revision_taken(self) -> bool:
         return self.version + 1 in self.revisions
-    
+
     @property
     def ordered_revisions(self) -> list[Revision]:
         return sorted(self.revisions.values(), key=lambda r: r.version)
-    
+
     def create_revision(self, reason: str, *, kind: str = 'V') -> Revision:
         cleaned = re.sub(r'\s', '_', reason)
         filename = f'{kind}{self.version + 1}__{cleaned}.sql'
@@ -133,10 +132,10 @@ class Migrations:
 
         with open(path, 'w', encoding='utf-8', newline='\n') as fp:
             fp.write(stub)
-        
+
         self.save()
         return Revision(kind=kind, version=self.version + 1, description=reason, file=path)
-    
+
     async def upgrade(self, connection: asyncpg.Connection) -> int:
         ordered = self.ordered_revisions
         successes = 0
@@ -146,11 +145,11 @@ class Migrations:
                     sql = revision.file.read_text('utf-8')
                     await connection.execute(sql)
                     successes += 1
-        
+
         self.version += successes
         self.save()
         return successes
-    
+
     def display(self) -> None:
         ordered = self.ordered_revisions
         for revision in ordered:
@@ -199,10 +198,10 @@ def setup_logging() -> Generator[None, None, None]:
 async def create_pool() -> asyncpg.Pool:
     def _encode_jsonb(value):
         return json.dumps(value)
-    
+
     def _decode_jsonb(value):
         return json.loads(value)
-    
+
     async def init(con):
         await con.set_type_codec(
             'jsonb',
@@ -211,7 +210,7 @@ async def create_pool() -> asyncpg.Pool:
             decoder=_decode_jsonb,
             format='text',
         )
-    
+
     return await asyncpg.create_pool(
         config.postgresql,
         init=init,
@@ -283,7 +282,7 @@ def migrate(reason: str) -> None:
         click.echo('an unapplied migration already exists for the next version, exiting')
         click.secho('hint: apply pending migrations with the `upgrade` command', bold=True)
         return
-    
+
     revision = migrations.create_revision(reason)
     click.echo(f'Created revision V{revision.version!r}')
 
@@ -298,11 +297,11 @@ async def run_upgrade(migrations: Migrations) -> int:
 def upgrade(sql: bool) -> None:
     """Upgrades the database at the given revision (if any)."""
     migrations = Migrations()
-    
+
     if sql:
         migrations.display()
         return
-    
+
     try:
         applied = asyncio.run(run_upgrade(migrations))
     except Exception:

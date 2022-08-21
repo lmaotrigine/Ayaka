@@ -140,7 +140,7 @@ class SpoilerView(discord.ui.View):
     def __init__(self, cog: Fun) -> None:
         super().__init__(timeout=None)
         self.cog = cog
-    
+
     @discord.ui.button(
         label='Reveal Spoiler',
         style=discord.ButtonStyle.grey,
@@ -224,7 +224,7 @@ class Fun(commands.Cog):
         self.valid_langs = googletrans.LANGCODES.keys() | googletrans.LANGUAGES.keys()
         self.valid_source = self.valid_langs | set(['auto'])
         self.currency_codes = json.loads(open('utils/currency_codes.json').read())
-    
+
     def cog_unload(self) -> None:
         self._spoiler_view.stop()
 

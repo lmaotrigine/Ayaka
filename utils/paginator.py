@@ -182,11 +182,10 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
                 as_string = str(max_pages)
                 self.page_number.placeholder = f'Enter a number between 1 and {as_string}'
                 self.page_number.max_length = len(as_string)
-        
+
         async def on_submit(self, interaction: discord.Interaction) -> None:
             self.interaction = interaction
             self.stop()
-    
 
     @discord.ui.button(label='Skip to page...', style=discord.ButtonStyle.grey)
     async def numbered_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -203,12 +202,12 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         elif self.is_finished():
             await modal.interaction.response.send_message('Took too long', ephemeral=True)
             return
-        
+
         value = str(modal.page_number.value)
         if not value.isdigit():
             await modal.interaction.response.send_message(f'Expected a number not {value!r}', ephemeral=True)
             return
-        
+
         value = int(value)
         await self.show_checked_page(modal.interaction, value - 1)
         if not modal.interaction.response.is_done():
@@ -224,7 +223,9 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
 
 
 class FieldPageSource(menus.ListPageSource):
-    def __init__(self, entries: list[tuple[Any, Any]], *, per_page: int = 12, inline: bool = False, clear_description: bool = True):
+    def __init__(
+        self, entries: list[tuple[Any, Any]], *, per_page: int = 12, inline: bool = False, clear_description: bool = True
+    ):
         super().__init__(entries, per_page=per_page)
         self.embed = discord.Embed(colour=discord.Colour.blurple())
         self.clear_description = clear_description

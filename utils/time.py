@@ -12,11 +12,11 @@ import zoneinfo
 
 import discord
 import parsedatetime as pdt
-from discord import app_commands
 from dateutil.relativedelta import relativedelta
+from discord import app_commands
 from discord.ext import commands
-from bot import Ayaka
 
+from bot import Ayaka
 from utils.context import Context
 
 from .context import Context
@@ -109,20 +109,22 @@ class BadTimeTransform(app_commands.AppCommandError):
 
 class TimeTransformer(app_commands.Transformer):
     @staticmethod
-    async def get_timezone(interaction: discord.Interaction) -> zoneinfo.ZoneInfo: 
+    async def get_timezone(interaction: discord.Interaction) -> zoneinfo.ZoneInfo:
         assert isinstance(interaction.client, Ayaka)
         if interaction.guild is None:
             tz = zoneinfo.ZoneInfo('UTC')
         else:
             row: str | None = await interaction.client.pool.fetchval(
-                'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', interaction.user.id, interaction.guild.id
+                'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);',
+                interaction.user.id,
+                interaction.guild.id,
             )  # type: ignore  # asyncpg woes
             if row:
                 tz = zoneinfo.ZoneInfo(row)
             else:
                 tz = zoneinfo.ZoneInfo('UTC')
         return tz
-    
+
     @classmethod
     def transform(cls, interaction: discord.Interaction, value: str) -> datetime.datetime:
         now = interaction.created_at

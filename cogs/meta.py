@@ -303,13 +303,13 @@ class FeedbackModal(discord.ui.Modal, title='Submit Feedback'):
     def __init__(self, cog: Meta) -> None:
         super().__init__()
         self.cog = cog
-    
+
     async def on_submit(self, interaction: discord.Interaction) -> None:
         channel = self.cog.feedback_channel
         if channel is None:
             await interaction.response.send_message('Could not submit your feedback, sorry about this.', ephemeral=True)
             return
-        
+
         embed = self.cog.get_feedback_embed(interaction, summary=str(self.summary), details=self.details.value)
         await channel.send(embed=embed)
         await interaction.response.send_message('Successfully submitted feedback', ephemeral=True)
@@ -806,8 +806,10 @@ class Meta(commands.Cog):
             """
         embed.add_field(name='No permissions enabled by default', value=textwrap.dedent(s), inline=False)
         await ctx.send(embed=embed)
-    
-    def get_feedback_embed(self, obj: Context | discord.Interaction, *, summary: str, details: str | None = None) -> discord.Embed:
+
+    def get_feedback_embed(
+        self, obj: Context | discord.Interaction, *, summary: str, details: str | None = None
+    ) -> discord.Embed:
         e = discord.Embed(title='Feedback', colour=0x738BD7)
 
         if details is not None:
@@ -815,20 +817,20 @@ class Meta(commands.Cog):
             e.title = summary[:256]
         else:
             e.description = summary
-        
+
         if obj.guild is not None:
             e.add_field(name='Server', value=f'{obj.guild.name} (ID: {obj.guild.id})', inline=False)
-        
+
         if obj.channel is not None:
             e.add_field(name='Channel', value=f'{obj.channel} (ID: {obj.channel.id})', inline=False)
-        
+
         if isinstance(obj, discord.Interaction):
             e.timestamp = obj.created_at
             user = obj.user
         else:
             e.timestamp = obj.message.created_at
             user = obj.author
-        
+
         e.set_author(name=str(user), icon_url=user.display_avatar.url)
         e.set_footer(text=f'Author ID: {user.id}')
         return e
@@ -839,7 +841,7 @@ class Meta(commands.Cog):
         if guild is None:
             return None
         return guild.get_channel(956838318937636894)  # type: ignore
-    
+
     @commands.command()
     @commands.cooldown(rate=1, per=60.0, type=commands.BucketType.user)
     async def feedback(self, ctx: Context, *, content: str) -> None:
@@ -857,11 +859,11 @@ class Meta(commands.Cog):
         channel = self.feedback_channel
         if channel is None:
             return
-        
+
         embed = self.get_feedback_embed(ctx, summary=content)
         await channel.send(embed=embed)
         await ctx.send(f'{ctx.tick(True)} Successfully sent feedback')
-    
+
     @app_commands.command(name='feedback')
     async def feedback_slash(self, interaction: discord.Interaction) -> None:
         """Give feedback about the bot directly to the owner."""

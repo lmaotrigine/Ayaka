@@ -63,12 +63,12 @@ def hybrid_permissions_check(**perms: bool) -> Callable[[T], T]:
             # For application commands just trust the admin to set it up properly
             return True
         return await check_guild_permissions(ctx, perms)
-    
+
     def decorator(func: T) -> T:
         commands.check(pred)(func)
         app_commands.default_permissions(**perms)(func)
         return func
-    
+
     return decorator
 
 
