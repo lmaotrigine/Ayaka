@@ -11,7 +11,6 @@ import datetime
 import json
 import logging
 import pathlib
-import sys
 import traceback
 from collections import Counter, defaultdict, deque
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable, Optional
@@ -44,7 +43,7 @@ DESCRIPTION = """
 Hello! I'm a bot written by VJ#5945 to provide some nice utilities.
 """
 
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 EXTENSIONS: tuple[str, ...] = (
     'jishaku',
@@ -233,9 +232,7 @@ class Ayaka(commands.AutoShardedBot):
         elif isinstance(error, commands.CommandInvokeError):
             original = error.original
             if not isinstance(original, discord.HTTPException):
-                print(f'In {ctx.command.qualified_name}:', file=sys.stderr)
-                traceback.print_tb(original.__traceback__)
-                print(f'{original.__class__.__name__}: {original}', file=sys.stderr)
+                log.exception('In %s:', ctx.command.qualified_name, exc_info=original)
         elif isinstance(error, commands.ArgumentParsingError):
             await ctx.send(str(error))
 
@@ -327,10 +324,10 @@ class Ayaka(commands.AutoShardedBot):
     async def on_ready(self) -> None:
         if not hasattr(self, 'uptime'):
             self.uptime = discord.utils.utcnow()
-        print(f'Ready: {self.user} (ID: {self.user.id})')
+        log.info('Ready: %s (ID: %s)', self.user, self.user.id)
 
     async def on_shard_resumed(self, shard_id: int):
-        print(f'Shard ID {shard_id} has resumed...')
+        print('Shard ID %s has resumed...', shard_id)
         self.resumes[shard_id].append(discord.utils.utcnow())
 
     @discord.utils.cached_property
@@ -344,7 +341,7 @@ class Ayaka(commands.AutoShardedBot):
         guild_name = getattr(ctx.guild, 'name', 'No guild (DMs)')
         guild_id = getattr(ctx.guild, 'id', None)
         fmt = 'User %s (ID %s) in guild %r (ID %s) spamming, retry_after: %.2fs'
-        LOGGER.warning(fmt, message.author, message.author.id, guild_name, guild_id, retry_after)
+        log.warning(fmt, message.author, message.author.id, guild_name, guild_id, retry_after)
         if not autoblock:
             return
 

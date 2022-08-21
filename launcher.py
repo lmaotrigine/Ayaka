@@ -173,6 +173,7 @@ class RemoveNoise(logging.Filter):
 def setup_logging() -> Generator[None, None, None]:
     log = logging.getLogger()
     try:
+        discord.utils.setup_logging()
         # __enter__
         logging.getLogger('discord').setLevel(logging.INFO)
         logging.getLogger('discord.http').setLevel(logging.WARNING)
@@ -235,8 +236,7 @@ async def run_bot() -> None:
             try:
                 await bot.load_extension(extension)
             except Exception:
-                print(f'Failed to load extension {extension}.', file=sys.stderr)
-                traceback.print_exc()
+                log.exception('Failed to load extension %s', extension)
         await bot.start()
 
 

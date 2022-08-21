@@ -13,9 +13,7 @@ import html
 import io
 import logging
 import re
-import sys
 import textwrap
-import traceback
 import urllib.parse
 import zoneinfo
 from typing import TYPE_CHECKING
@@ -330,8 +328,6 @@ class Feeds(commands.Cog):
                             continue
             await self.stream.start_feeds(feeds=feeds)
         except Exception as e:
-            print('Exception in Twitter Task', file=sys.stderr)
-            traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
             log.error('Uncaught Twitter Task exception\n', exc_info=(type(e), e, e.__traceback__))
             return
         finally:
@@ -620,19 +616,12 @@ class Feeds(commands.Cog):
                 await self.bot.stat_webhook.send(f'RSS Task Discord Server Error: {e}')
                 await asyncio.sleep(60)
             except Exception as e:
-                print('Exception in RSS Task', file=sys.stderr)
-                traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
                 log.error('Uncaught RSS Task exception\n', exc_info=(type(e), e, e.__traceback__))
-                print(f' (feed: {feed})')
                 await asyncio.sleep(60)
 
     @check_feeds.before_loop
     async def before_check_feeds(self):
         await self.bot.wait_until_ready()
-
-    @check_feeds.after_loop
-    async def after_check_feeds(self):
-        print('RSS task cancelled')
 
 
 async def setup(bot: Ayaka):

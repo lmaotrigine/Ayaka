@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 import pathlib
 import re
 from typing import TYPE_CHECKING
@@ -27,6 +28,9 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?')
 DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?')
 INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/\?.*?\=')
+
+
+log = logging.getLogger(__name__)
 
 
 class NeedsLogin(commands.CommandError):
@@ -86,7 +90,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         )
         if not matches:
             return
-        print(f'Processing {len(matches)} detected TikToks...')
+        log.info(f'Processing {len(matches)} detected TikToks...')
 
         async with message.channel.typing():
             for idx, url in enumerate(matches, start=1):

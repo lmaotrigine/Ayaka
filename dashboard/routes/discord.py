@@ -89,7 +89,6 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 raise discord.HTTPException(response, orjson.dumps(await response.json()).decode('utf-8'))
 
             data = await response.json()
-            print('moew', data)
 
         if data.get("error"):
             raise discord.HTTPException(response, orjson.dumps(data).decode('utf-8'))
@@ -115,7 +114,6 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 res = await self.bot.pool.execute(query, user.id, guild_id)
             if res == 'DELETE 0':
                 await self.leave_guild(int(guild_id))
-        print('hi')
         return self.redirect('/')
 
     async def leave_guild(self, guild_id: int) -> None:
