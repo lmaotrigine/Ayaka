@@ -28,7 +28,7 @@ from discord.ext import commands, menus
 from lru import LRU
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from utils import checks, languages
+from utils import checks, translator
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.converters import MessageOrCleanContent, MessageOrContent, RedditMediaURL
@@ -307,8 +307,8 @@ class Fun(commands.Cog):
         embed = discord.Embed(title='Translated', colour=0x4284F3)
         src = googletrans.LANGUAGES.get(ret.src, '(auto-detected)').title()
         dest = googletrans.LANGUAGES.get(ret.dest, 'Unknown').title()
-        embed.add_field(name=f'From {languages.LANG_TO_FLAG.get(ret.src, "")} {src}', value=ret.origin, inline=False)
-        embed.add_field(name=f'To {languages.LANG_TO_FLAG.get(ret.dest, "")} {dest}', value=ret.text, inline=False)
+        embed.add_field(name=f'From {translator.LANG_TO_FLAG.get(ret.src, "")} {src}', value=ret.origin, inline=False)
+        embed.add_field(name=f'To {translator.LANG_TO_FLAG.get(ret.dest, "")} {dest}', value=ret.text, inline=False)
         if ret.pronunciation and ret.pronunciation != ret.text:
             embed.add_field(name='Pronunciation', value=ret.pronunciation)
 
