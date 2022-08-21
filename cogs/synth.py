@@ -29,6 +29,10 @@ class Synth(commands.Cog, command_attrs=dict(hidden=True)):
         self.bot = bot
         self._engine_autocomplete: list[app_commands.Choice[int]] = []
 
+    async def cog_command_error(self, ctx: Context, error: Exception) -> None:
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(str(error))
+
     async def _get_engine_choices(self) -> list[app_commands.Choice[int]]:
         if self._engine_autocomplete:
             return self._engine_autocomplete
@@ -47,12 +51,20 @@ class Synth(commands.Cog, command_attrs=dict(hidden=True)):
         return ret
 
     async def _get_kana_from_input(self, input_: str, speaker_id: int) -> KanaResponse:
+        valid = await self._get_engine_choices()
+        valid_ints = [int(c.value) for c in valid]
+        if speaker_id not in valid_ints:
+            raise commands.BadArgument(f'Invalid speaker ID {speaker_id}')
         params = {'speaker': speaker_id, 'text': input_}
         async with self.bot.session.post('http://127.0.0.1:50021/audio_query', params=params) as resp:
             data: KanaResponse = await resp.json()
         return data
 
     async def _get_audio_from_kana(self, kana: KanaResponse, speaker_id: int) -> BytesIO:
+        valid = await self._get_engine_choices()
+        valid_ints = [int(c.value) for c in valid]
+        if speaker_id not in valid_ints:
+            raise commands.BadArgument(f'Invalid speaker ID {speaker_id}')
         async with self.bot.session.post(
             'http://127.0.0.1:50021/synthesis', params={'speaker': speaker_id}, json=kana
         ) as resp:

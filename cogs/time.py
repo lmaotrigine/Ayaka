@@ -99,7 +99,13 @@ class Time(commands.Cog):
             return dt_obj
         return time.hf_time(dt_obj)
 
+    async def timezone_autocomplete(self, _: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=c, value=c) for c in zoneinfo.available_timezones() if current.lower() in c.lower()
+        ][:25]
+
     @commands.hybrid_group(name='timezone', aliases=['tz'], fallback='get')
+    @app_commands.autocomplete(timezone=timezone_autocomplete)
     async def timezone(self, ctx: Context, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)):
         """This will return the time in a specified timezone."""
         embed = discord.Embed(
@@ -167,6 +173,7 @@ class Time(commands.Cog):
 
     @timezone.command(name='set')
     @commands.guild_only()
+    @app_commands.autocomplete(timezone=timezone_autocomplete)
     async def time_set(
         self, ctx: GuildContext, *, timezone: zoneinfo.ZoneInfo = commands.param(converter=TimezoneConverter)
     ):
@@ -183,12 +190,6 @@ class Time(commands.Cog):
             return
         await self.bot.pool.execute(query, ctx.author.id, [ctx.guild.id], timezone.key)
         return await ctx.send(ctx.tick(True), ephemeral=True)
-
-    @time_set.autocomplete(name='timezone')
-    async def timezone_autocomplete(self, _: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [
-            app_commands.Choice(name=c, value=c) for c in zoneinfo.available_timezones() if current.lower() in c.lower()
-        ][:25]
 
     @timezone.command(name='remove')
     @commands.guild_only()

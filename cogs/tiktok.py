@@ -7,15 +7,20 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 import asyncio
+import base64
 import functools
 import logging
 import pathlib
 import re
-from typing import TYPE_CHECKING
+from io import BytesIO
+from typing import TYPE_CHECKING, Annotated
 
 import discord
 import yt_dlp
+from discord import app_commands
 from discord.ext import commands
+
+from utils.fuzzy import extract
 
 
 if TYPE_CHECKING:
@@ -29,6 +34,57 @@ MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-
 DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?')
 INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/\?.*?\=')
 
+BASE_URL = 'https://api16-normal-useast5.us.tiktokv.com/media/api/text/speech/invoke/'
+VOICES: dict[str, str] = {
+    # Default
+    'default': 'Default',
+    # Disney
+    'en_us_ghostface': 'Ghost Face',
+    'en_us_chewbacca': 'Chewbacca',
+    'en_us_c3po': 'C3PO',
+    'en_us_stitch': 'Stitch',
+    'en_us_stormtrooper': 'Stormtrooper',
+    'en_us_rocket': 'Rocket',
+    # English
+    'en_au_001': 'English AU - Female',
+    'en_au_002': 'English AU - Male',
+    'en_uk_001': 'English UK - Male 1',
+    'en_uk_003': 'English UK - Male 2',
+    'en_us_001': 'English US - Female (Int. 1)',
+    'en_us_002': 'English US - Female (Int. 2)',
+    'en_us_006': 'English US - Male 1',
+    'en_us_007': 'English US - Male 2',
+    'en_us_009': 'English US - Male 3',
+    'en_us_010': 'English US - Male 4',
+    # Europe
+    'fr_001': 'French - Male 1',
+    'fr_002': 'French - Male 2',
+    'de_001': 'German - Female',
+    'de_002': 'German - Male',
+    'es_002': 'Spanish - Male',
+    # Europe
+    'es_mx_002': 'Spanish MX - Male',
+    'br_001': 'Portuguese BR - Female 1',
+    'br_003': 'Portuguese BR - Female 2',
+    'br_004': 'Portuguese BR - Female 3',
+    'br_005': 'Portuguese BR - Male',
+    # Asia
+    'id_001': 'Indonesian - Female',
+    'jp_001': 'Japanese - Female 1',
+    'jp_003': 'Japanese - Female 2',
+    'jp_005': 'Japanese - Female 3',
+    'jp_006': 'Japanese - Male',
+    'kr_002': 'Korean - Male 1',
+    'kr_003': 'Korean - Female',
+    'kr_004': 'Korean - Male 2',
+}
+
+
+def get_voice(argument: str) -> str:
+    if argument in VOICES:
+        return argument.lower()
+    raise commands.BadArgument('Invalid Voice')
+
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +96,12 @@ class NeedsLogin(commands.CommandError):
 class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
+
+    async def cog_load(self) -> None:
+        ret: list[app_commands.Choice[str]] = []
+        for value, name in VOICES.items():
+            ret.append(app_commands.Choice(name=name, value=value))
+        self.voice_choices = ret
 
     async def process_url(self, url: str, max_len: int = 8388608) -> tuple[discord.File, str]:
         loop = asyncio.get_running_loop()
@@ -119,7 +181,11 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                 ):
                     await message.delete()
 
-    @commands.hybrid_command(name='tiktok', aliases=['tt'])
+    async def cog_command_error(self, ctx: Context, error: Exception) -> None:
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(str(error))
+
+    @commands.hybrid_group(name='tiktok', aliases=['tt'], fallback='download')
     async def tt(self, ctx: Context, url: str) -> None:
         """Download a TikTok video or an Instagram reel."""
         if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url) and not DESKTOP_PATTERN.fullmatch(url):
@@ -138,6 +204,49 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             await ctx.send('TikTok link exceeded the file size limit.')
             return
         await ctx.send(content[:1000], file=file)
+
+    async def process_voice(self, voice: str, text: str) -> BytesIO:
+        voice = 'en_us_002' if voice.lower() == 'default' else voice
+        params = {
+            'speaker_map_type': 0,
+            'text_speaker': voice,
+            'req_text': text,
+        }
+        async with self.bot.session.post(BASE_URL, params=params) as resp:
+            if resp.status >= 400:
+                text = await resp.text()
+                log.error('tiktok voice HTTP error. Status code %s. Text: %s', resp.status, text)
+                raise RuntimeError(f'API responded with {resp.status}.')
+            data = await resp.json()
+            res = data['data']['v_str']
+            bytes_ = base64.b64decode(res.encode('utf-8'))
+            return BytesIO(bytes_)
+
+    async def voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        all_choices = self.voice_choices
+        if not current:
+            return all_choices[:25]
+        cleaned = extract(str(current), [choice.name for choice in all_choices], limit=5, score_cutoff=20)
+        ret: list[app_commands.Choice[str]] = []
+        for item, _ in cleaned:
+            _x = discord.utils.get(all_choices, name=item)
+            if _x:
+                ret.append(_x)
+        return ret
+
+    @tt.command(name='voice')
+    @app_commands.autocomplete(voice=voice_autocomplete)
+    async def tiktok_voice(
+        self,
+        ctx: Context,
+        voice: Annotated[str, get_voice],
+        *,
+        text: str,
+    ) -> None:
+        """Generate an audio file with a given Tiktok voice engine and text."""
+
+        fp = await self.process_voice(voice, text)
+        await ctx.send(f'> {text}', file=discord.File(fp, filename='tiktok.mp3'))
 
 
 async def setup(bot: Ayaka) -> None:
