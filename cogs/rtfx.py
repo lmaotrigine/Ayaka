@@ -252,7 +252,7 @@ class RTFX(commands.Cog):
         """Gives you a documentation link for a Python entity."""
         await self.do_rtfm(ctx, 'python', entity)
 
-    @rtfm.command(name='discord.py', aliases=['dpy', 'dpys'])
+    @rtfm.command(name='discord-py', aliases=['dpy', 'dpys'])
     @app_commands.describe(entity='The object to search for')
     @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
     async def rtfm_dpy(self, ctx: Context, *, entity: str | None = None) -> None:
@@ -263,7 +263,7 @@ class RTFX(commands.Cog):
         """
         await self.do_rtfm(ctx, 'discord.py', entity)
 
-    @rtfm.command(name='discord.py-latest', aliases=['dpym', 'dpy-latest', 'dpyl', 'dpy-master'])
+    @rtfm.command(name='discord-py-latest', aliases=['dpym', 'dpy-latest', 'dpyl', 'dpy-master'])
     @app_commands.describe(entity='The object to search for')
     @app_commands.autocomplete(entity=rtfm_slash_autocomplete)
     async def rtfm_dpy_master(self, ctx: Context, *, entity: str | None = None) -> None:

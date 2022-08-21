@@ -164,8 +164,10 @@ class Admin(commands.Cog):
         _all = set(EXTENSIONS)
         unloaded = _all - loaded
         embed = discord.Embed(colour=discord.Colour.og_blurple())
-        embed.add_field(name='\U0001f4e6 Loaded', value='\n'.join(sorted(loaded)))
-        embed.add_field(name='\U0001f4e7 Unloaded', value='\n'.join(sorted(unloaded)))
+        if loaded:
+            embed.add_field(name='\U0001f4e5 Loaded', value='\n'.join(sorted(loaded)))
+        if unloaded:
+            embed.add_field(name='\U0001f4e4 Unloaded', value='\n'.join(sorted(unloaded)))
         await ctx.send(embed=embed)
 
     def get_submodules_from_extension(self, module: ModuleType) -> set[str]:
