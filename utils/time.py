@@ -62,7 +62,7 @@ class HumanTime:
     dt: datetime.datetime
     calendar = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
 
-    def __init__(self, argument: str, *, now: datetime.datetime | None = None, tz = zoneinfo.ZoneInfo('UTC')):
+    def __init__(self, argument: str, *, now: datetime.datetime | None = None, tz=zoneinfo.ZoneInfo('UTC')):
         now = now or discord.utils.utcnow()
         dt, status = self.calendar.parseDT(argument, sourceTime=now, tzinfo=tz)
         if not status.hasDateOrTime:

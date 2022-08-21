@@ -86,7 +86,6 @@ class SnoozeButton(discord.ui.Button['ReminderView']):
 
 
 class ReminderView(discord.ui.View):
-
     def __init__(self, *, url: str, timer: Timer, cog: Reminder, author_id: int) -> None:
         super().__init__(timeout=300)
         self.author_id = author_id
