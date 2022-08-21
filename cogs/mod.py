@@ -554,7 +554,8 @@ class Mod(commands.Cog):
         return '<cogs.Mod>'
 
     async def cog_load(self) -> None:
-        self._avatar: bytes = await self.bot.user.display_avatar.read()
+        icon = self.bot.bot_app_info.icon or self.bot.user.display_avatar
+        self._avatar: bytes = await icon.read()
 
     def cog_unload(self) -> None:
         self.batch_updates.stop()
