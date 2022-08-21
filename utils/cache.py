@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import enum
-import inspect
 import time
-from collections.abc import Awaitable, Callable, Coroutine, MutableMapping
+from collections.abc import Callable, Coroutine, MutableMapping
 from functools import wraps
 from typing import Any, Protocol, TypeVar
 
@@ -21,9 +20,9 @@ R = TypeVar('R')
 
 # Can't use ParamSpec due to https://github.com/python/typing/discussions/946
 class CacheProtocol(Protocol[R]):
-    cache: MutableMapping[str, R]
+    cache: MutableMapping[str, asyncio.Task[R]]
 
-    def __call__(self, *args: Any, **kwds: Any) -> R:
+    def __call__(self, *args: Any, **kwds: Any) -> asyncio.Task[R]:
         ...
 
     def get_key(self, *args: Any, **kwargs: Any) -> str:
@@ -37,22 +36,6 @@ class CacheProtocol(Protocol[R]):
 
     def get_stats(self) -> tuple[int, int]:
         ...
-
-
-def _wrap_and_store_coroutine(cache: MutableMapping[str, R], key: str, coro: Awaitable[R]) -> Coroutine[Any, Any, R]:
-    async def func() -> R:
-        value = await coro
-        cache[key] = value
-        return value
-
-    return func()
-
-
-def _wrap_new_coroutine(value: R) -> Coroutine[Any, Any, R]:
-    async def new_coroutine() -> R:
-        return value
-
-    return new_coroutine()
 
 
 class ExpiringCache(dict[str, tuple[R, float]]):
@@ -88,8 +71,8 @@ class Strategy(enum.Enum):
 
 def cache(
     maxsize: int = 128, strategy: Strategy = Strategy.lru, ignore_kwargs: bool = False
-) -> Callable[[Callable[..., R]], CacheProtocol[R]]:
-    def decorator(func: Callable[..., R]) -> CacheProtocol[R]:
+) -> Callable[[Callable[..., Coroutine[Any, Any, R]]], CacheProtocol[R]]:
+    def decorator(func: Callable[..., Coroutine[Any, Any, R]]) -> CacheProtocol[R]:
         if strategy is Strategy.lru:
             _internal_cache = LRU(maxsize)
             _stats = _internal_cache.get_stats
@@ -123,20 +106,15 @@ def cache(
             return ':'.join(key)
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> R | Coroutine[Any, Any, R | tuple[R, float]]:
+        def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[R]:
             key = _make_key(args, kwargs)
             try:
-                value = _internal_cache[key]
+                task = _internal_cache[key]
             except KeyError:
-                value = func(*args, **kwargs)
-                if inspect.isawaitable(value):
-                    return _wrap_and_store_coroutine(_internal_cache, key, value)
-                _internal_cache[key] = value
-                return value
+                _internal_cache[key] = task = asyncio.create_task(func(*args, **kwargs))
+                return task
             else:
-                if asyncio.iscoroutinefunction(func):
-                    return _wrap_new_coroutine(value)
-                return value
+                return task
 
         def _invalidate(*args: Any, **kwargs: Any) -> bool:
             try:
