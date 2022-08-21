@@ -27,7 +27,7 @@ import click
 import discord
 
 import config
-from bot import EXTENSIONS, Ayaka
+from bot import Ayaka
 
 
 try:
@@ -231,11 +231,6 @@ async def run_bot() -> None:
             raise RuntimeError('Could not set up PostgreSQL. Exiting.')
 
         bot.pool = pool
-        for extension in EXTENSIONS:
-            try:
-                await bot.load_extension(extension)
-            except Exception:
-                log.exception('Failed to load extension %s', extension)
         await bot.start()
 
 

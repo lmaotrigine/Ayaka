@@ -190,12 +190,17 @@ class Ayaka(commands.AutoShardedBot):
         self._auto_spam_count = Counter()
 
     async def setup_hook(self) -> None:
-        self.server.bind(6789)
-        self.server.start()
         self.prefixes: Config[list[str]] = Config(pathlib.Path('configs/prefixes.json'))
         self.blacklist: Config[bool] = Config(pathlib.Path('configs/blacklist.json'))
         self.bot_app_info = await self.application_info()
         self.owner_id = self.bot_app_info.owner.id
+        for extension in EXTENSIONS:
+            try:
+                await self.load_extension(extension)
+            except Exception:
+                log.exception('Failed to load extension %s', extension)
+        self.server.bind(6789)
+        self.server.start()
 
     @property
     def owner(self) -> discord.User:

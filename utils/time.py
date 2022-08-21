@@ -62,9 +62,9 @@ class HumanTime:
     dt: datetime.datetime
     calendar = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
 
-    def __init__(self, argument: str, *, now: datetime.datetime | None = None):
-        now = now or datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-        dt, status = self.calendar.parseDT(argument, sourceTime=now)
+    def __init__(self, argument: str, *, now: datetime.datetime | None = None, tz = zoneinfo.ZoneInfo('UTC')):
+        now = now or discord.utils.utcnow()
+        dt, status = self.calendar.parseDT(argument, sourceTime=now, tzinfo=tz)
         if not status.hasDateOrTime:
             raise commands.BadArgument('invalid time provided, try e.g. "tomorrow" or "3 days"')
 
