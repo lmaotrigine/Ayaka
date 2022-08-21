@@ -519,7 +519,7 @@ class Admin(commands.Cog):
 
         await self.send_sql_results(ctx, results)
 
-    @commands.group()
+    @commands.group(invoke_without_command=True)
     @commands.guild_only()
     async def sync(self, ctx: GuildContext, guild_id: int | None, copy: bool = False) -> None:
         """Syncs the slash commands with the given guild."""
