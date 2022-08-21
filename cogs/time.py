@@ -112,6 +112,7 @@ class Time(commands.Cog):
     @timezone.command(name='list', aliases=['all'])
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def timezones(self, ctx):
+        """List all available timezones."""
         tz_list = [
             list(zoneinfo.available_timezones())[x : x + 15] for x in range(0, len(zoneinfo.available_timezones()), 15)
         ]
