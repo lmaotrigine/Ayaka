@@ -404,7 +404,7 @@ class Reminder(commands.Cog):
         if len(records) == 10:
             e.set_footer(text='Only showing up to 10 reminders.')
         else:
-            e.set_footer(text=f'{len(records)} {formats.plural(len(records)):reminder}.')
+            e.set_footer(text=f'{formats.plural(len(records)):reminder}.')
 
         for _id, expires, message in records:
             shorten = textwrap.shorten(message, width=512)
