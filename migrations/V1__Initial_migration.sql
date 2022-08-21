@@ -251,7 +251,6 @@ CREATE TABLE IF NOT EXISTS todo (
 
 -- private extensions
 
-/*
 CREATE TABLE IF NOT EXISTS connect_four_games (
     game_id SERIAL PRIMARY KEY,
     players BIGINT ARRAY,
@@ -354,5 +353,3 @@ CREATE TABLE IF NOT EXISTS ims_users (
     id BIGINT PRIMARY KEY,
     roles BIGINT ARRAY
 );
-
-*/
