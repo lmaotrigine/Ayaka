@@ -53,7 +53,7 @@ class Todo(commands.Cog):
         if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument)):
             await ctx.send(f'{error}')
 
-    @commands.group(name='todo', invoke_without_command=True)
+    @commands.hybrid_group(name='todo', fallback='list')
     async def _todo(self, ctx):
         """Manage your personal to-do list."""
         await self.do_list(ctx, ctx.author)
@@ -118,10 +118,11 @@ class Todo(commands.Cog):
         else:
             await ctx.send('Deleted all your personal todo items.')
 
-    @_todo.group(name='server', invoke_without_command=True)
+    @_todo.group(name='server', fallback='list')
     @commands.guild_only()
     async def todo_server(self, ctx):
         """Manages this server's to-do list.
+        
         Requires you to have Manage Server permissions to modify.
         """
         await self.do_list(ctx, ctx.guild)
@@ -152,7 +153,7 @@ class Todo(commands.Cog):
         else:
             await ctx.send('Deleted all todo items for this server.')
 
-    @_todo.group(name='channel', invoke_without_command=True)
+    @_todo.group(name='channel', fallback='list')
     @commands.guild_only()
     async def todo_channel(self, ctx):
         """Manages this channel's to-do list.
