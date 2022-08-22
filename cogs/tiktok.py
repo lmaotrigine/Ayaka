@@ -32,7 +32,7 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
 MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?')
 DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?')
-INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/\?.*?\=')
+INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*?\=)?')
 
 BASE_URL = 'https://api16-normal-useast5.us.tiktokv.com/media/api/text/speech/invoke/'
 VOICES: dict[str, str] = {
@@ -191,7 +191,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         if not MOBILE_PATTERN.fullmatch(url) and not INSTAGRAM_PATTERN.fullmatch(url) and not DESKTOP_PATTERN.fullmatch(url):
             await ctx.send('Invalid TikTok link.', ephemeral=True)
             return
-        await ctx.defer()
+        await ctx.typing()
         try:
             if ctx.guild:
                 file, content = await self.process_url(url, ctx.guild.filesize_limit)
@@ -244,8 +244,12 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         text: str,
     ) -> None:
         """Generate an audio file with a given Tiktok voice engine and text."""
-
-        fp = await self.process_voice(voice, text)
+        await ctx.typing()
+        try:
+            fp = await self.process_voice(voice, text)
+        except RuntimeError as e:
+            await ctx.send(str(e))
+            return
         await ctx.send(f'> {text}', file=discord.File(fp, filename='tiktok.mp3'))
 
 
