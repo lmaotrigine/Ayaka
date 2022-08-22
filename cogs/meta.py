@@ -519,7 +519,7 @@ class Meta(commands.Cog):
         or by spaces.
         """
         source_url = 'https://github.com/lmaotrigine/Ayaka'
-        branch = 'main'
+        branch = 'v2'
         if command is None:
             await ctx.send(source_url)
             return
@@ -539,8 +539,6 @@ class Meta(commands.Cog):
             src = obj.callback.__code__
             module = obj.callback.__module__
             filename = src.co_filename
-            if 'cogs.private' in module:
-                source_url = 'https://github.com/lmaotrigine/ayaka-private'
 
         lines, firstlineno = inspect.getsourcelines(src)
         if not module.startswith('discord'):
@@ -549,6 +547,7 @@ class Meta(commands.Cog):
                 # private commands
                 source_url = 'https://github.com/lmaotrigine/ayaka-private'
                 location = module[13:].replace('.', '/') + '.py'
+                branch = 'main'
             else:
                 location = os.path.relpath(filename).replace('\\', '/')  # type: ignore
         else:
