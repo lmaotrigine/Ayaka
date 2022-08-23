@@ -122,7 +122,7 @@ class Todo(commands.Cog):
     @commands.guild_only()
     async def todo_server(self, ctx):
         """Manages this server's to-do list.
-        
+
         Requires you to have Manage Server permissions to modify.
         """
         await self.do_list(ctx, ctx.guild)

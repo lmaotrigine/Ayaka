@@ -573,6 +573,19 @@ class Meta(commands.Cog):
         else:
             await ctx.send(embed=embed)
 
+    @commands.command()
+    async def avatarhistory(self, ctx: Context, *, user: discord.Member | discord.User | None = None) -> None:
+        """Gives a link with a user's avatar history.
+
+        This only contains global avatars and no guild level changes.
+        """
+
+        user = user or ctx.author
+        link = f'https://{self.bot.config.base_url}/discord/avatarhistory/{user.id}'
+        embed = discord.Embed(colour=discord.Colour.og_blurple())
+        embed.description = f'[Avatar history for {user.mention}]({link})'
+        await ctx.send(embed=embed)
+
     @commands.command(aliases=['userinfo'])
     async def info(self, ctx: Context, *, user: discord.Member | discord.User | None = None):
         """Shows info about a user."""
