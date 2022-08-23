@@ -198,12 +198,12 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             else:
                 file, content = await self.process_url(url)
         except NeedsLogin as e:
-            await ctx.send(str(e))
+            await ctx.reply(str(e))
             return
         except ValueError:
-            await ctx.send('TikTok link exceeded the file size limit.')
+            await ctx.reply('TikTok link exceeded the file size limit.')
             return
-        await ctx.send(content[:1000], file=file)
+        await ctx.reply(content[:1000], file=file)
 
     async def process_voice(self, voice: str, text: str) -> BytesIO:
         voice = 'en_us_002' if voice.lower() == 'default' else voice
@@ -248,9 +248,9 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         try:
             fp = await self.process_voice(voice, text)
         except RuntimeError as e:
-            await ctx.send(str(e))
+            await ctx.reply(str(e))
             return
-        await ctx.send(f'> {text}', file=discord.File(fp, filename='tiktok.mp3'))
+        await ctx.reply(f'> {text}', file=discord.File(fp, filename='tiktok.mp3'))
 
 
 async def setup(bot: Ayaka) -> None:

@@ -80,7 +80,7 @@ class Synth(commands.Cog, command_attrs=dict(hidden=True)):
         kana = await self._get_kana_from_input(text, engine)
         data = await self._get_audio_from_kana(kana, engine)
         file = discord.File(data, filename='synth.wav')
-        await ctx.send(f'`{kana["kana"]}`', file=file)
+        await ctx.reply(f'`{kana["kana"]}`', file=file)
 
     @synth_callback.autocomplete('engine')
     async def synth_engine_autocomplete(
