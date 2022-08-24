@@ -21,6 +21,8 @@ import lru
 import tabulate
 from discord.ext import commands, tasks
 
+from utils.formats import clean_triple_backtick
+from utils.time import human_timedelta
 
 if TYPE_CHECKING:
     from bot import Ayaka
@@ -702,21 +704,37 @@ class Stalking(commands.Cog):
         names = names.replace('@', '@\u200b')
         await ctx.send(f'All nicks for {user}\n{names}')
 
-    @commands.command(name='stalk', aliases=['ls'])
-    async def _last_seen(self, ctx: Context, *, user: discord.Member | discord.User = commands.Author) -> None:
+    @commands.command(name='stalk', aliases=['ui', 'ls'])
+    async def _stalk(self, ctx: Context, *, user: discord.Member | discord.User = commands.Author) -> None:
+        """Similar to `info` but gives you past names and last seen information."""
+        names = ', '.join((await self.names_for(user))[:3])
+        builder = [('User', str(user)), ('Names', names or user.name)]
+        if isinstance(user, discord.Member):
+            builder.append(('Nicks', ', '.join((await self.nicks_for(user))[:3]) or 'N/A'))
+        builder.append(('Shared Guilds', sum(g.get_member(user.id) is not None for g in self.bot.guilds)))
         last_seen = await self.last_seen(user)
 
         def format_date(dt: datetime):
             if dt <= datetime.fromtimestamp(0, tz=timezone.utc):
                 return 'N/A'
-            return f'{dt:%Y-%m-%d %H:%M} ({discord.utils.format_dt(dt, "R")})'
+            return f'{dt:%Y-%m-%d %H:%M} ({human_timedelta(dt, accuracy=1)})'
 
-        fmt = f'Stalking info for {user}\n\n'
-        fmt += f'Last seen: {format_date(last_seen.last_seen)}\n'
-        fmt += f'Last spoke: {format_date(last_seen.last_spoke)}\n'
-        if hasattr(user, 'guild'):
-            fmt += f'Last spoke here: {format_date(last_seen.guild_last_spoke)}\n'
-        await ctx.send(fmt)
+        builder.append(('Created', format_date(user.created_at)))
+        if isinstance(user, discord.Member):
+            builder.append(('Joined', format_date(user.joined_at)))
+        builder.append(('Last Seen', format_date(last_seen.last_seen)))
+        builder.append(('Last Spoke', format_date(last_seen.last_spoke)))
+        if isinstance(user, discord.Member):
+            builder.append(('Spoke Here', format_date(last_seen.guild_last_spoke)))
+        col_len = max(len(name) for name, _ in builder)
+        def value_format(k, v):
+            v = str(v).split('\n')
+            return f'{k:>{col_len}}: {v[0]}' + ''.join('\n{" " * col_len}  {subv}' for subv in v[1:])
+        fmt = '\n'.join(value_format(k, v) for k, v in builder)
+        fmt = fmt.replace('@', '@\u200b')
+        fmt = clean_triple_backtick(fmt)
+        fmt = fmt.replace('discord.gg/', 'discord.gg/\u200b')
+        await ctx.send(f'```prolog\n{fmt}\n```')
 
     @commands.command()
     @commands.is_owner()
