@@ -669,7 +669,9 @@ class Stats(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
         await self.register_command(ctx)
-        if not isinstance(error, (commands.CommandInvokeError, commands.ConversionError)):
+        if isinstance(error, commands.HybridCommandError):
+            error = error.original
+        if not isinstance(error, (app_commands.CommandInvokeError, commands.CommandInvokeError, commands.ConversionError)):
             return
 
         error = error.original
@@ -685,7 +687,12 @@ class Stats(commands.Cog):
             fmt = f'{fmt}\nGuild: {ctx.guild} (ID: {ctx.guild.id})'
 
         e.add_field(name='Location', value=fmt, inline=False)
-        e.add_field(name='Content', value=textwrap.shorten(ctx.message.content, width=512))
+        content = 'No Content'
+        if ctx.message.content:
+            content = ctx.message.content
+        elif ctx.interaction:
+            content = f'/{ctx.command.qualified_name} {" ".join(f"{k}:{v}" for k, v in ctx.interaction.namespace)}'
+        e.add_field(name='Content', value=textwrap.shorten(content, width=512))
 
         exc = ''.join(traceback.format_exception(type(error), error, error.__traceback__, chain=False))
         e.description = f'```py\n{exc}\n```'

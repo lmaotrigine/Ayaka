@@ -15,6 +15,7 @@ import re
 from io import BytesIO
 from typing import TYPE_CHECKING, Annotated
 
+import aiohttp
 import discord
 import yt_dlp
 from discord import app_commands
@@ -30,9 +31,9 @@ if TYPE_CHECKING:
 
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
-MOBILE_PATTERN = re.compile(r'(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?')
-DESKTOP_PATTERN = re.compile(r'(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?')
-INSTAGRAM_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*?\=)?')
+MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?\>?')
+DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?\>?')
+INSTAGRAM_PATTERN = re.compile(r'\<?(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*?\=)?\>?')
 
 BASE_URL = 'https://api16-normal-useast5.us.tiktokv.com/media/api/text/speech/invoke/'
 VOICES: dict[str, str] = {
@@ -91,6 +92,20 @@ log = logging.getLogger(__name__)
 
 class NeedsLogin(commands.CommandError):
     pass
+
+
+class TiktokError(Exception):
+    def __init__(self, resp: aiohttp.ClientResponse) -> None:
+        self.resp = resp
+
+    async def log(self, ctx: Context) -> None:
+        e = discord.Embed(title='Tiktok Error', colour=0xCC3366)
+        e.description = f'```json\n{await self.resp.text()}\n```'
+        e.timestamp = discord.utils.utcnow()
+        await ctx.bot.stat_webhook.send(embed=e)
+
+    def __str__(self) -> str:
+        return 'Tiktok broke, sorry.'
 
 
 class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
@@ -218,9 +233,16 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                 log.error('tiktok voice HTTP error. Status code %s. Text: %s', resp.status, text)
                 raise RuntimeError(f'API responded with {resp.status}.')
             data = await resp.json()
-            res = data['data']['v_str']
-            bytes_ = base64.b64decode(res.encode('utf-8'))
-            return BytesIO(bytes_)
+            try:
+                res = data['data']['v_str']
+            except KeyError:
+                raise TiktokError(resp)
+            padding = len(res) % 4
+            res = res + ('=' * padding)
+            bytes_ = base64.b64decode(res)
+            fp = BytesIO(bytes_)
+            fp.seek(0)
+            return fp
 
     async def voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         all_choices = self.voice_choices
@@ -250,6 +272,10 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         except RuntimeError as e:
             await ctx.reply(str(e))
             return
+        except TiktokError as e:
+            await e.log(ctx)
+            await ctx.reply(str(e))
+            raise e
         await ctx.reply(f'> {text}', file=discord.File(fp, filename='tiktok.mp3'))
 
 

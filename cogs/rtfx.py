@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from bot import Ayaka
 
 
-RTFS = ('discord', 'discord.ext.commands', 'discord.ext.tasks', 'discord.ext.menus', 'asyncpg')
+RTFS = ('discord', 'discord.app_commands', 'discord.ext.commands', 'discord.ext.tasks', 'discord.ext.menus', 'asyncpg')
 
 RTFM_PAGES = {
     'discord.py': 'https://discordpy.readthedocs.io/en/stable',
