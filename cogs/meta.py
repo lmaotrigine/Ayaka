@@ -588,6 +588,7 @@ class Meta(commands.Cog):
             if dt is None:
                 return 'N/A'
             return f'{dt:%Y-%m-%d %H:%M} ({discord.utils.format_dt(dt, "R")})'
+
         e.add_field(name='ID', value=user.id, inline=False)
         e.add_field(name='Servers', value=f'{shared} shared', inline=False)
         e.add_field(name='Joined', value=format_date(getattr(user, 'joined_at', None)), inline=False)
