@@ -13,7 +13,6 @@ jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
 mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"}
 "nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}
 bottom = {git = "https://git.5ht2.me/darthshittious/bottom", rev = "main"}
-py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
 dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
 asyncpg = "*"
 aiohttp = {extras = ["speedups"], version = "^3.8.1"}
@@ -35,16 +34,31 @@ yt-dlp = "^2022.3.8"
 typing-extensions = "^4.1.1"
 uvloop = {version = "*", markers = "platform_system != 'Windows' and implementation_name == 'cpython'"}
 python-Levenshtein = "^0.12.2"
+tweepy = "^4.8.0"
+async-lru = "^1.0.3"
 redis = "^4.2.1"
 hiredis = "^2.0.0"
-tweepy = "^4.8.0"
+
+[tool.poetry.group.private]
+optional = true
+
+[tool.poetry.group.private.dependencies]
+py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
 numpy = "^1.22.3"
-async-lru = "^1.0.3"
 chess = "^1.9.1"
 CairoSVG = "^2.5.2"
+
+[tool.poetry.group.web]
+optional = true
+
+[tool.poetry.group.web.dependencies]
 tornado = "^6.1"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+ipython = "*"
 black = "*"
 isort = "^5.10.1"
 
@@ -80,5 +94,5 @@ reportUntypedFunctionDecorator = "error"
 reportUnnecessaryTypeIgnoreComment = "warning"
 
 [build-system]
-requires = ["poetry_core>=1.0.0"]
+requires = ["poetry_core>=1.2.0b3"]
 build-backend = "poetry.core.masonry.api"

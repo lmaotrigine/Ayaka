@@ -70,17 +70,10 @@ class GroupHelpPageSource(menus.ListPageSource):
 
 
 class HelpSelectMenu(discord.ui.Select['HelpMenu']):
-    def __init__(self, commands: dict[commands.Cog, list[commands.Command]], bot: Ayaka, *, private: bool | None = None):
-        if private is False:
-            placeholder = 'Public Categories...'
-        elif private is True:
-            placeholder = 'Private Categories...'
-        else:
-            placeholder = 'Select a category...'
-        super().__init__(placeholder=placeholder, min_values=1, max_values=1, row=int(private or 0))
+    def __init__(self, commands: dict[commands.Cog, list[commands.Command]], bot: Ayaka):
+        super().__init__(placeholder='Select a category...', min_values=1, max_values=1)
         self.commands = commands
         self.bot = bot
-        self.private = private
         self.__fill_options()
 
     def __fill_options(self) -> None:
@@ -93,10 +86,6 @@ class HelpSelectMenu(discord.ui.Select['HelpMenu']):
             )
         for cog, commands in self.commands.items():
             if not commands:
-                continue
-            if self.private is False and 'private' in cog.__module__:
-                continue
-            if self.private is True and 'private' not in cog.__module__:
                 continue
             description = cog.description.split('\n', 1)[0] or None
             emoji = getattr(cog, 'display_emoji', None)
@@ -191,11 +180,7 @@ class HelpMenu(RoboPages):
 
     def add_categories(self, commands: dict[commands.Cog, list[commands.Command]]) -> None:
         self.clear_items()
-        if len(commands) > 25:
-            self.add_item(HelpSelectMenu(commands, self.ctx.bot, private=False))
-            self.add_item(HelpSelectMenu(commands, self.ctx.bot, private=True))
-        else:
-            self.add_item(HelpSelectMenu(commands, self.ctx.bot))
+        self.add_item(HelpSelectMenu(commands, self.ctx.bot))
         self.fill_items()
 
     async def rebind(self, source: menus.PageSource, interaction: discord.Interaction) -> None:
@@ -254,7 +239,7 @@ class PaginatedHelpCommand(commands.HelpCommand):
                 continue
 
             if name.startswith('__Private__'):
-                cog = bot.get_cog('Private')
+                continue
             else:
                 cog = bot.get_cog(name)
             all_commands[cog] += sorted(children, key=lambda c: c.qualified_name)  # type: ignore
@@ -603,7 +588,6 @@ class Meta(commands.Cog):
             if dt is None:
                 return 'N/A'
             return f'{dt:%Y-%m-%d %H:%M} ({discord.utils.format_dt(dt, "R")})'
-
         e.add_field(name='ID', value=user.id, inline=False)
         e.add_field(name='Servers', value=f'{shared} shared', inline=False)
         e.add_field(name='Joined', value=format_date(getattr(user, 'joined_at', None)), inline=False)

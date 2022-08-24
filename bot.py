@@ -20,8 +20,6 @@ import discord
 import mangadex
 import nhentai
 import redis.asyncio as aioredis
-import tornado.httpserver
-import tornado.web
 from discord import app_commands
 from discord.ext import commands
 
@@ -30,6 +28,14 @@ from dashboard.routes import setup_routes
 from dashboard.utils.http import HTTPClient
 from utils.config import Config
 from utils.context import Context
+
+try:
+    import tornado.httpserver
+    import tornado.web
+except ImportError:
+    SETUP_WEB = False
+else:
+    SETUP_WEB = True
 
 
 if TYPE_CHECKING:
@@ -66,6 +72,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.rng',
     'cogs.rtfx',
     'cogs.snipe',
+    'cogs.stalking',
     'cogs.stars',
     'cogs.stats',
     'cogs.synth',
@@ -164,15 +171,16 @@ class Ayaka(commands.AutoShardedBot):
         self._prev_events = deque(maxlen=10)
         self.resumes: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
         self.identifies: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
-        self.dashboard = tornado.web.Application(
-            setup_routes(bot=self),
-            static_path=str(pathlib.Path(__file__).parent / 'static'),
-            template_path=str(pathlib.Path(__file__).parent / 'dashboard' / 'templates'),
-            cookie_secret=config.cookie_secret,
-            debug=False,
-            default_host=config.base_url,
-        )
-        self.server = tornado.httpserver.HTTPServer(self.dashboard, xheaders=True)
+        if SETUP_WEB:
+            self.dashboard = tornado.web.Application(
+                setup_routes(bot=self),
+                static_path=str(pathlib.Path(__file__).parent / 'static'),
+                template_path=str(pathlib.Path(__file__).parent / 'dashboard' / 'templates'),
+                cookie_secret=config.cookie_secret,
+                debug=False,
+                default_host=config.base_url,
+            )
+            self.server = tornado.httpserver.HTTPServer(self.dashboard, xheaders=True)
 
         self.emoji = {
             True: '<:yes:956843604620476457>',
@@ -199,8 +207,9 @@ class Ayaka(commands.AutoShardedBot):
                 await self.load_extension(extension)
             except Exception:
                 log.exception('Failed to load extension %s', extension)
-        self.server.bind(6789)
-        self.server.start()
+        if SETUP_WEB:
+            self.server.bind(6789)
+            self.server.start()
 
     @property
     def owner(self) -> discord.User:
