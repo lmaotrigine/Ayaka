@@ -709,14 +709,14 @@ class Stalking(commands.Cog):
     async def _stalk(self, ctx: Context, *, user: discord.Member | discord.User = commands.Author) -> None:
         """Similar to `info` but gives you past names and last seen information."""
         names = ', '.join((await self.names_for(user))[:3])
-        builder = [('User', str(user)), ('Names', names or user.name)]
+        builder: list[tuple[str, str | int]] = [('User', str(user)), ('Names', names or user.name)]
         if isinstance(user, discord.Member):
             builder.append(('Nicks', ', '.join((await self.nicks_for(user))[:3]) or 'N/A'))
         builder.append(('Shared Guilds', sum(g.get_member(user.id) is not None for g in self.bot.guilds)))
         last_seen = await self.last_seen(user)
 
-        def format_date(dt: datetime):
-            if dt <= datetime.fromtimestamp(0, tz=timezone.utc):
+        def format_date(dt: datetime | None):
+            if dt is None or dt <= datetime.fromtimestamp(0, tz=timezone.utc):
                 return 'N/A'
             return f'{dt:%Y-%m-%d %H:%M} ({human_timedelta(dt, accuracy=1)})'
 
@@ -731,7 +731,7 @@ class Stalking(commands.Cog):
 
         def value_format(k, v):
             v = str(v).split('\n')
-            return f'{k:>{col_len}}: {v[0]}' + ''.join('\n{" " * col_len}  {subv}' for subv in v[1:])
+            return f'{k:>{col_len}}: {v[0]}' + ''.join(f'\n{" " * col_len}  {subv}' for subv in v[1:])
 
         fmt = '\n'.join(value_format(k, v) for k, v in builder)
         fmt = fmt.replace('@', '@\u200b')
