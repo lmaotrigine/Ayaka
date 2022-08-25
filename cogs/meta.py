@@ -307,6 +307,8 @@ class Meta(commands.Cog):
         self.bot._original_help_command = bot.help_command
         self.bot.help_command = PaginatedHelpCommand()
         self.bot.help_command.cog = self
+        self.ctx_menu = app_commands.ContextMenu(name='Raw Message', callback=self.raw_message_callback)
+        self.bot.tree.add_command(self.ctx_menu)
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -315,6 +317,7 @@ class Meta(commands.Cog):
     def cog_unload(self) -> None:
         assert self.bot._original_help_command is not None
         self.bot.help_command = self.bot._original_help_command
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     async def cog_command_error(self, ctx: Context, error: commands.CommandError) -> None:
         if isinstance(error, commands.BadArgument):
@@ -902,6 +905,19 @@ class Meta(commands.Cog):
         )
         pages = RoboPages(source, ctx=ctx)
         await pages.start()
+    
+    @app_commands.checks.cooldown(1, 15)
+    async def raw_message_callback(self, interaction: discord.Interaction, message: discord.Message) -> None:
+        await interaction.response.defer()
+        msg = await interaction.client.http.get_message(message.channel.id, message.id)
+        fmt = formats.clean_triple_backtick(
+            formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))
+        )
+        if len(fmt) > 1985:
+            fp = BytesIO(fmt.encode('utf-8'))
+            await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'))
+            return
+        await interaction.followup.send(f'```json\n{fmt}\n```')
 
     @commands.command(name='disconnect')
     @commands.check(lambda ctx: bool(ctx.guild and ctx.guild.voice_client))
@@ -955,25 +971,5 @@ class Meta(commands.Cog):
         await ctx.send(embed=embed)
 
 
-@app_commands.context_menu(name='Raw Message')
-@app_commands.checks.cooldown(1, 15)
-async def raw_message(interaction: discord.Interaction, message: discord.Message) -> None:
-    await interaction.response.defer()
-    msg = await interaction.client.http.get_message(message.channel.id, message.id)
-    fmt = formats.clean_triple_backtick(
-        formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))
-    )
-    if len(fmt) > 1985:
-        fp = BytesIO(fmt.encode('utf-8'))
-        await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'))
-        return
-    await interaction.followup.send(f'```json\n{fmt}\n```')
-
-
-async def setup(bot: Ayaka):
+async def setup(bot: Ayaka) -> None:
     await bot.add_cog(Meta(bot))
-    bot.tree.add_command(raw_message)
-
-
-async def teardown(bot: Ayaka):
-    bot.tree.remove_command(raw_message.name, type=raw_message.type)

@@ -171,47 +171,6 @@ class SpoilerCooldown(commands.CooldownMapping):
         return bucket is not None and bucket.update_rate_limit() is not None
 
 
-@app_commands.context_menu(name='View Pronouns')
-async def get_pronouns(interaction: discord.Interaction, member: discord.Member) -> None:
-    # fetches from pronoundb.org for people without client mods
-    lookup = {
-        'unspecified': 'Unspecified',
-        'hh': 'he/him',
-        'hi': 'he/it',
-        'hs': 'he/she',
-        'ht': 'he/they',
-        'ih': 'it/him',
-        'ii': 'it/its',
-        'is': 'it/she',
-        'it': 'it/they',
-        'shh': 'she/he',
-        'sh': 'she/her',
-        'si': 'she/it',
-        'st': 'she/they',
-        'th': 'they/he',
-        'ti': 'they/it',
-        'ts': 'they/she',
-        'tt': 'they/them',
-        'any': 'Any Pronouns',
-        'other': 'Other Pronouns',
-        'ask': 'Ask me my pronouns',
-        'avoid': 'Avoid pronouns, use my name',
-    }
-    await interaction.response.defer(ephemeral=True)
-    url = f'https://pronoundb.org/api/v1/lookup?platform=discord&id={member.id}'
-    if member.bot:
-        pronouns = 'beep/boop'
-    else:
-        async with interaction.client.session.get(url) as resp:  # type: ignore
-            #
-            pronouns = lookup[(await resp.json())['pronouns']]
-    e = discord.Embed(colour=0xF49898)
-    e.set_author(name=f'{member}', icon_url=member.display_avatar.url)
-    e.set_footer(text='Powered by pronoundb.org')
-    e.add_field(name='Pronouns', value=f'```md\n# {pronouns}```')
-    await interaction.followup.send(embed=e, ephemeral=True)
-
-
 class Fun(commands.Cog):
     def __init__(self, bot: Ayaka):
         self.bot = bot
@@ -224,8 +183,11 @@ class Fun(commands.Cog):
         self.valid_langs = googletrans.LANGCODES.keys() | googletrans.LANGUAGES.keys()
         self.valid_source = self.valid_langs | set(['auto'])
         self.currency_codes = json.loads(open('utils/currency_codes.json').read())
+        self.ctx_menu = app_commands.ContextMenu(name='View Pronouns', callback=self.view_pronouns_callback)
+        self.bot.tree.add_command(self.ctx_menu)
 
     def cog_unload(self) -> None:
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
         self._spoiler_view.stop()
 
     @property
@@ -280,6 +242,45 @@ class Fun(commands.Cog):
         embed.timestamp = quote_message.created_at
 
         await message.channel.send(embed=embed)
+    
+    async def view_pronouns_callback(self, interaction: discord.Interaction, member: discord.Member) -> None:
+        # fetches from pronoundb.org for people without client mods
+        lookup = {
+            'unspecified': 'Unspecified',
+            'hh': 'he/him',
+            'hi': 'he/it',
+            'hs': 'he/she',
+            'ht': 'he/they',
+            'ih': 'it/him',
+            'ii': 'it/its',
+            'is': 'it/she',
+            'it': 'it/they',
+            'shh': 'she/he',
+            'sh': 'she/her',
+            'si': 'she/it',
+            'st': 'she/they',
+            'th': 'they/he',
+            'ti': 'they/it',
+            'ts': 'they/she',
+            'tt': 'they/them',
+            'any': 'Any Pronouns',
+            'other': 'Other Pronouns',
+            'ask': 'Ask me my pronouns',
+            'avoid': 'Avoid pronouns, use my name',
+        }
+        await interaction.response.defer(ephemeral=True)
+        url = f'https://pronoundb.org/api/v1/lookup?platform=discord&id={member.id}'
+        if member.bot:
+            pronouns = 'beep/boop'
+        else:
+            async with self.bot.session.get(url) as resp:
+                #
+                pronouns = lookup[(await resp.json())['pronouns']]
+        e = discord.Embed(colour=0xF49898)
+        e.set_author(name=f'{member}', icon_url=member.display_avatar.url)
+        e.set_footer(text='Powered by pronoundb.org')
+        e.add_field(name='Pronouns', value=f'```md\n# {pronouns}```')
+        await interaction.followup.send(embed=e, ephemeral=True)
 
     async def do_translate(
         self,
@@ -858,8 +859,3 @@ class Fun(commands.Cog):
 
 async def setup(bot: Ayaka):
     await bot.add_cog(Fun(bot))
-    bot.tree.add_command(get_pronouns, override=True)
-
-
-async def teardown(bot: Ayaka) -> None:
-    bot.tree.remove_command(get_pronouns.name, type=get_pronouns.type)
