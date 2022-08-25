@@ -568,6 +568,8 @@ class Mod(commands.Cog):
             (commands.BadArgument, commands.BotMissingPermissions, NoMuteRole, commands.UserInputError, commands.FlagError),
         ):
             await ctx.send(str(error))
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.send('You do not have the permissions required to use this command.')
         elif isinstance(error, commands.CommandInvokeError):
             original = error.original
             if isinstance(original, discord.Forbidden):
