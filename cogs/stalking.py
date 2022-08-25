@@ -24,6 +24,7 @@ from discord.ext import commands, tasks
 from utils.formats import clean_triple_backtick
 from utils.time import human_timedelta
 
+
 if TYPE_CHECKING:
     from bot import Ayaka
     from utils.context import Context, GuildContext
@@ -727,9 +728,11 @@ class Stalking(commands.Cog):
         if isinstance(user, discord.Member):
             builder.append(('Spoke Here', format_date(last_seen.guild_last_spoke)))
         col_len = max(len(name) for name, _ in builder)
+
         def value_format(k, v):
             v = str(v).split('\n')
             return f'{k:>{col_len}}: {v[0]}' + ''.join('\n{" " * col_len}  {subv}' for subv in v[1:])
+
         fmt = '\n'.join(value_format(k, v) for k, v in builder)
         fmt = fmt.replace('@', '@\u200b')
         fmt = clean_triple_backtick(fmt)

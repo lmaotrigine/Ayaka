@@ -77,13 +77,12 @@ class HelpSelectMenu(discord.ui.Select['HelpMenu']):
         self.__fill_options()
 
     def __fill_options(self) -> None:
-        if self.row == 0:
-            self.add_option(
-                label='Index',
-                emoji='\N{WAVING HAND SIGN}',
-                value='__index',
-                description='The help page showing how to use the bot.',
-            )
+        self.add_option(
+            label='Index',
+            emoji='\N{WAVING HAND SIGN}',
+            value='__index',
+            description='The help page showing how to use the bot.',
+        )
         for cog, commands in self.commands.items():
             if not commands:
                 continue
