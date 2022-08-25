@@ -355,14 +355,15 @@ class Meta(commands.Cog):
             return user
 
         user = ensure_user(user)
-        async with self.bot.session.get('https://api.5ht2.me/decancer', params={'text': user.display_name}) as resp:
+        original = user.display_name
+        async with self.bot.session.get('https://api.5ht2.me/decancer', params={'text': original}) as resp:
             if resp.status != 200:
                 await ctx.send(f'Something went wrong with the API. Tell VJ: {await resp.text()}')
                 return
             js = await resp.json()
         decancered = js['decancered']
         await user.edit(nick=decancered, reason=f'decancer by {ctx.author}')
-        await ctx.send('\N{OK HAND SIGN}')
+        await ctx.send(f'\N{OK HAND SIGN}  `{original}` -> `{decancered}`')
 
     @commands.group(name='prefix', invoke_without_command=True)
     async def prefix(self, ctx: GuildContext) -> None:
