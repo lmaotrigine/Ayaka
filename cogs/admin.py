@@ -99,6 +99,9 @@ class Admin(commands.Cog):
         return discord.PartialEmoji(name='stafftools', id=957327255825178706)
 
     async def run_process(self, command: str) -> list[str]:
+        if os.name != 'nt':
+            shell = os.getenv('SHELL', '/bin/bash')
+            command = f'{shell} -c "{command}"'
         process = await asyncio.create_subprocess_shell(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = await process.communicate()
         return [output.decode() for output in result]
