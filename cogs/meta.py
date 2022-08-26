@@ -905,7 +905,7 @@ class Meta(commands.Cog):
         )
         pages = RoboPages(source, ctx=ctx)
         await pages.start()
-    
+
     @app_commands.checks.cooldown(1, 15)
     async def raw_message_callback(self, interaction: discord.Interaction, message: discord.Message) -> None:
         await interaction.response.defer()

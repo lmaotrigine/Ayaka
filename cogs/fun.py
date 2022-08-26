@@ -242,7 +242,7 @@ class Fun(commands.Cog):
         embed.timestamp = quote_message.created_at
 
         await message.channel.send(embed=embed)
-    
+
     async def view_pronouns_callback(self, interaction: discord.Interaction, member: discord.Member) -> None:
         # fetches from pronoundb.org for people without client mods
         lookup = {
