@@ -193,7 +193,6 @@ class Stalking(commands.Cog):
                             """
                     await conn.execute(query, *itertools.chain(*seen_updates))
                 if spoke_updates:
-                    print(spoke_updates)
                     query = f"""INSERT INTO last_spoke (id, guild_id, date)
                                 VALUES {multi_insert_str(spoke_updates)}
                                 ON CONFLICT (id, guild_id) DO UPDATE
