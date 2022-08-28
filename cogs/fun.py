@@ -12,9 +12,7 @@ import json
 import math
 import random
 import re
-import shlex
 import time
-from argparse import ArgumentParser
 from functools import partial
 from textwrap import fill
 from typing import TYPE_CHECKING, Optional, Union
@@ -43,11 +41,6 @@ MESSAGE_LINK_RE = re.compile(
     r'^(?:https?://)(?:(?:canary|ptb)\.)?discord(?:app)?\.com/channels/(?P<guild>\d{16,20})/(?P<channel>\d{16,20})/(?P<message>\d{16,20})/?$'
 )
 SPOILER_EMOJI_ID = 956843179213209620
-
-
-class Arguments(ArgumentParser):
-    def error(self, message):
-        raise RuntimeError(message)
 
 
 class UrbanDictionaryPageSource(menus.ListPageSource):
@@ -169,6 +162,11 @@ class SpoilerCooldown(commands.CooldownMapping):
     def is_rate_limited(self, message_id, user_id):
         bucket = self.get_bucket((message_id, user_id))
         return bucket is not None and bucket.update_rate_limit() is not None
+
+
+class TranslateFlags(commands.FlagConverter):
+    source: str = commands.flag(name='from', description='The language to translate from', default='auto')
+    dest: str = commands.flag(name='to', description='The language to translate to', default='en')
 
 
 class Fun(commands.Cog):
@@ -317,25 +315,27 @@ class Fun(commands.Cog):
 
     @commands.command()
     async def translate(self, ctx: Context, *, message: Optional[MessageOrCleanContent] = None) -> None:
-        """Translates a message using Google Translate.
+        """Translates a message to English using Google Translate."""
+        """
+        To avoid parsing ambiguities, the message will have to be prefixed with `text:`.
+
+        For best results, optional flags should precede the `text:` flag.
 
         The following optional flags are allowed:
 
-        `--source` or `-s`: The language to translate from, defaults to auto-detect.
-        `--dest` or `-d`: The language to translate to, defaults to English.
+        `from:`: The language to translate from, defaults to auto-detect.
+        `to:`: The language to translate to, defaults to English.
         """
-        parser = Arguments(add_help=False, allow_abbrev=False)
-        parser.add_argument('text', nargs='*', default=None)
-        parser.add_argument('--dest', '-d', default='en')
-        parser.add_argument('--source', '-s', '--src', default='auto')
-        src = 'auto'
-        dest = 'en'
+        
+        #src = flags.source.lower()
+        #dest = flags.dest.lower()
+        #if src not in self.valid_source:
+        #    await ctx.send('Invalid source language.')
+        #    return
+        #if dest not in self.valid_langs:
+        #    await ctx.send('Invalid destination language.')
+        #    return
         if not isinstance(message, discord.Message) and message is not None:
-            args = parser.parse_args(shlex.split(message))  # type: ignore
-            if args.source.lower() in self.valid_source and args.dest.lower() in self.valid_langs:
-                message = ' '.join(args.text) if args.text else None  # type: ignore
-                src = args.source.lower()
-                dest = args.dest.lower()
             if message is not None:
                 try:
                     message = await commands.MessageConverter().convert(ctx, message)  # type: ignore
@@ -343,7 +343,7 @@ class Fun(commands.Cog):
                     pass
                 else:
                     message = message.clean_content  # type: ignore
-        await self.do_translate(ctx, message, from_=src, to=dest)  # type: ignore
+        await self.do_translate(ctx, message, from_='auto', to='en')  # type: ignore
 
     @staticmethod
     def uwu_aliases(text: str) -> str:
