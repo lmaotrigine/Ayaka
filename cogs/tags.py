@@ -109,7 +109,7 @@ class TagMakeModal(discord.ui.Modal, title='Create New Tag'):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         assert interaction.guild_id is not None
-        name = str(self.name)
+        name = str(self.name).strip()
         if self.cog.is_tag_being_made(interaction.guild_id, name):
             await interaction.response.send_message('This tag is already being made by someone else.', ephemeral=True)
             return
