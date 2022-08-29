@@ -628,7 +628,11 @@ class Fun(commands.Cog):
         """Currency converter."""
         source = source.upper()
         dest = dest.upper()
-        new_amount = self.currency_conv.convert(amount, source, dest)
+        try:
+            new_amount = self.currency_conv.convert(amount, source, dest)
+        except ValueError as e:
+            await ctx.send(str(e))
+            return
         prefix = next((cur for cur in self.currency_codes if cur['cc'] == dest), {}).get('symbol')
         await ctx.send(f'{prefix}{new_amount:.2f}')
 
