@@ -569,7 +569,7 @@ class Meta(commands.Cog):
         """
 
         user = user or ctx.author
-        link = f'https://{self.bot.config.base_url}/discord/avatarhistory/{user.id}'
+        link = f'{self.bot.config.base_url}/discord/avatarhistory/{user.id}'
         embed = discord.Embed(colour=discord.Colour.og_blurple())
         embed.description = f'[Avatar history for {user.mention}]({link})'
         await ctx.send(embed=embed)
