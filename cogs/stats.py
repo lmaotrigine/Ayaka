@@ -174,12 +174,10 @@ class Stats(commands.Cog):
         await self.register_command(ctx)
 
     @commands.Cog.listener()
-    async def on_app_command_completion(
-        self, interaction: discord.Interaction, command: app_commands.Command | app_commands.ContextMenu
-    ):
+    async def on_interaction(self, interaction: discord.Interaction):
         # Hybrid commands are already counted via on_command_completion
         # This does have a partial loss of data (i.e. the `failed` field) but that's ok.
-        if command is not None and not interaction._baton:
+        if interaction.command is not None and not interaction._baton:
             # This is technically bad, but since we only access Command.qualified_name and it's
             # available on all types of commands then it's fine
             ctx = await self.bot.get_context(interaction)
