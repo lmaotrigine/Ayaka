@@ -723,6 +723,20 @@ class Meta(commands.Cog):
         e.set_footer(text='Created').timestamp = guild.created_at
         await ctx.send(embed=e)
 
+    @commands.command()
+    @commands.guild_only()
+    async def topic(
+        self,
+        ctx: GuildContext,
+        *,
+        channel: discord.TextChannel | discord.StageChannel | discord.ForumChannel = commands.CurrentChannel,
+    ) -> None:
+        """Shows the topic of a channel."""
+        if channel.topic:
+            await ctx.send(f'Topic for {channel.mention}:\n{channel.topic}')
+        else:
+            await ctx.send(f'{channel.mention} has no topic.')
+
     async def say_permissions(self, ctx: Context, member: discord.Member, channel: MessageableGuildChannel) -> None:
         permissions = channel.permissions_for(member)
         e = discord.Embed(colour=member.colour)
