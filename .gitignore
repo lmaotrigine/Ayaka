@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 /buffer/
+cogs/_testing/
 cogs/private/
 cogs/testing.py
 cogs/dead/

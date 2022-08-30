@@ -118,7 +118,7 @@ class TimeTransformer(app_commands.Transformer):
                 'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);',
                 interaction.user.id,
                 interaction.guild.id,
-            )
+            )  # type: ignore
             if row:
                 tz = zoneinfo.ZoneInfo(row)
             else:

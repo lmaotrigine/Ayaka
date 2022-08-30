@@ -84,7 +84,7 @@ class Synth(commands.Cog, command_attrs=dict(hidden=True)):
 
     @synth_callback.autocomplete('engine')
     async def synth_engine_autocomplete(
-        self, interaction: discord.Interaction, current: int
+        self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[int]]:
         choices = await self._get_engine_choices()
         if not current:

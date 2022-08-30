@@ -75,7 +75,7 @@ lines_after_imports = 2
 
 [tool.pyright]
 include = ["bot.py", "launcher.py", "utils/**.py", "cogs/**.py", "dashboard/**.py"]
-exclude = ["_testing/**.py", ".venv/"]
+exclude = ["cogs/_testing/**.py", ".venv/"]
 useLibraryCodeForTypes = true
 typeCheckingMode = "basic"
 pythonVersion = "3.10"

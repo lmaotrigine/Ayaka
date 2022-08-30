@@ -326,13 +326,13 @@ class Fun(commands.Cog):
         `from:`: The language to translate from, defaults to auto-detect.
         `to:`: The language to translate to, defaults to English.
         """
-        
-        #src = flags.source.lower()
-        #dest = flags.dest.lower()
-        #if src not in self.valid_source:
+
+        # src = flags.source.lower()
+        # dest = flags.dest.lower()
+        # if src not in self.valid_source:
         #    await ctx.send('Invalid source language.')
         #    return
-        #if dest not in self.valid_langs:
+        # if dest not in self.valid_langs:
         #    await ctx.send('Invalid destination language.')
         #    return
         if not isinstance(message, discord.Message) and message is not None:
