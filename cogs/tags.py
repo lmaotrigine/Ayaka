@@ -320,7 +320,6 @@ class Tags(commands.Cog):
         """Creates a new tag owned by you.
 
         This tag is server-specific and cannot be used in other servers.
-        For global tags that others can use, consider using the tag box.
 
         Note that server moderators can delete your tag.
         """
