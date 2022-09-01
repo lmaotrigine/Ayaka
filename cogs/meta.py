@@ -922,16 +922,16 @@ class Meta(commands.Cog):
 
     @app_commands.checks.cooldown(1, 15)
     async def raw_message_callback(self, interaction: discord.Interaction, message: discord.Message) -> None:
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         msg = await interaction.client.http.get_message(message.channel.id, message.id)
         fmt = formats.clean_triple_backtick(
             formats.escape_invis_chars(json.dumps(msg, indent=2, ensure_ascii=False, sort_keys=True))
         )
         if len(fmt) > 1985:
             fp = BytesIO(fmt.encode('utf-8'))
-            await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'))
+            await interaction.followup.send('output too long...', file=discord.File(fp, 'raw_message.json'), ephemeral=True)
             return
-        await interaction.followup.send(f'```json\n{fmt}\n```')
+        await interaction.followup.send(f'```json\n{fmt}\n```', ephemeral=True)
 
     @commands.command(name='disconnect')
     @commands.check(lambda ctx: bool(ctx.guild and ctx.guild.voice_client))
