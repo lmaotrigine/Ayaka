@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import json
 import logging
 import pathlib
 import traceback
-from collections import Counter, defaultdict, deque
+from collections import Counter, defaultdict
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable, Optional
 
 import aiohttp
@@ -170,7 +169,6 @@ class Ayaka(commands.AutoShardedBot):
         assert md_pass is not None
         md_token = config.mangadex_auth['refresh_token']
         self.manga_client = mangadex.Client(username=md_user, password=md_pass, refresh_token=md_token)
-        self._prev_events = deque(maxlen=10)
         self.resumes: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
         self.identifies: defaultdict[int, list[datetime.datetime]] = defaultdict(list)
         if SETUP_WEB:
@@ -228,9 +226,6 @@ class Ayaka(commands.AutoShardedBot):
             to_remove = [index for index, dt in enumerate(dates) if dt < one_week_ago]
             for index in reversed(to_remove):
                 del dates[index]
-
-    async def on_socket_raw_receive(self, msg: str) -> None:
-        self._prev_events.append(msg)
 
     async def before_identify_hook(self, shard_id: int, *, initial: bool = False) -> None:
         self._clear_gateway_data()
@@ -430,17 +425,7 @@ class Ayaka(commands.AutoShardedBot):
         raise NotImplementedError('Use `start` instead.')
 
     async def start(self) -> None:
-        try:
-            await super().start(config.token, reconnect=True)
-        finally:
-            with open('prev_events.log', 'w', encoding='utf-8') as fp:
-                for data in self._prev_events:
-                    try:
-                        last_log = json.dumps(data, ensure_ascii=True, indent=4)
-                    except Exception:
-                        fp.write(f'{data}\n')
-                    else:
-                        fp.write(f'{last_log}\n')
+        await super().start(config.token, reconnect=True)
 
     async def get_user_avatars(self, user_id: int) -> dict[str, str | list[str]] | None:
         if self.logging_cog is None:
