@@ -89,7 +89,7 @@ def can_manage_snipe():
     return commands.check(predicate)
 
 
-class Snipe(commands.Cog):
+class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
     """Snipe."""
 
     def __init__(self, bot: Ayaka):

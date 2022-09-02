@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Generic, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeVar
 
 import discord
 
