@@ -34,22 +34,31 @@ class ConfirmationView(discord.ui.View):
 
     async def on_timeout(self) -> None:
         if self.delete_after and self.message:
-            await self.message.delete()
+            if not self.message.flags.ephemeral:
+                await self.message.delete()
+            else:
+                await self.message.edit(view=None, content='This is safe to dismiss now.')
 
     @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = True
         await interaction.response.defer()
-        if self.delete_after:
-            await interaction.delete_original_response()
+        if self.delete_after and self.message:
+            if not self.message.flags.ephemeral:
+                await self.message.delete()
+            else:
+                await self.message.edit(view=None, content='This is safe to dismiss now.')
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = False
         await interaction.response.defer()
-        if self.delete_after:
-            await interaction.delete_original_response()
+        if self.delete_after and self.message:
+            if not self.message.flags.ephemeral:
+                await self.message.delete()
+            else:
+                await self.message.edit(view=None, content='This is safe to dismiss now.')
         self.stop()
 
 
