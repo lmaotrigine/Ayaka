@@ -507,7 +507,7 @@ class Meta(commands.Cog):
         or by spaces.
         """
         source_url = 'https://github.com/lmaotrigine/Ayaka'
-        branch = 'v2'
+        branch = 'main'
         if command is None:
             await ctx.send(source_url)
             return
@@ -535,7 +535,6 @@ class Meta(commands.Cog):
                 # private commands
                 source_url = 'https://github.com/lmaotrigine/ayaka-private'
                 location = module[13:].replace('.', '/') + '.py'
-                branch = 'main'
             else:
                 location = os.path.relpath(filename).replace('\\', '/')  # type: ignore
         else:
