@@ -125,8 +125,7 @@ class TimeTransformer(app_commands.Transformer):
                 tz = zoneinfo.ZoneInfo('UTC')
         return tz
 
-    @classmethod
-    def transform(cls, interaction: discord.Interaction, value: str) -> datetime.datetime:
+    def transform(self, interaction: discord.Interaction, value: str) -> datetime.datetime:
         now = interaction.created_at
         try:
             short = ShortTime(value, now=now)
