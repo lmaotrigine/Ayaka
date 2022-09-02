@@ -136,7 +136,7 @@ class Context(commands.Context['Ayaka']):
         author_id: int | None = None,
     ) -> bool | None:
         author_id = author_id or self.author.id
-        view = ConfirmationView(timeout=timeout, author_id=author_id, ctx=self, delete_after=delete_after)
+        view = ConfirmationView(timeout=timeout, author_id=author_id, delete_after=delete_after)
         view.message = await self.send(message, view=view)
         await view.wait()
         return view.value
