@@ -201,3 +201,12 @@ def clean_triple_backtick(line) -> str:
 
 def to_json(obj: Any) -> str:
     return json.dumps(obj, separators=(',', ':'), ensure_ascii=True)
+
+
+def tick(opt: bool | None, /) -> str:
+    lookup = {
+        True: '<:yes:956843604620476457>',
+        False: '<:no:956843604972826664>',
+        None: '<:none:956843605010567178>',
+    }
+    return lookup.get(opt, '<:none:956843605010567178>')
