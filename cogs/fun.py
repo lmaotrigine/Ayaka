@@ -288,10 +288,10 @@ class Fun(commands.Cog):
         from_: Optional[str] = 'auto',
         to: Optional[str] = 'en',
     ):
-        ref = ctx.message.reference
+        reply = ctx.replied_message
         if message is None:
-            if isinstance(getattr(ref, 'resolved', None), discord.Message):
-                message = ref.resolved.clean_content  # type: ignore
+            if reply is not None:
+                message = reply.clean_content
             else:
                 return await ctx.send('No message to translate.')
 
@@ -302,11 +302,11 @@ class Fun(commands.Cog):
             ret = await loop.run_in_executor(None, self.translator.translate, message, to, from_)
         except Exception as e:
             return await ctx.send(f'An error occurred: {e.__class__.__name__}: {e}')
-
+        assert not isinstance(ret, list)
         embed = discord.Embed(title='Translated', colour=0x4284F3)
-        src = googletrans.LANGUAGES.get(ret.src, '(auto-detected)').title()
+        src = googletrans.LANGUAGES.get(ret.src, '(auto-detected)').title()  # type: ignore
         dest = googletrans.LANGUAGES.get(ret.dest, 'Unknown').title()
-        embed.add_field(name=f'From {translator.LANG_TO_FLAG.get(ret.src, "")} {src}', value=ret.origin, inline=False)
+        embed.add_field(name=f'From {translator.LANG_TO_FLAG.get(ret.src, "")} {src}', value=ret.origin, inline=False)  # type: ignore
         embed.add_field(name=f'To {translator.LANG_TO_FLAG.get(ret.dest, "")} {dest}', value=ret.text, inline=False)
         if ret.pronunciation and ret.pronunciation != ret.text:
             embed.add_field(name='Pronunciation', value=ret.pronunciation)
@@ -471,9 +471,9 @@ class Fun(commands.Cog):
         if isinstance(text, discord.Message):
             text = text.content
         if not text:
-            ref = ctx.message.reference
-            if ref and isinstance(ref.resolved, discord.Message):
-                text = ref.resolved.content
+            reply = ctx.replied_message
+            if reply is not None:
+                text = reply.content
             else:
                 await ctx.send('Missing text to encode.', ephemeral=True)
                 return
@@ -490,9 +490,9 @@ class Fun(commands.Cog):
         if isinstance(text, discord.Message):
             text = text.content
         if not text:
-            ref = ctx.message.reference
-            if ref and isinstance(ref.resolved, discord.Message):
-                text = ref.resolved.content
+            reply = ctx.replied_message
+            if reply is not None:
+                text = reply.content
             else:
                 await ctx.send('Missing text to decode.', ephemeral=True)
                 return
