@@ -59,9 +59,6 @@ def has_guild_permissions(*, check: Callable[[Iterable[Any]], bool] = all, **per
 
 def hybrid_permissions_check(**perms: bool) -> Callable[[T], T]:
     async def pred(ctx: GuildContext):
-        if ctx.interaction is not None:
-            # For application commands just trust the admin to set it up properly
-            return True
         return await check_guild_permissions(ctx, perms)
 
     def decorator(func: T) -> T:
