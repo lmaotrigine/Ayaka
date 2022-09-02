@@ -242,13 +242,6 @@ CREATE TABLE IF NOT EXISTS tz_store (
     tz TEXT
 );
 
-CREATE TABLE IF NOT EXISTS todo (
-    id SERIAL PRIMARY KEY,
-    entity_id BIGINT,
-    content TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT (now() at time zone 'utc')
-);
-
 -- private extensions
 
 CREATE TABLE IF NOT EXISTS connect_four_games (

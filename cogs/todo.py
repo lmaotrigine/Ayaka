@@ -6,14 +6,24 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
+import asyncio
 import datetime
-from typing import TYPE_CHECKING
+import logging
+import random
+import re
+import textwrap
+from typing import TYPE_CHECKING, Any
 
+import asyncpg
 import discord
-from discord.ext import commands
+from discord import app_commands, ui
+from discord.ext import commands, menus, tasks
+from discord.utils import MISSING
 
-from utils import checks, time
-from utils.paginator import SimplePages
+from utils import cache, fuzzy, time
+from utils.formats import plural
+from utils.paginator import FieldPageSource, RoboPages
+from utils.ui import ConfirmationView
 
 
 if TYPE_CHECKING:
@@ -21,172 +31,993 @@ if TYPE_CHECKING:
     from utils.context import Context
 
 
-class TodoEntry:
-    __slots__ = ('id', 'content', 'created')
-
-    def __init__(self, entry):
-        self.id = entry['id']
-        self.content = entry['content']
-        self.created = entry['created_at']
-
-    def __str__(self):
-        return f'{self.id}: {self.content} [{time.human_timedelta(self.created)}]'
+log = logging.getLogger(__name__)
+MESSAGE_URL_REGEX = re.compile(
+    r'https?://(?:(ptb|canary|www)\.)?discord(?:app)?\.com/channels/'
+    r'(?P<guild_id>[0-9]{15,20}|@me)'
+    r'/(?P<channel_id>[0-9]{15,20})/(?P<message_id>[0-9]{15,20})/?$'
+)
 
 
-class TodoPages(SimplePages):
-    def __init__(self, entries, *, ctx, per_page=12):
-        converted = [TodoEntry(entry) for entry in entries]
-        super().__init__(converted, ctx=ctx, per_page=per_page)
+class InvalidTime(RuntimeError):
+    pass
+
+
+def get_shortened_string(length: int, start: int, string: str) -> str:
+    full_length = len(string)
+    if full_length <= 100:
+        return string
+    
+    todo_id, _, _ = string.partition(' - ')
+    start_index = len(todo_id) + 3
+    max_remaining_length = 100 - start_index
+
+    end = start + length
+    if start < start_index:
+        start = start_index
+    
+    # If the match is near the beginning then just extend it to the end
+    if end < 100:
+        if full_length > 100:
+            return string[:99] + '…'
+        return string[:100]
+    
+    has_end = end < full_length
+    excess = (end - start) - max_remaining_length + 1
+    if has_end:
+        return f'{todo_id} - …{string[start + excess + 1:end]}…'
+    return f'{todo_id} - …{string[start + excess:end]}'
+
+
+def ensure_future_time(argument: str, now: datetime.datetime) -> datetime.datetime:
+    try:
+        converter = time.Time(argument, now=now)
+    except commands.BadArgument:
+        random_future = now + datetime.timedelta(days=random.randint(3, 60))
+        raise InvalidTime(f'Due date could not be parsed, sorry. Try something like "tomorrow" or "{random_future.date()}".')
+    
+    minimum_time = now + datetime.timedelta(minutes=5)
+    if converter.dt < minimum_time:
+        raise InvalidTime('Due date must be at least 5 minutes in the future.')
+    
+    return converter.dt
+
+
+def state_emoji(opt: bool | None) -> str:
+    lookup = {
+        True: '<:completed:1015319941811015764>',
+        # False: '<:overdue:1015319939260882974>,
+        False: '<:overdue:1015319935234351206>',
+        None: '<:pending:1015319932248010773>',
+    }
+    return lookup[opt]
+
+
+class TodoItem:
+    cog: Todo
+    bot: Ayaka
+    id: int
+    user_id: int
+    channel_id: int | None
+    guild_id: int | None
+    message_id: int | None
+    due_date: datetime.datetime | None
+    content: str | None
+    completed_at: datetime.datetime | None
+    cached_content: str | None
+    reminder_triggered: bool
+    message: discord.Message | None
+
+    def __init__(self, cog: Todo, record: Any) -> None:
+        self.cog = cog
+        self.bot = cog.bot
+        self.id = record['id']
+        self.user_id = record['user_id']
+        self.channel_id = record.get('channel_id')
+        self.guild_id = record.get('guild_id')
+        self.message_id = record.get('message_id')
+        self.due_date = record.get('due_date')
+        self.content = record.get('content')
+        self.completed_at = record.get('completed_at')
+        self.cached_content = record.get('cached_content')
+        self.reminder_triggered = record.get('reminder_triggered', False)
+        self.message = None
+    
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__} id={self.id} user_id={self.user_id} due_date={self.due_date} content={self.content} completed_at={self.completed_at} triggered={self.reminder_triggered}>'
+    
+    @property
+    def jump_url(self) -> str | None:
+        if self.message is not None:
+            return self.message.jump_url
+        
+        if self.message_id and self.channel_id:
+            guild = self.guild_id or '@me'
+            return f'https://discord.com/channels/{guild}/{self.channel_id}/{self.message_id}'
+        return None
+
+    @property
+    def choice_text(self) -> str:
+        content = []
+        if self.content is not None:
+            content.append(self.content)
+        if self.message is None:
+            if self.cached_content:
+                content.append(self.cached_content)
+        else:
+            content.append(self.message.content)
+        return f'{self.id} - {" | ".join(content)}'
+    
+    def to_select_option(self, value: Any, *, default: bool = False) -> discord.SelectOption:
+        description = 'No message'
+        if self.cached_content:
+            description = textwrap.shorten(self.cached_content, width=100, placeholder='…')
+        if self.content:
+            label = textwrap.shorten(f'{self.id}: {self.content}', width=100, placeholder='…')
+        else:
+            label = f'{self.id}: No content'
+        
+        return discord.SelectOption(label=label, value=str(value), description=description, emoji=self.emoji, default=default)
+    
+    @property
+    def completion_state(self) -> bool | None:
+        """
+        None => pending/undone
+        True => completed
+        False => overdue
+        """
+        state = None
+        if self.due_date is not None and self.due_date <= discord.utils.utcnow():
+            state = False
+        if self.completed_at is not None:
+            state = True
+        return state
+    
+    @property
+    def emoji(self) -> str:
+        return state_emoji(self.completion_state)
+    
+    @property
+    def field_tuple(self) -> tuple[str, str]:
+        state = self.completion_state
+        if self.content is None:
+            name = f'Todo {self.id}: No content'
+        else:
+            name = f'Todo {self.id}: {textwrap.shorten(self.content, width=100, placeholder="…")}'
+        
+        value = ''
+        if state is False:
+            if self.due_date:
+                value = f'Overdue: {time.format_dt(self.due_date, "R")}'
+        elif state is None and self.due_date:
+            value = f'Due: {time.format_dt(self.due_date, "R")}'
+        elif self.completed_at:
+            value = f'Completed: {time.format_dt(self.completed_at)}'
+        
+        if self.cached_content:
+            url = self.jump_url
+            shortened = textwrap.shorten(self.cached_content, width=100, placeholder='…')
+            if url:
+                value = f'[Jump!]({url}) \N{EM DASH} {shortened}\n{value}'
+            else:
+                value = f'{shortened}\n{value}'
+        
+        return name, value or '...'
+    
+    @property
+    def embed(self) -> discord.Embed:
+        # Colours are...
+        # 0x7d7d7d grey, for pending
+        # 0xfe5944 red, for overdue
+        # 0x40af7c green, for completed
+
+        embed = discord.Embed(title=f'Todo {self.id}', colour=0x7d7d7d)
+
+        url = self.jump_url
+        if self.message is not None:
+            embed.description = self.message.content
+            author = self.message.author
+            embed.set_author(name=author, icon_url=author.display_avatar)
+            if self.content:
+                embed.add_field(name='Content', value=self.content, inline=False)
+        else:
+            if self.cached_content is not None:
+                embed.description = self.cached_content
+                if self.content:
+                    embed.add_field(name='Content', value=self.content, inline=False)
+            else:
+                embed.description = self.content
+        
+        if url:
+            embed.add_field(name='Jump to Message', value=f'[Jump!]({url})', inline=False)
+        
+        if self.due_date:
+            embed.set_footer(text='Due').timestamp = self.due_date
+            if discord.utils.utcnow() > self.due_date:
+                embed.colour = 0xfe5944
+                embed.set_footer(text='Overdue')
+        
+        if self.completed_at:
+            embed.set_footer(text='Completed').timestamp = self.completed_at
+            embed.colour = 0x40af7c
+        
+        return embed
+    
+    @property
+    def channel(self) -> discord.PartialMessageable | None:
+        if self.channel_id is not None:
+            return self.bot.get_partial_messageable(self.channel_id, guild_id=self.guild_id)
+        return None
+    
+    async def fetch_message(self) -> None:
+        channel = self.channel
+        if channel is not None and self.message_id is not None:
+            self.message = await self.cog.get_message(channel, self.message_id)
+            if self.message and self.message.content != self.cached_content:
+                self.cached_content = self.message.content
+                query = 'UPDATE todo SET cached_content = $1 WHERE id = $2'
+                await self.bot.pool.execute(query, self.cached_content, self.id)
+    
+    async def edit(
+        self,
+        *,
+        content: str | None = MISSING,
+        due_date: datetime.datetime | None = MISSING,
+        message: discord.Message | None = MISSING,
+        completed_at: datetime.datetime | None = MISSING,
+    ) -> None:
+        # This is taking advantage of the fact that dicts are ordered.
+        columns: dict[str, Any] = {}
+
+        if content is not MISSING:
+            columns['content'] = content
+        
+        if due_date is not MISSING:
+            columns['due_date'] = due_date
+            columns['reminder_triggered'] = False
+        
+        if message is not MISSING:
+            if message is None:
+                columns['message_id'] = None
+                columns['channel_id'] = None
+                columns['guild_id'] = None
+                columns['cached_content'] = None
+            else:
+                columns['message_id'] = message.id
+                columns['channel_id'] = message.channel.id
+                if isinstance(message.channel, discord.PartialMessageable):
+                    columns['guild_id'] = message.channel.guild_id
+                else:
+                    columns['guild_id'] = message.guild and message.guild.id
+                columns['cached_content'] = message.content
+        
+        if completed_at is not MISSING:
+            columns['completed_at'] = completed_at
+        
+        query = f'UPDATE todo SET {", ".join(f"{k} = ${i}" for i, k in enumerate(columns, start=1))} WHERE id = ${len(columns) + 1}'
+        await self.bot.pool.execute(query, *columns.values(), self.id)
+
+        if due_date is not MISSING:
+            self.cog.check_for_task_resync(self.id, due_date)
+        
+        for attr, value in columns.items():
+            setattr(self, attr, value)
+        
+        if message is not MISSING:
+            self.message = message
+    
+    async def delete(self) -> None:
+        query = 'DELETE FROM todo WHERE id = $1'
+        await self.bot.pool.execute(query, self.id)
+
+
+class ActiveDueTodo(TodoItem):
+    due_date: datetime.datetime
+
+
+class EditDueDateModal(discord.ui.Modal, title='Edit Due Date'):
+    due_date = ui.TextInput(label='Due Date', placeholder='e.g. 5m, 2022-12-31, tomorrow, etc.', max_length=100)
+
+    def __init__(self, item: TodoItem, *, required: bool = False) -> None:
+        super().__init__()
+        self.item = item
+        if required:
+            self.due_date.min_length = 2
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        value = self.due_date.value
+        if not value:
+            due_date = None
+        else:
+            try:
+                due_date = ensure_future_time(value, interaction.created_at)
+            except InvalidTime as e:
+                await interaction.response.send_message(str(e), ephemeral=True)
+                return
+        
+        await interaction.response.defer(ephemeral=True)
+        await self.item.edit(due_date=due_date)
+        if due_date is None:
+            msg = 'Removed due date.'
+        else:
+            msg = f'Set due date to {time.format_dt(due_date)} ({time.format_dt(due_date, "R")}).'
+        
+        await interaction.followup.send(msg, ephemeral=True)
+
+
+class EditTodoModal(ui.Modal, title='Edit Todo'):
+    due_date = ui.TextInput(label='Due Date', placeholder='e.g. 5m, 2022-12-31, tomorrow, etc.', max_length=100, required=False)
+    message_url = ui.TextInput(
+        label='Message',
+        placeholder='https://discord.com/channels/714196770879438888/714197153504952481/714360330360193105',
+        max_length=120,
+        required=False,
+    )
+    content = ui.TextInput(label='Content', max_length=1024, style=discord.TextStyle.long, required=False)
+
+    def __init__(self, item: TodoItem) -> None:
+        super().__init__(custom_id=f'todo-edit-{item.id}')
+        self.title = f'Edit Todo {item.id}'
+        self.item = item
+        if item.due_date is not None:
+            self.due_date.default = item.due_date.isoformat(' ', 'minutes')
+        
+        url = item.jump_url
+        if url is not None:
+            self.message_url.default = url
+        
+        if item.content is not None:
+            self.content.default = item.content
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        kwargs: dict[str, Any] = {}
+        due_date = self.due_date.value
+        if due_date != self.due_date.default:
+            if not due_date:
+                due_date = None
+            else:
+                try:
+                    due_date = ensure_future_time(due_date, interaction.created_at)
+                except InvalidTime as e:
+                    await interaction.followup.send(str(e), ephemeral=True)
+                    return
+            
+            kwargs['due_date'] = due_date
+        
+        message_url = self.message_url.value
+        if message_url != self.message_url.default:
+            if not message_url:
+                message = None
+            else:
+                match = MESSAGE_URL_REGEX.match(message_url)
+                if match is None:
+                    await interaction.followup.send('Message URL could not be parsed, sorry. Be sure to use the "Copy Message Link" context menu!', ephemeral=True)
+                    return
+                
+                message_id = int(match.group('message_id'))
+                channel_id = int(match.group('channel_id'))
+                guild_id = match.group('guild_id')
+                guild_id = None if guild_id == '@me' else int(guild_id)
+                channel = self.item.bot.get_partial_messageable(channel_id, guild_id=guild_id)
+                message = await self.item.cog.get_message(channel, message_id)
+                if message is None:
+                    await interaction.followup.send('That message was not found, sorry. Maybe it was deleted or I can\'t see it.', ephemeral=True)
+            kwargs['message'] = message
+        
+        note = self.content.value
+        if note != self.content.default:
+            kwargs['content'] = note
+        
+        if kwargs:
+            await self.item.edit(**kwargs)
+        
+        await interaction.followup.send('Successfully edited todo!', ephemeral=True)
+
+
+class AddTodoModal(ui.Modal, title='Add Todo'):
+    content = ui.TextInput(label='Content (optional)', max_length=1024, required=False, style=discord.TextStyle.long)
+
+    due_date = ui.TextInput(label='Due Date (optional)', placeholder='e.g. 5m, 2022-12-31, tomorrow, etc.', max_length=100, required=False)
+
+    def __init__(self, cog: Todo, message: discord.Message) -> None:
+        super().__init__(custom_id=f'todo-add-{message.id}')
+        self.cog = cog
+        self.message = message
+    
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        due_date = self.due_date.value
+        if not due_date:
+            due_date = None
+        else:
+            try:
+                due_date = ensure_future_time(due_date, interaction.created_at)
+            except InvalidTime as e:
+                await interaction.response.send_message(str(e), ephemeral=True)
+                return
+        
+        note = self.content.value or None
+        await interaction.response.defer(ephemeral=True)
+        item = await self.cog.add_todo(user_id=interaction.user.id, message=self.message, due_date=due_date, title=note)
+        await interaction.followup.send(content=f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', embed=item.embed, ephemeral=True)
+
+
+class EditDueDateButton(ui.Button):
+    def __init__(
+        self,
+        todo: TodoItem,
+        *,
+        label: str = 'Add Due Date',
+        style: discord.ButtonStyle = discord.ButtonStyle.green,
+        required: bool = False
+    ) -> None:
+        super().__init__(label=label, style=style)
+        self.todo = todo
+        self.required = required
+    
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.todo.user_id:
+            await interaction.response.send_message('This button is not meant for you, sorry.', ephemeral=True)
+            return
+        modal = EditDueDateModal(self.todo, required=self.required)
+        await interaction.response.send_modal(modal)
+
+
+class TodoPageSource(menus.ListPageSource):
+    def __init__(self, todos: list[TodoItem]) -> None:
+        super().__init__(entries=todos, per_page=1)
+    
+    async def format_page(self, menu: TodoPages, page: TodoItem) -> discord.Embed:
+        if page.channel is not None and page.message is None:
+            await page.fetch_message()
+        return page.embed
+
+
+class BriefTodoPageSource(FieldPageSource):
+    def __init__(self, todos: list[TodoItem]) -> None:
+        super().__init__(entries=[todo.field_tuple for todo in todos], per_page=12)
+
+
+class TodoPages(RoboPages):
+    def __init__(self, todos: list[TodoItem], ctx: Context) -> None:
+        self.todos = todos
+        self.select_menu: ui.Select | None = None
+        if 25 >= len(todos) > 1:
+            select = ui.Select(placeholder=f'Select a todo ({len(todos)} todos found)', options=[todo.to_select_option(idx) for idx, todo in enumerate(todos)])
+            select.callback = self.selected
+            self.select_menu = select
+        super().__init__(TodoPageSource(todos), ctx=ctx, compact=True)
+    
+    @property
+    def active_todo(self) -> TodoItem:
+        return self.todos[self.current_page]
+    
+    def _update_labels(self, page_number: int) -> None:
+        super()._update_labels(page_number)
+        is_complete = self.active_todo.completed_at is not None
+        button = self.complete_todo
+        if is_complete:
+            button.style = discord.ButtonStyle.grey
+            button.label = 'Mark as not complete'
+        else:
+            button.style = discord.ButtonStyle.green
+            button.label = 'Mark as complete'
+        
+        if self.select_menu:
+            self.select_menu.options = [todo.to_select_option(idx) for idx, todo in enumerate(self.todos)]
+    
+    def fill_items(self) -> None:
+        super().fill_items()
+        if self.select_menu:
+            self.clear_items()
+            self.add_item(self.select_menu)
+        
+        self.add_item(self.complete_todo)
+        self.add_item(self.edit_todo)
+        self.add_item(self.delete_todo)
+    
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        await super().on_error(interaction, error, item)
+        log.error('Error in todo menu', exc_info=error)
+    
+    async def selected(self, interaction: discord.Interaction) -> None:
+        assert self.select_menu is not None
+        page = int(self.select_menu.values[0])
+        await self.show_page(interaction, page)
+    
+    @ui.button(label='Mark as complete', style=discord.ButtonStyle.green, row=2)
+    async def complete_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        active = self.active_todo
+        if active.completed_at is not None:
+            completed_at = None
+            text = f'Successfully marked {active.id} as not complete.'
+        else:
+            completed_at = interaction.created_at
+            text = f'Successfully marked {active.id} as complete.'
+        
+        await active.edit(completed_at=completed_at)
+        self._update_labels(self.current_page)
+        await interaction.response.edit_message(embed=active.embed, view=self)
+        await interaction.followup.send(text, ephemeral=True)
+    
+    @ui.button(label='Edit', style=discord.ButtonStyle.grey, row=2)
+    async def edit_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        modal = EditTodoModal(self.active_todo)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
+
+        assert interaction.message is not None
+        await interaction.message.edit(view=self, embed=modal.item.embed)
+    
+    @ui.button(label='Delete', style=discord.ButtonStyle.red, row=2)
+    async def delete_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        assert interaction.message is not None
+        confirm = ConfirmationView(timeout=60.0, author_id=interaction.user.id, delete_after=True)
+        await interaction.response.send_message('Are you sure you want to delete this todo?', view=confirm, ephemeral=True)
+        await confirm.wait()
+        if not confirm.value:
+            await interaction.followup.send('Aborting', ephemeral=True)
+            return
+        
+        todo = self.active_todo
+        await todo.delete()
+        del self.todos[self.current_page]
+
+        if len(self.todos) == 0:
+            await interaction.message.edit(view=None, content='No todos found!', embeds=[])
+            self.stop()
+            return
+        
+        previous = max(0, self.current_page - 1)
+        await self.show_page(interaction, previous)
+        todo.cog.get_todos.invalidate(self, interaction.user.id)
+
+
+class AddAnywayButton(ui.Button):
+    def __init__(self, cog: Todo, message: discord.Message, row: int = 2) -> None:
+        super().__init__(label='Add Anyway', style=discord.ButtonStyle.blurple, row=row)
+        self.cog = cog
+        self.message = message
+    
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_modal(AddTodoModal(self.cog, self.message))
+
+
+class ShowTodo(ui.View):
+    def __init__(self, item: TodoItem) -> None:
+        super().__init__(timeout=600.0)
+        self.item = item
+
+        if item.completed_at is not None:
+            self.complete_todo.style = discord.ButtonStyle.grey
+            self.complete_todo.label = 'Mark as not complete'
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.item.user_id:
+            await interaction.response.send_message('This button is not meant for you, sorry.', ephemeral=True)
+            return False
+        return True
+    
+    @ui.button(label='Mark as complete', style=discord.ButtonStyle.green)
+    async def complete_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        if button.style is discord.ButtonStyle.grey:
+            completed_at = None
+            button.style = discord.ButtonStyle.green
+            button.label = 'Mark as complete'
+            text = f'Successfully marked {self.item.id} as not complete.'
+        else:
+            completed_at = interaction.created_at
+            button.style = discord.ButtonStyle.grey
+            button.label = 'Mark as not complete'
+            text = f'Successfully marked {self.item.id} as complete.'
+        
+        await self.item.edit(completed_at=completed_at)
+        await interaction.response.edit_message(embed=self.item.embed, view=self)
+        await interaction.followup.send(text, ephemeral=True)
+    
+    @ui.button(label='Edit', style=discord.ButtonStyle.grey)
+    async def edit_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        modal = EditTodoModal(self.item)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
+        assert interaction.message is not None
+        await interaction.message.edit(view=self, embed=modal.item.embed)
+    
+    @ui.button(label='Delete', style=discord.ButtonStyle.red)
+    async def delete_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        assert interaction.message is not None
+        confirm = ConfirmationView(timeout=60.0, author_id=interaction.user.id, delete_after=True)
+        await interaction.response.send_message('Are you sure you want to delete this todo?', view=confirm, ephemeral=True)
+        await confirm.wait()
+        if not confirm.value:
+            await interaction.followup.send('Aborting', ephemeral=True)
+            return
+        
+        await self.item.delete()
+        await interaction.followup.send(f'Successfully deleted {self.item.id}', ephemeral=True)
+        await interaction.message.delete()
+        self.stop()
+        self.item.cog.get_todos.invalidate(self, interaction.user.id)
+
+
+class DueTodoView(ShowTodo):
+    message: discord.Message
+
+    async def on_timeout(self) -> None:
+        try:
+            await self.message.edit(view=None)
+        except discord.HTTPException:
+            pass
+    
+    @ui.button(label='Snooze', style=discord.ButtonStyle.blurple)
+    async def edit_todo(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        modal = EditDueDateModal(self.item, required=True)
+        modal.title = 'Snooze Todo'
+        modal.due_date.placeholder = '10 minutes'
+        modal.due_date.default = '10 minutes'
+        modal.due_date.label = 'Duration'
+        await interaction.response.send_modal(modal)
+        await modal.wait()
+
+        assert interaction.message is not None
+        await interaction.message.edit(view=self, embed=modal.item.embed)
+
+
+class AmbiguousTodo(ShowTodo):
+    def __init__(self, todos: list[TodoItem], message: discord.Message) -> None:
+        todo = todos[0]
+        super().__init__(todo)
+        self.todos = todos
+
+        if len(todos) > 25:
+            placeholder = f'Select a todo (only 25 out of {len(todos)} todos shown)'
+        else:
+            placeholder = f'Select a todo ({len(todos)} todos found)'
+        
+        self.select = ui.Select(placeholder=placeholder, options=[todo.to_select_option(idx) for idx, todo in enumerate(todos[:25])])
+        self.select.callback = self.selected
+        self.clear_items()
+        self.add_item(self.select)
+        self.add_item(self.complete_todo)
+        self.add_item(self.edit_todo)
+        self.add_item(self.delete_todo)
+        self.add_item(AddAnywayButton(todo.cog, message))
+    
+    async def selected(self, interaction: discord.Interaction) -> None:
+        index = int(self.select.values[0])
+        self.item = self.todos[index]
+        button = self.complete_todo
+        if self.item.completed_at is not None:
+            button.style = discord.ButtonStyle.grey
+            button.label = 'Mark as not complete'
+        else:
+            button.style = discord.ButtonStyle.green
+            button.label = 'Mark as complete'
+        await interaction.response.edit_message(embed=self.item.embed, view=self)
+
+
+class ListFlags(commands.FlagConverter):
+    completed: bool = commands.flag(description='Include completed todos, defaults to False', default=False, aliases=['complete'])
+    pending: bool = commands.flag(description='Include pending todos, defaults to True', default=True)
+    overdue: bool = commands.flag(description='Include overdue todos, defaults to True', default=True)
+    brief: bool = commands.flag(description='Show a brief summary rather than detailed pages of todos, defaults to False', default=False, aliases=['compact'])
+    private: bool = commands.flag(description='Hide the todo list from others, defaults to False', default=False)
 
 
 class Todo(commands.Cog):
-    """To-do lists."""
+    """Manage a todo list"""
 
-    def __init__(self, bot: Ayaka):
+    def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
-
+        self.active_todo: ActiveDueTodo | None = None
+        self._task: asyncio.Task[None] = MISSING
+        self._message_cache: dict[int, discord.Message] = {}
+        self.ctx_menu = app_commands.ContextMenu(name='Add Todo', callback=self.todo_add_context_menu)
+        self.bot.tree.add_command(self.ctx_menu)
+    
+    async def cog_load(self) -> None:
+        self._task = self.bot.loop.create_task(self.run_due_date_reminders())
+        self.cleanup_message_cache.start()
+        self.cleanup_todo.start()
+    
+    def cog_unload(self) -> None:
+        if self._task:
+            self._task.cancel()
+        self.cleanup_message_cache.cancel()
+        self.cleanup_todo.cancel()
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+    
     @property
     def display_emoji(self) -> discord.PartialEmoji:
-        return discord.PartialEmoji(name='\N{BALLOT BOX WITH CHECK}\ufe0f')
-
-    async def cog_command_error(self, ctx: Context, error):
-        if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument)):
-            await ctx.send(f'{error}')
-
-    @commands.hybrid_group(name='todo', fallback='list')
-    async def _todo(self, ctx):
-        """Manage your personal to-do list."""
-        await self.do_list(ctx, ctx.author)
-
-    async def do_list(self, ctx: Context, entity):
-        records = await ctx.db.fetch('SELECT content, created_at FROM todo WHERE entity_id = $1;', entity.id)
-        if not records:
-            return await ctx.send(f'{entity} has no todo items pending.')
-        items = [(record['content'], record['created_at']) for record in records]
-        to_paginate = [{'id': i, 'content': content, 'created': created} for i, (content, created) in enumerate(items, 1)]
-        p = TodoPages(to_paginate, ctx=ctx)
-        if isinstance(entity, (discord.User, discord.Member)):
-            p.embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
-        else:
-            if not isinstance(entity, discord.Guild):
-                name = f'#{entity.name}'
-                entity = entity.guild
-            else:
-                name = entity.name
-            p.embed.set_author(name=name, icon_url=entity.icon.url if entity.icon else None)
-        await p.start()
-
-    async def do_remove(self, ctx: Context, entity, index):
-        query = 'SELECT id FROM todo WHERE entity_id = $1 order by id;'
-        records = await self.bot.pool.fetch(query, entity.id)
-        items = [record['id'] for record in records]
+        return discord.PartialEmoji(name='\N{CLIPBOARD}')
+    
+    async def get_message(self, channel: discord.abc.Messageable, message_id: int) -> discord.Message | None:
         try:
-            _id = items.pop(index - 1)
-        except IndexError:
-            raise commands.BadArgument('Invalid todo index provided.')
-        async with self.bot.pool.acquire() as con:
-            await con.execute('DELETE FROM todo WHERE id = $1;', _id)
-        await ctx.send(f'Removed todo item at position `{index}`')
-
-    async def do_add(self, ctx: Context, entity, content, created=None):
-        created = created or datetime.datetime.utcnow()
-        query = 'INSERT INTO todo (entity_id, content, created_at) VALUES ($1, $2, $3);'
-        async with self.bot.pool.acquire() as con:
-            await con.execute(query, entity.id, content, created)
-        await ctx.send('\N{OK HAND SIGN}')
-
-    @_todo.command(name='remove')
-    async def todo_remove(self, ctx: Context, index: int):
-        """Remove an item from your to-do list."""
-        await self.do_remove(ctx, ctx.author, index)
-
-    @_todo.command(name='add')
-    async def todo_add(self, ctx: Context, *, content):
-        """Add an item to your to-do list."""
-        await self.do_add(ctx, ctx.author, content, created=ctx.message.created_at)
-
-    @_todo.command(name='clear')
-    async def todo_clear(self, ctx):
-        """Clear all your to-do items."""
-        query = 'DELETE FROM todo WHERE entity_id = $1;'
-        confirm = await ctx.prompt('This will clear all your personal todos across all servers.\nAre you sure?')
-        if not confirm:
-            return
-        res = await ctx.db.execute(query, ctx.author.id)
-        if res == 'DELETE 0':
-            await ctx.send("You don't have any personal todo items, hence nothing was deleted.")
+            return self._message_cache[message_id]
+        except KeyError:
+            try:
+                msg = await channel.fetch_message(message_id)
+            except discord.HTTPException:
+                return None
+            else:
+                self._message_cache[message_id] = msg
+                return msg
+    
+    @tasks.loop(hours=1)
+    async def cleanup_message_cache(self) -> None:
+        self._message_cache.clear()
+    
+    @tasks.loop(time=datetime.time(0, 0, 0, tzinfo=datetime.timezone.utc))
+    async def cleanup_todo(self) -> None:
+        status = await self.bot.pool.execute(
+            """DELETE FROM todo WHERE completed_at IS NOT NULL AND completed_at < CURRENT_TIMESTAMP - '90 days'::interval"""
+        )
+        count = status.replace('DELETE ', '')
+        log.info('Cleaned up %s todo items.', count)
+    
+    def check_for_task_resync(self, todo_id: int, new_date: datetime.datetime | None = None) -> bool:
+        if self.active_todo is None:
+            if new_date is not None:
+                self._task.cancel()
+                self._task = self.bot.loop.create_task(self.run_due_date_reminders())
+                return True
         else:
-            await ctx.send('Deleted all your personal todo items.')
+            is_earlier = new_date is not None and self.active_todo.due_date > new_date
+            if self.active_todo.id == todo_id or is_earlier:
+                self._task.cancel()
+                self._task = self.bot.loop.create_task(self.run_due_date_reminders())
+                return True
+        
+        return False
+    
+    async def get_earliest_due_todo(self) -> ActiveDueTodo | None:
+        query = """SELECT * FROM todo
+                   WHERE completed_at IS NULL AND due_date IS NOT NULL AND NOT reminder_triggered
+                   ORDER BY due_date LIMIT 1;
+                """
+        record = await self.bot.pool.fetchrow(query)
+        if record is None:
+            return None
+        return ActiveDueTodo(self, record)
+    
+    async def run_due_date_reminders(self) -> None:
+        try:
+            while not self.bot.is_closed():
+                todo = self.active_todo = await self.get_earliest_due_todo()
+                if todo is None:
+                    # Nothing is currently due for some reason so just wait 5 minutes to check again.
+                    await asyncio.sleep(300)
+                else:
+                    assert todo.due_date is not None  # this is asserted by the query
+                    await discord.utils.sleep_until(todo.due_date)
+                    await self.send_due_date_reminder(todo)
+        except (OSError, asyncpg.PostgresConnectionError):
+            self._task.cancel()
+            self._task = self.bot.loop.create_task(self.run_due_date_reminders())
+    
+    async def send_due_date_reminder(self, todo: ActiveDueTodo) -> None:
+        await self.bot.pool.execute('UPDATE todo SET reminder_triggered = TRUE WHERE id = $1', todo.id)
+        if todo.message_id is not None and todo.message is None:
+            await todo.fetch_message()
+        
+        try:
+            user = self.bot.get_user(todo.user_id)
+            if user is None:
+                dm = await self.bot.create_dm(discord.Object(todo.user_id))
+            else:
+                dm = await user.create_dm()
+            view = DueTodoView(todo)
+            view.message = await dm.send(f'You asked to be reminded of this todo', embed=todo.embed, view=view)
+        except discord.HTTPException:
+            log.warning('Could not send due date reminder to %s', todo.user_id)
+    
+    async def todo_id_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+        todos = await self.get_todos(interaction.user.id)
+        results = fuzzy.finder(current, todos, key=lambda t: t.choice_text, raw=True)
+        return [app_commands.Choice(name=get_shortened_string(length, start, todo.choice_text), value=todo.id) for length, start, todo in results[:20]]
+    
+    async def add_todo(self, *, user_id: int, title: str | None = None, message: discord.Message | None = None, due_date: datetime.datetime | None = None) -> TodoItem:
+        parameters: list[Any] = [user_id]
+        query = """INSERT INTO todo (
+                       user_id,
+                       channel_id,
+                       message_id,
+                       guild_id,
+                       cached_content,
+                       due_date,
+                       title
+                   ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                   RETURNING *;
+                """
+        
+        if message is not None:
+            if isinstance(message.channel, discord.PartialMessageable):
+                guild_id = message.channel.guild_id
+            else:
+                guild_id = message.guild and message.guild.id
+            parameters.extend([message.channel.id, message.id, guild_id, message.content])
+        else:
+            parameters.extend([None, None, None, None])
+        
+        parameters.append(due_date)
+        parameters.append(title)
+        record = await self.bot.pool.fetchrow(query, *parameters)
+        result = TodoItem(self, record)
+        result.message = message
+        self.get_todos.invalidate(self, user_id)
+        return result
+    
+    @cache.cache()
+    async def get_todos(self, user_id: int, /) -> list[TodoItem]:
+        query = 'SELECT * FROM todo WHERE user_id = $1'
+        return [TodoItem(self, record) for record in await self.bot.pool.fetch(query, user_id)]
+    
+    async def get_todo_for_message(self, user_id: int, message_id: int, /) -> list[TodoItem]:
+        query = 'SELECT * FROM todo WHERE user_id = $1 AND message_id = $2'
+        return [TodoItem(self, record) for record in await self.bot.pool.fetch(query, user_id, message_id)]
+    
+    @commands.hybrid_group()
+    async def todo(self, ctx: Context) -> None:
+        """Manages a todo list"""
+        await ctx.send_help(ctx.command)
+    
+    @todo.command(name='add', with_app_command=False)
+    async def todo_add(self, ctx: Context, *, title: str | None = None) -> None:
+        """Add a todo item. Can be used as a reply to another message."""
 
-    @_todo.group(name='server', fallback='list')
-    @commands.guild_only()
-    async def todo_server(self, ctx):
-        """Manages this server's to-do list.
-
-        Requires you to have Manage Server permissions to modify.
+        reply = ctx.replied_message
+        if reply is None and title is None:
+            await ctx.send("There's nothing to remind you of here. You can reply to a message to be reminded of a message or you can pass the text you want to be reminded of")
+            return
+        
+        if title is not None and len(title) > 1024:
+            await ctx.send('The todo content is too long. The maximum length is 1024 characters.')
+            return
+        
+        item = await self.add_todo(user_id=ctx.author.id, title=title, message=reply)
+        view = discord.ui.View()
+        view.add_item(EditDueDateButton(item))
+        await ctx.send(f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', view=view, embed=item.embed)
+    
+    @todo.app_command.command(name='add')
+    async def todo_add_slash(self, interaction: discord.Interaction, title: str, due_date: app_commands.Transform[datetime.datetime, time.TimeTransformer] | None = None) -> None:
+        """Adds a todo item
+        
+        Parameters
+        -----------
+        title: :class:`str`
+            The title of the todo item
+        due_date: Optional[:class:`datetime.datetime`]
+            The due date (in UTC) of the todo item, e.g. 1h or tomorrow
         """
-        await self.do_list(ctx, ctx.guild)
 
-    @todo_server.command(name='add')
-    @checks.is_mod()
-    async def server_add(self, ctx: Context, *, content):
-        """Add an item to this server's to-do list."""
-        await self.do_add(ctx, ctx.guild, content, created=ctx.message.created_at)
-
-    @todo_server.command(name='remove')
-    @checks.is_mod()
-    async def server_remove(self, ctx: Context, index: int):
-        """Remove an item from this server's to-do list."""
-        await self.do_remove(ctx, ctx.guild, index)
-
-    @todo_server.command(name='clear')
-    @checks.is_mod()
-    async def server_clear(self, ctx):
-        """Clears this server's to-do list."""
-        query = 'DELETE FROM todo WHERE entity_id = $1;'
-        confirm = await ctx.prompt("This will clear all of this server's todos.\nAre you sure?")
-        if not confirm:
-            return
-        res = await ctx.db.execute(query, ctx.guild.id)
-        if res == 'DELETE 0':
-            await ctx.send('There are no pending todo items for this server, hence nothing was deleted.')
+        await interaction.response.defer(ephemeral=True)
+        item = await self.add_todo(user_id=interaction.user.id, title=title, due_date=due_date)
+        await interaction.response.send_message(f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', embed=item.embed, ephemeral=True)
+    
+    async def todo_add_context_menu(self, interaction: discord.Interaction, message: discord.Message) -> None:
+        # We have to make sure the following query takes <3s in order to meet the response window
+        todos = await self.get_todo_for_message(interaction.user.id, message.id)
+        if todos:
+            todo = todos[0]
+            for t in todos:
+                t.message = message
+            
+            if len(todos) == 1:
+                view = ShowTodo(todo)
+                view.add_item(AddAnywayButton(self, message))
+                msg = 'A todo was already found for this message, what would you like to do?'
+            else:
+                view = AmbiguousTodo(todos, message)
+                msg = 'Multiple todos were found for this message, what would you like to do?'
+            
+            await interaction.response.send_message(msg, view=view, embed=todo.embed, ephemeral=True)
         else:
-            await ctx.send('Deleted all todo items for this server.')
+            await interaction.response.send_modal(AddTodoModal(self, message))
+    
+    @todo.command(name='delete', aliases=['remove'])
+    @app_commands.describe(id='The todo item ID')
+    @app_commands.autocomplete(id=todo_id_autocomplete)
+    async def todo_delete(self, ctx: Context, *, id: int) -> None:
+        """Removes a todo by its ID"""
 
-    @_todo.group(name='channel', fallback='list')
-    @commands.guild_only()
-    async def todo_channel(self, ctx):
-        """Manages this channel's to-do list.
-        Requires you to have Manage Channels permissions to modify.
+        query = 'DELETE FROM todo WHERE id = $1 AND user_id = $2'
+        status = await self.bot.pool.execute(query, id, ctx.author.id)
+        if status == 'DELETE 0':
+            await ctx.send('Could not delete a todo item by this ID, are you sure it\'s yours?', ephemeral=True)
+        else:
+            await ctx.send('Successfully deleted todo', ephemeral=True)
+            self.check_for_task_resync(id)
+    
+    @todo.command(name='clear')
+    async def todo_clear(self, ctx: Context) -> None:
+        """Clears all todos you've made"""
+
+        await ctx.defer(ephemeral=True)
+
+        todos = await self.get_todos(ctx.author.id)
+
+        if len(todos) == 0:
+            await ctx.send('You have no todos to clear', ephemeral=True)
+            return
+        
+        confirm = await ctx.prompt(f'Are you sure you want to delete {plural(len(todos)):todo}?', delete_after=True)
+        if not confirm:
+            await ctx.send('Aborting', ephemeral=True, delete_after=15.0)
+            return
+        
+        query = 'DELETE FROM todo WHERE user_id = $1'
+        await self.bot.pool.execute(query, ctx.author.id)
+        await ctx.send('Successfully cleared all todos', ephemeral=True)
+
+        for todo in todos:
+            if self.check_for_task_resync(todo.id):
+                return
+    
+    @todo.command(name='list', aliases=['brief', 'compact'])
+    async def todo_list(self, ctx: Context, *, flags: ListFlags) -> None:
+        """Lists your todos
+        
+        This command uses a syntax similar to Discord's search bar.
+        
+        The following flags are valid.
+        
+        `overdue: yes` Include overdue todos, defaults to `yes`
+        `completed: yes` Include completed todos, defaults to `no`
+        `pending: yes` Include pending todos, defaults to `yes`
+        `brief: yes` Show a brief summary of each todo, defaults to `no`
         """
-        await self.do_list(ctx, ctx.channel)
 
-    @todo_channel.command(name='add')
-    @checks.has_guild_permissions(manage_channels=True)
-    async def channel_add(self, ctx: Context, *, content):
-        """Adds an item to this channel's to-do list."""
-        await self.do_add(ctx, ctx.channel, content, created=ctx.message.created_at)
+        # default query: SELECT * FROM todo WHERE user_id = $1 AND completed_at IS NULL
+        predicates = ['user_id = $1']
+        if not flags.overdue:
+            predicates.append('CURRENT_TIMESTAMP < due_date')
+        if not flags.completed:
+            predicates.append('completed_at IS NULL')
+        if not flags.pending:
+            predicates.append('completed_at IS NOT NULL')
+        
+        query = f'SELECT * FROM todo WHERE {" AND ".join(predicates)}'
+        todos = await self.bot.pool.fetch(query, ctx.author.id)
 
-    @todo_channel.command(name='remove')
-    @checks.has_guild_permissions(manage_channels=True)
-    async def channel_remove(self, ctx: Context, index: int):
-        """Removes an item from this channel's to-do list."""
-        await self.do_remove(ctx, ctx.channel, index)
-
-    @todo_channel.command(name='clear')
-    @checks.has_guild_permissions(manage_channels=True)
-    async def channel_clear(self, ctx):
-        """Clears this channel's to-do list."""
-        query = 'DELETE FROM todo WHERE entity_id = $1;'
-        confirm = await ctx.prompt("This will clear all of this channel's todos.\nAre you sure?")
-        if not confirm:
+        if len(todos) == 0:
+            await ctx.send('No todos found!', ephemeral=True)
             return
-        res = await ctx.db.execute(query, ctx.channel.id)
-        if res == 'DELETE 0':
-            await ctx.send('There are no pending todo items for this channel, hence nothing was deleted.')
+        
+        todos = [TodoItem(self, record) for record in todos]
+        if flags.brief or ctx.invoked_with in ('brief', 'compact'):
+            pages = RoboPages(BriefTodoPageSource(todos), ctx=ctx, compact=True)
+            await pages.start(ephemeral=flags.private)
         else:
-            await ctx.send('Deleted all todo items for this channel.')
+            pages = TodoPages(todos, ctx=ctx)
+            await pages.start(ephemeral=flags.private)
+    
+    @todo_list.error
+    async def todo_list_error(self, ctx: Context, error: Exception) -> None:
+        if isinstance(error, commands.FlagError):
+            msg = (
+                'There were some problems with the flags you passed in. Please note that only the following flags work:\n'
+                '`completed`, `pending`, `overdue`, and `brief`\n\n'
+                'Flags only accept "yes", "no", or "true", "false" as values. For example, `brief: yes`'
+            )
+            await ctx.send(msg, ephemeral=True)
+    
+    @todo.command(name='show')
+    @app_commands.describe(id='The todo item ID')
+    @app_commands.autocomplete(id=todo_id_autocomplete)
+    async def todo_show(self, ctx: Context, *, id: int) -> None:
+        """Shows information about a todo by its ID."""
+
+        query = 'SELECT * FROM todo WHERE id = $1 AND user_id = $2'
+        record = await self.bot.pool.fetchrow(query, id, ctx.author.id)
+        if record is None:
+            await ctx.send('Could not find a todo item by this ID, are you sure it\'s yours?', ephemeral=True)
+            return
+        
+        item = TodoItem(self, record)
+        view = ShowTodo(item)
+        await ctx.send(view=view, embed=item.embed, ephemeral=True)
 
 
-async def setup(bot):
+async def setup(bot: Ayaka) -> None:
     await bot.add_cog(Todo(bot))

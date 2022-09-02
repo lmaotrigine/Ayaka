@@ -693,7 +693,7 @@ class Stalking(commands.Cog):
         names = await self.nicks_for(user, since=timedelta(days=90))
         names = re.sub(r'([`*_])', r'\\\1', ', '.join(names))
         names = names.replace('@', '@\u200b')
-        await ctx.send(f'Nicks for {user} in the last 90 days\n{names}')
+        await ctx.safe_send(f'Nicks for {user} in the last 90 days\n{names}')
 
     @nicks.command(name='all')
     @commands.guild_only()
@@ -702,7 +702,7 @@ class Stalking(commands.Cog):
         names = await self.nicks_for(user)
         names = re.sub(r'([`*_])', r'\\\1', ', '.join(names))
         names = names.replace('@', '@\u200b')
-        await ctx.send(f'All nicks for {user}\n{names}')
+        await ctx.safe_send(f'All nicks for {user}\n{names}')
 
     @commands.command(name='stalk', aliases=['ui', 'ls'])
     async def _stalk(self, ctx: Context, *, user: discord.Member | discord.User = commands.Author) -> None:
