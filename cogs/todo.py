@@ -893,7 +893,13 @@ class Todo(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
         item = await self.add_todo(user_id=interaction.user.id, content=content, due_date=due_date)
-        await interaction.response.send_message(f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', embed=item.embed, ephemeral=True)
+        if due_date is None:
+            view = discord.ui.View()
+            view.add_item(EditDueDateButton(item))
+        else:
+            view = discord.utils.MISSING
+        
+        await interaction.response.send_message(f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', embed=item.embed, view=view, ephemeral=True)
     
     async def todo_add_context_menu(self, interaction: discord.Interaction, message: discord.Message) -> None:
         # We have to make sure the following query takes <3s in order to meet the response window
