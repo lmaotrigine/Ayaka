@@ -1364,8 +1364,7 @@ class Mod(commands.Cog):
 
     @commands.hybrid_command(usage='[flags...]')
     @commands.guild_only()
-    @checks.has_permissions(ban_members=True)
-    @app_commands.default_permissions(ban_members=True)
+    @checks.hybrid_permissions_check(ban_members=True)
     async def massban(self, ctx: GuildContext, *, args: MassbanFlags):
         """Mass bans multiple members from the server.
 
@@ -1655,8 +1654,7 @@ class Mod(commands.Cog):
 
     @commands.hybrid_command(aliases=['remove'], usage='[search] [flags...]')
     @commands.guild_only()
-    @checks.has_permissions(manage_messages=True)
-    @app_commands.default_permissions(manage_messages=True)
+    @checks.hybrid_permissions_check(manage_messages=True)
     @app_commands.describe(search='How many messages to search for')
     async def purge(self, ctx: GuildContext, search: Optional[commands.Range[int, 1, 2000]] = None, *, flags: PurgeFlags):
         """Removes messages that meet a criteria.
