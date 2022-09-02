@@ -214,7 +214,7 @@ class RTFX(commands.Cog):
 
         cache = list(self._rtfm_cache[key].items())
 
-        matches = fuzzy.finder(obj, cache, key=lambda t: t[0], lazy=False)
+        matches = fuzzy.finder(obj, cache, key=lambda t: t[0])
 
         e = discord.Embed(colour=self.bot.colour)
         if not matches:
@@ -242,7 +242,7 @@ class RTFX(commands.Cog):
 
         assert interaction.command is not None
         key = interaction.command.name
-        matches = fuzzy.finder(current, self._rtfm_cache[key], lazy=False)[:10]
+        matches = fuzzy.finder(current, self._rtfm_cache[key])[:10]
         return [app_commands.Choice(name=m, value=m) for m in matches]
 
     @commands.hybrid_group(aliases=['rtfd'], fallback='python')

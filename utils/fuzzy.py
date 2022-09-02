@@ -292,24 +292,24 @@ def extract_matches(
 
 @overload
 def finder(
-    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[True]
-) -> Generator[T, None, None]:
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: Literal[True]
+) -> list[tuple[int, int, T]]:
     ...
 
 
 @overload
-def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: Literal[False]) -> list[T]:
+def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: Literal[False]) -> list[T]:
     ...
 
 
 @overload
 def finder(
-    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., lazy: bool = ...
-) -> Generator[T, None, None] | list[T]:
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: bool = ...
+) -> list[T]:
     ...
 
 
-def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = None, lazy: bool = True):
+def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = None, raw: bool = False) -> list[tuple[int, int, T]] | list[T]:
     suggestions: list[tuple[int, int, T]] = []
     text = str(text)
     pat = '.*?'.join(map(re.escape, text))
@@ -325,14 +325,14 @@ def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None
             return tup[0], tup[1], key(tup[2])
         return tup
 
-    if lazy:
-        return (z for _, _, z in sorted(suggestions, key=sort_key))
+    if raw:
+        return sorted(suggestions, key=sort_key)
     else:
         return [z for _, _, z in sorted(suggestions, key=sort_key)]
 
 
 def find(text: str, collection: Iterable[str], *, key: Callable[[str], str] | None = None) -> str | None:
     try:
-        return finder(text, collection, key=key, lazy=False)[0]
+        return finder(text, collection, key=key)[0]
     except IndexError:
         return None
