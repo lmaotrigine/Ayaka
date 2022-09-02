@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from discord.ext import commands
+import discord
 from discord import app_commands
+from discord.ext import commands
+
 from . import battleship, gobblet
 
-import discord
 
 if TYPE_CHECKING:
     from bot import Ayaka

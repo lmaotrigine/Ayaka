@@ -6,11 +6,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
+import random
+from dataclasses import dataclass
 from typing import Optional
 
-from dataclasses import dataclass
 import discord
-import random
 
 
 @dataclass()
@@ -155,7 +155,9 @@ class Button(discord.ui.Button['BoardView']):
                 view = enemy_cell.button.view
                 await view.message.edit(content=f'You lose :(', view=view)
 
-            await self.view.parent_message.edit(content=f'{player.member.mention} wins this game of Battleship! Congratulations.')
+            await self.view.parent_message.edit(
+                content=f'{player.member.mention} wins this game of Battleship! Congratulations.'
+            )
             return
 
         content = f"{enemy.member.mention}'s turn."

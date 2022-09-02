@@ -303,13 +303,13 @@ def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None
 
 
 @overload
-def finder(
-    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: bool = ...
-) -> list[T]:
+def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: bool = ...) -> list[T]:
     ...
 
 
-def finder(text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = None, raw: bool = False) -> list[tuple[int, int, T]] | list[T]:
+def finder(
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = None, raw: bool = False
+) -> list[tuple[int, int, T]] | list[T]:
     suggestions: list[tuple[int, int, T]] = []
     text = str(text)
     pat = '.*?'.join(map(re.escape, text))

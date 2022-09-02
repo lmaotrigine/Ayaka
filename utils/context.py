@@ -104,7 +104,7 @@ class Context(commands.Context['Ayaka']):
         if ref and isinstance(ref.resolved, discord.Message):
             return ref.resolved.to_reference()
         return None
-    
+
     @discord.utils.cached_property
     def replied_message(self) -> discord.Message | None:
         ref = self.message.reference

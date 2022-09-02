@@ -6,12 +6,12 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from __future__ import annotations
 
+import enum
+import random
+from dataclasses import dataclass
 from typing import Optional
 
-from dataclasses import dataclass
-import enum
 import discord
-import random
 
 
 class BoardKind(enum.Enum):

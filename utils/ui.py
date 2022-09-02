@@ -78,7 +78,7 @@ class DisambiguatorView(discord.ui.View, Generic[T]):
                 opt = discord.SelectOption(label=str(opt))
             opt.value = str(i)
             options.append(opt)
-        
+
         select = discord.ui.Select(options=options)
 
         select.callback = self.on_select_submit

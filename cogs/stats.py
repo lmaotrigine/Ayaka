@@ -153,7 +153,7 @@ class Stats(commands.Cog):
         else:
             destination = f'#{message.channel} ({message.guild})'
             guild_id = ctx.guild.id
-        
+
         if ctx.interaction and ctx.interaction.command:
             content = f'/{ctx.interaction.command.qualified_name}'
         else:
