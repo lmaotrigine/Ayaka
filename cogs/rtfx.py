@@ -241,7 +241,7 @@ class RTFX(commands.Cog):
             return [app_commands.Choice(name=current, value=current)]
 
         assert interaction.command is not None
-        key = interaction.command.name
+        key = interaction.command.name.replace('discord-py', 'discord.py')
         matches = fuzzy.finder(current, self._rtfm_cache[key])[:10]
         return [app_commands.Choice(name=m, value=m) for m in matches]
 
