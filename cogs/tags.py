@@ -287,6 +287,26 @@ class Tags(commands.Cog):
         query = """SELECT name FROM tag_lookup WHERE location_id=$1 AND LOWER(name) % $2 LIMIT 12;"""
         results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, current.lower())
         return [app_commands.Choice(name=a, value=a) for a, in results]
+    
+    async def owned_non_aliased_tag_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        query = """SELECT name
+                   FROM tags
+                   WHERE location_id=$1 AND owner_id=$2 AND name % $3
+                   ORDER BY similarity(name, $3) DESC
+                   LIMIT 12;
+                """
+        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, interaction.user.id, current.lower())
+        return [app_commands.Choice(name=a, value=a) for a, in results]
+    
+    async def owned_aliased_tag_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        query = """SELECT name
+                   FROM tag_lookup
+                   WHERE location_id=$1 AND owner_id=$2 AND name % $3
+                   ORDER BY similarity(name, $3) DESC
+                   LIMIT 12;
+                """
+        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, interaction.user.id, current.lower())
+        return [app_commands.Choice(name=a, value=a) for a, in results]
 
     @commands.hybrid_group(fallback='get')
     @commands.guild_only()
@@ -616,7 +636,7 @@ class Tags(commands.Cog):
         name='The tag to edit',
         content='The new content of the tag, if not given then a modal is opened',
     )
-    @app_commands.autocomplete(name=non_aliased_tag_autocomplete)
+    @app_commands.autocomplete(name=owned_non_aliased_tag_autocomplete)
     async def edit(
         self,
         ctx: GuildContext,
@@ -663,7 +683,7 @@ class Tags(commands.Cog):
     @tag.command(aliases=['delete'])
     @commands.guild_only()
     @app_commands.describe(name='The tag to remove')
-    @app_commands.autocomplete(name=aliased_tag_autocomplete)
+    @app_commands.autocomplete(name=owned_aliased_tag_autocomplete)
     async def remove(self, ctx: GuildContext, *, name: Annotated[str, TagName(lower=True)]):
         """Removes a tag that you own.
 
