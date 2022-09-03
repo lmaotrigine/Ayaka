@@ -123,7 +123,9 @@ class Context(commands.Context['Ayaka']):
             raise ValueError('Too many results... sorry.')
 
         view = DisambiguatorView(self, matches, entry)
-        view.message = await self.send('There are too many matches... Which one did you mean?', view=view, ephemeral=ephemeral)
+        view.message = await self.send(
+            'There are too many matches... Which one did you mean?', view=view, ephemeral=ephemeral
+        )
         await view.wait()
         return view.selected
 

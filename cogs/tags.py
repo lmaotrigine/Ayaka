@@ -287,25 +287,33 @@ class Tags(commands.Cog):
         query = """SELECT name FROM tag_lookup WHERE location_id=$1 AND LOWER(name) % $2 LIMIT 12;"""
         results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, current.lower())
         return [app_commands.Choice(name=a, value=a) for a, in results]
-    
-    async def owned_non_aliased_tag_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+
+    async def owned_non_aliased_tag_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
         query = """SELECT name
                    FROM tags
                    WHERE location_id=$1 AND owner_id=$2 AND name % $3
                    ORDER BY similarity(name, $3) DESC
                    LIMIT 12;
                 """
-        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, interaction.user.id, current.lower())
+        results: list[tuple[str]] = await self.bot.pool.fetch(
+            query, interaction.guild_id, interaction.user.id, current.lower()
+        )
         return [app_commands.Choice(name=a, value=a) for a, in results]
-    
-    async def owned_aliased_tag_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+
+    async def owned_aliased_tag_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
         query = """SELECT name
                    FROM tag_lookup
                    WHERE location_id=$1 AND owner_id=$2 AND name % $3
                    ORDER BY similarity(name, $3) DESC
                    LIMIT 12;
                 """
-        results: list[tuple[str]] = await self.bot.pool.fetch(query, interaction.guild_id, interaction.user.id, current.lower())
+        results: list[tuple[str]] = await self.bot.pool.fetch(
+            query, interaction.guild_id, interaction.user.id, current.lower()
+        )
         return [app_commands.Choice(name=a, value=a) for a, in results]
 
     @commands.hybrid_group(fallback='get')
