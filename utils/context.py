@@ -112,7 +112,7 @@ class Context(commands.Context['Ayaka']):
             return ref.resolved
         return None
 
-    async def disambiguate(self, matches: list[T], entry: Callable[[T], Any]) -> T:
+    async def disambiguate(self, matches: list[T], entry: Callable[[T], Any], *, ephemeral: bool = False) -> T:
         if len(matches) == 0:
             raise ValueError('No results found.')
 
@@ -123,7 +123,7 @@ class Context(commands.Context['Ayaka']):
             raise ValueError('Too many results... sorry.')
 
         view = DisambiguatorView(self, matches, entry)
-        view.message = await self.send('There are too many matches... Which one did you mean?', view=view)
+        view.message = await self.send('There are too many matches... Which one did you mean?', view=view, ephemeral=ephemeral)
         await view.wait()
         return view.selected
 
@@ -137,7 +137,7 @@ class Context(commands.Context['Ayaka']):
     ) -> bool | None:
         author_id = author_id or self.author.id
         view = ConfirmationView(timeout=timeout, author_id=author_id, delete_after=delete_after)
-        view.message = await self.send(message, view=view)
+        view.message = await self.send(message, view=view, ephemeral=delete_after)
         await view.wait()
         return view.value
 

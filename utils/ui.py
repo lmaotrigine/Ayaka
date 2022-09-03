@@ -95,7 +95,8 @@ class DisambiguatorView(discord.ui.View, Generic[T]):
         index = int(self.select.values[0])
         self.selected = self.data[index]
         await interaction.response.defer()
-        await self.message.delete()
+        if not self.message.flags.ephemeral:
+            await self.message.delete()
         self.stop()
 
 
