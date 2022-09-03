@@ -33,9 +33,13 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
 MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vm|vt|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?\>?')
 DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(?:\?(?:.*))?\>?')
-INSTAGRAM_PATTERN = re.compile(r'\<?(?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+/(?:\?.*?\=)?\>?')
+INSTAGRAM_PATTERN = re.compile(r'\<?((?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+)/?(?:\?.*?\=)?\>?')
 
-BASE_URL = 'https://api16-normal-useast5.us.tiktokv.com/media/api/text/speech/invoke/'
+BASE_URLS = [
+    'api16-normal-useast5.us.tiktokv.com',
+    'api16-normal-c-alisg.tiktokv.com',
+    'api19-normal-useast1a.tiktokv.com',
+]
 VOICES: dict[str, str] = {
     # Default
     'default': 'Default',
@@ -108,9 +112,21 @@ class TiktokError(Exception):
         return 'Tiktok broke, sorry.'
 
 
+class FilesizeLimitExceeded(Exception):
+    def __init__(self, post: bool) -> None:
+        self.post = post
+        super().__init__('The filesize limit was exceeded for this guild.')
+
+
 class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
     def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(
+            name='Process TikTok link',
+            callback=self.tiktok_context_menu_callback,
+            guild_ids=[932533101530349568, 714196770879438888],
+        )
+        self.bot.tree.add_command(self.ctx_menu)
 
     async def cog_load(self) -> None:
         ret: list[app_commands.Choice[str]] = []
@@ -118,17 +134,41 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             ret.append(app_commands.Choice(name=name, value=value))
         self.voice_choices = ret
 
-    async def process_url(self, url: str, max_len: int = 8388608) -> tuple[discord.File, str]:
+    async def cog_unload(self) -> None:
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+
+    async def tiktok_context_menu_callback(self, interaction: discord.Interaction, message: discord.Message) -> None:
+        await interaction.response.defer(thinking=True)
+
+        if match := MOBILE_PATTERN.search(message.content):
+            url = match[1]
+        elif match := DESKTOP_PATTERN.search(message.content):
+            url = match[1]
+        elif match := INSTAGRAM_PATTERN.search(message.content):
+            url = match[1]
+        else:
+            await interaction.followup.send("I couldn't find any processable links in this message.")
+            return
+
+        try:
+            file, content = await self.process_url(url, interaction.guild)
+        except (FilesizeLimitExceeded, NeedsLogin, RuntimeError) as e:
+            await interaction.followup.send(str(e))
+            return
+        await interaction.followup.send(content, file=file)
+
+    async def process_url(self, url: str, guild: discord.Guild | None = None) -> tuple[discord.File, str]:
+        max_len = guild and guild.filesize_limit or 8388608
         loop = asyncio.get_running_loop()
-        if not url.endswith('/'):
-            url += '/'
         fn = functools.partial(ydl.extract_info, url, download=True)
         try:
             info = await loop.run_in_executor(None, fn)
         except yt_dlp.DownloadError as e:
-            if 'You need to log in' in str(e):
+            if 'You need to log in' in str(e) or 'login required' in str(e):
                 raise NeedsLogin('Need to log in.')
             raise
+        if not info:
+            raise RuntimeError('This message could not be parsed. Are you sure it\'s a valid link?')
         file_loc = pathlib.Path(f'buffer/{info["id"]}.{info["ext"]}')
         fixed_file_loc = pathlib.Path(f'buffer/{info["id"]}_fixed.{info["ext"]}')
 
@@ -176,7 +216,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                 else:
                     exposed_url = url[0]
                 try:
-                    file, content = await self.process_url(exposed_url, message.guild.filesize_limit)
+                    file, content = await self.process_url(exposed_url, message.guild)
                 except NeedsLogin as e:
                     await message.channel.send(str(e))
                     return
@@ -208,10 +248,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             return
         await ctx.typing()
         try:
-            if ctx.guild:
-                file, content = await self.process_url(url, ctx.guild.filesize_limit)
-            else:
-                file, content = await self.process_url(url)
+            file, content = await self.process_url(url, ctx.guild)
         except NeedsLogin as e:
             await ctx.reply(str(e))
             return
@@ -227,12 +264,11 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             'text_speaker': voice,
             'req_text': text,
         }
-        async with self.bot.session.post(BASE_URL, params=params) as resp:
-            if resp.status >= 400:
-                text = await resp.text()
-                log.error('tiktok voice HTTP error. Status code %s. Text: %s', resp.status, text)
-                raise RuntimeError(f'API responded with {resp.status}.')
-            data = await resp.json()
+        for url in BASE_URLS:
+            async with self.bot.session.post(f'https://{url}/media/api/text/speech/invoke/', params=params) as resp:
+                data = await resp.json()
+            if data.get('message') == "Couldn't load speech. Try again.":
+                continue
             try:
                 res = data['data']['v_str']
             except KeyError:
@@ -243,6 +279,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             fp = BytesIO(bytes_)
             fp.seek(0)
             return fp
+        raise RuntimeError('Tiktok broke, sorry.')
 
     async def voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         all_choices = self.voice_choices
