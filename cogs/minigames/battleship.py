@@ -8,21 +8,20 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Optional
 
 import discord
 
 
 @dataclass()
 class Cell:
-    emoji: Optional[str]
+    emoji: str | None
     # True -> hit, False -> miss, None -> inactive
     # Applies to both
     # enemy_state is how this cell has been interacted with an enemy hit
     # bomb_state is how this cell has been interacted with your hit
-    enemy_state: Optional[bool]
-    bomb_state: Optional[bool]
-    button: Optional[Button] = None
+    enemy_state: bool | None
+    bomb_state: bool | None
+    button: Button | None = None
 
     @property
     def ship(self) -> bool:
@@ -33,7 +32,7 @@ class Cell:
         return cls(emoji=None, enemy_state=None, bomb_state=None)
 
     @property
-    def display_emoji(self) -> Optional[str]:
+    def display_emoji(self) -> str | None:
         if self.enemy_state is None:
             return self.emoji
         if self.enemy_state:
@@ -43,12 +42,12 @@ class Cell:
 
 class PlayerState:
     def __init__(self, member: discord.abc.User):
-        self.member: discord.abc.User = member
-        self.view: Optional[BoardView] = None
-        self.ready: bool = False
-        self.current_player: bool = False
+        self.member = member
+        self.view: BoardView | None = None
+        self.ready = False
+        self.current_player = False
         empty = Cell.empty
-        self.board: list[list[Cell]] = [
+        self.board = [
             [empty(), empty(), empty(), empty(), empty()],
             [empty(), empty(), empty(), empty(), empty()],
             [empty(), empty(), empty(), empty(), empty()],
@@ -120,10 +119,10 @@ class Button(discord.ui.Button['BoardView']):
             emoji=cell.display_emoji,
             row=y,
         )
-        self.x: int = x
-        self.y: int = y
-        self.cell: Cell = cell
-        cell.button = self
+        self.x = x
+        self.y = y
+        self.cell = cell
+        self.button = self
 
     def update(self) -> None:
         self.style = discord.ButtonStyle.red if self.cell.bomb_state else discord.ButtonStyle.blurple
@@ -148,12 +147,12 @@ class Button(discord.ui.Button['BoardView']):
 
         if enemy.is_dead():
             self.view.disable()
-            await interaction.response.edit_message(content='You win!', view=self.view)
+            await interaction.response.send_message('You win!', view=self.view)
             # Update the enemy state as well
             if enemy_cell.button and enemy_cell.button.view:
                 enemy_cell.button.update()
                 view = enemy_cell.button.view
-                await view.message.edit(content=f'You lose :(', view=view)
+                await view.message.edit(content='You lose :(', view=view)
 
             await self.view.parent_message.edit(
                 content=f'{player.member.mention} wins this game of Battleship! Congratulations.'
@@ -161,7 +160,7 @@ class Button(discord.ui.Button['BoardView']):
             return
 
         content = f"{enemy.member.mention}'s turn."
-        enemy_content = f'Your ({enemy.member.mention}) turn!'
+        enemy_content = f'Your ({enemy.member.mention}) turn.'
         if enemy_cell.emoji is not None and enemy.is_ship_sunk(enemy_cell.emoji):
             content = f'{content}\n\nYou sunk their {enemy_cell.emoji}!'
             enemy_content = f'{enemy_content}\n\nYour {enemy_cell.emoji} was sunk :('
@@ -183,8 +182,8 @@ class BoardView(discord.ui.View):
 
     def __init__(self, player: PlayerState, enemy: PlayerState) -> None:
         super().__init__(timeout=None)
-        self.player: PlayerState = player
-        self.enemy: PlayerState = enemy
+        self.player = player
+        self.enemy = enemy
 
         for x in range(5):
             for y in range(5):
@@ -210,8 +209,8 @@ class BoardView(discord.ui.View):
 class BoardSetupButton(discord.ui.Button['BoardSetupView']):
     def __init__(self, x: int, y: int) -> None:
         super().__init__(label='\u200b', style=discord.ButtonStyle.blurple, row=y)
-        self.x: int = x
-        self.y: int = y
+        self.x = x
+        self.y = y
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert self.view is not None
@@ -232,12 +231,12 @@ class BoardSetupView(discord.ui.View):
 
     def __init__(self, player: PlayerState, enemy: PlayerState, parent_button: ReadyButton) -> None:
         super().__init__()
-        self.player: PlayerState = player
-        self.enemy: PlayerState = enemy
-        self.parent_button: ReadyButton = parent_button
+        self.player = player
+        self.enemy = enemy
+        self.parent_button = parent_button
         assert parent_button.view
-        self.parent_view: Prompt = parent_button.view
-        self.last_location: Optional[tuple[int, int]] = None
+        self.parent_view = parent_button.view
+        self.last_location: tuple[int, int] | None = None
         # A total list of placements for the board
         # This is a tuple of (x, y, emoji).
         # The total length must be equal to 9 (4 + 3 + 2)
@@ -293,7 +292,7 @@ class BoardSetupView(discord.ui.View):
 
         await self.parent_view.message.edit(content=content, view=self.parent_view)
 
-    def place_at(self, x: int, y: int):
+    def place_at(self, x: int, y: int) -> None:
         if self.last_location is None:
             self.last_location = (x, y)
             self.children[x + y * 5].emoji = '\N{CONSTRUCTION SIGN}'
@@ -343,9 +342,6 @@ class BoardSetupView(discord.ui.View):
                 start_x += dx
                 start_y += dy
 
-            self.taken_lengths.add(size)
-            self.last_location = None
-
     def is_done(self) -> bool:
         return len(self.placements) == 9
 
@@ -381,8 +377,8 @@ class ReopenBoardButton(discord.ui.Button['Prompt']):
 class ReadyButton(discord.ui.Button['Prompt']):
     def __init__(self, player: PlayerState, enemy: PlayerState) -> None:
         super().__init__(label=f"{player.member.display_name}'s Button", style=discord.ButtonStyle.blurple)
-        self.player: PlayerState = player
-        self.enemy: PlayerState = enemy
+        self.player = player
+        self.enemy = enemy
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert self.view is not None
@@ -410,10 +406,10 @@ class Prompt(discord.ui.View):
     message: discord.Message
     children: list[discord.ui.Button]
 
-    def __init__(self, first: discord.abc.User, second: discord.abc.User):
+    def __init__(self, first: discord.abc.User, second: discord.abc.User) -> None:
         super().__init__(timeout=300.0)
-        self.first: PlayerState = PlayerState(first)
-        self.second: PlayerState = PlayerState(second)
+        self.first = PlayerState(first)
+        self.second = PlayerState(second)
 
         current_player_id = random.choice([first, second]).id
         if current_player_id == first.id:

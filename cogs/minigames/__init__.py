@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class Minigame(commands.GroupCog):
     """Simple minigames to play with others"""
 
-    def __init__(self, bot: Ayaka):
+    def __init__(self, bot: Ayaka) -> None:
         self.bot = bot
 
     @property
@@ -38,8 +38,7 @@ class Minigame(commands.GroupCog):
     @app_commands.guild_only()
     @app_commands.rename(other='with')
     @app_commands.describe(other='The opponent to play with')
-    async def gobblet(self, ctx: GuildContext, *, other: discord.Member):
-        """Play a game of Gobblet Gobblers"""
+    async def gobblet(self, ctx: GuildContext, *, other: discord.Member) -> None:
         if other.bot:
             await ctx.send('You cannot play against a bot.', ephemeral=True)
             return
@@ -61,7 +60,7 @@ class Minigame(commands.GroupCog):
     @app_commands.guild_only()
     @app_commands.rename(other='with')
     @app_commands.describe(other='The opponent to play with')
-    async def battleship(self, ctx: GuildContext, *, other: discord.Member):
+    async def battleship(self, ctx: GuildContext, *, other: discord.Member) -> None:
         """Play a game of battleship with someone else"""
         if other.bot:
             await ctx.send('You cannot play against a bot.', ephemeral=True)
@@ -74,5 +73,5 @@ class Minigame(commands.GroupCog):
         )
 
 
-async def setup(bot: Ayaka):
+async def setup(bot: Ayaka) -> None:
     await bot.add_cog(Minigame(bot))

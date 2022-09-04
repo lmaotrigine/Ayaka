@@ -9,7 +9,6 @@ from __future__ import annotations
 import enum
 import random
 from dataclasses import dataclass
-from typing import Optional
 
 import discord
 
@@ -42,7 +41,7 @@ class BoardState:
 
     @classmethod
     def empty(cls) -> BoardState:
-        return BoardState(strength=0, kind=BoardKind.Empty)
+        return cls(strength=0, kind=BoardKind.Empty)
 
 
 @dataclass()
@@ -57,13 +56,13 @@ class Player:
 
     @property
     def content(self) -> str:
-        return f'It is now {self.kind} {self.member.mention}\'s turn.'
+        return f"It is now {self.kind} {self.member.mention}'s turn."
 
 
 class PlayerPromptButton(discord.ui.Button['PlayerPrompt']):
     def __init__(self, style: discord.ButtonStyle, number: int, disabled: bool, row: int) -> None:
         super().__init__(style=style, disabled=disabled, label=str(number), row=row)
-        self.number: int = number
+        self.number = number
 
     async def callback(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
@@ -76,15 +75,15 @@ class PlayerPromptButton(discord.ui.Button['PlayerPrompt']):
 
 
 class PlayerPrompt(discord.ui.View):
-    def __init__(self, player: Player, state: BoardState):
+    def __init__(self, player: Player, state: BoardState) -> None:
         super().__init__(timeout=300.0)
         for x in range(0, 6):
             y = x // 3
             number = x + 1
             disabled = number not in player.pieces or number <= state.strength
             self.add_item(PlayerPromptButton(player.kind.style, number, disabled, row=y))
-        self.player: Player = player
-        self.selected_number: Optional[int] = None
+        self.player = player
+        self.selected_number: int | None = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.player.member:
@@ -93,17 +92,17 @@ class PlayerPrompt(discord.ui.View):
         return True
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, row=2)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.defer()
         self.stop()
         await interaction.delete_original_response()
 
 
 class Button(discord.ui.Button['Gobblers']):
-    def __init__(self, x: int, y: int):
+    def __init__(self, x: int, y: int) -> None:
         super().__init__(style=discord.ButtonStyle.grey, label='\u200b', row=y)
-        self.x: int = x
-        self.y: int = y
+        self.x = x
+        self.y = y
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert self.view is not None
@@ -153,11 +152,11 @@ class Button(discord.ui.Button['Gobblers']):
 class Gobblers(discord.ui.View):
     children: list[Button]
 
-    def __init__(self, players: tuple[Player, ...]) -> None:
+    def __init__(self, players: tuple[Player, Player]) -> None:
         super().__init__(timeout=36000.0)
-        self.players: tuple[Player, ...] = players
-        self.current_player_index: int = 0
-        self.board: list[list[BoardState]] = [
+        self.players = players
+        self.current_player_index = 0
+        self.board = [
             [BoardState.empty(), BoardState.empty(), BoardState.empty()],
             [BoardState.empty(), BoardState.empty(), BoardState.empty()],
             [BoardState.empty(), BoardState.empty(), BoardState.empty()],
@@ -182,7 +181,7 @@ class Gobblers(discord.ui.View):
         for child in self.children:
             child.disabled = True
 
-    def get_winner(self) -> Optional[BoardKind]:
+    def get_winner(self) -> BoardKind | None:
         # Check across (i.e. horizontal)
         for across in self.board:
             value = sum(p.kind.value for p in across)
@@ -231,11 +230,11 @@ class Gobblers(discord.ui.View):
 
 
 class Prompt(discord.ui.View):
-    def __init__(self, first: discord.abc.User, second: discord.abc.User):
-        super().__init__(timeout=180.0)
-        self.first: discord.abc.User = first
-        self.second: discord.abc.User = second
-        self.confirmed: bool = False
+    def __init__(self, first: discord.abc.User, second: discord.abc.User) -> None:
+        super().__init__()
+        self.first = first
+        self.second = second
+        self.confirmed = False
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.second:
@@ -244,7 +243,7 @@ class Prompt(discord.ui.View):
         return True
 
     @discord.ui.button(label='Accept', style=discord.ButtonStyle.green)
-    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         coin = random.randint(0, 1)
         if coin == 0:
             order = (self.first, self.second)
@@ -258,7 +257,7 @@ class Prompt(discord.ui.View):
 
         await interaction.response.send_message(
             f'Challenge accepted! {order[0].mention} goes first and {order[1].mention} goes second.\n\n'
-            f"It is now \N{LARGE BLUE SQUARE} {order[0].mention}'s turn",
+            f"It is not \N{LARGE BLUE SQUARE} {order[0].mention}'s turn",
             view=Gobblers(players),
             allowed_mentions=discord.AllowedMentions.none(),
         )
@@ -266,6 +265,6 @@ class Prompt(discord.ui.View):
         self.stop()
 
     @discord.ui.button(label='Decline', style=discord.ButtonStyle.red)
-    async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def decline(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.send_message('Challenge declined :(')
         self.stop()
