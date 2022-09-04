@@ -40,6 +40,9 @@ class Minigame(commands.GroupCog):
     @app_commands.describe(other='The opponent to play with')
     async def gobblet(self, ctx: GuildContext, *, other: discord.Member):
         """Play a game of Gobblet Gobblers"""
+        if other.bot:
+            await ctx.send('You cannot play against a bot.', ephemeral=True)
+            return
         prompt = gobblet.Prompt(ctx.author, other)
         msg = await ctx.send(
             f'{other.mention} has been challenged to a game of Gobblet Gobblers by {ctx.author.mention}.\n'
@@ -60,6 +63,9 @@ class Minigame(commands.GroupCog):
     @app_commands.describe(other='The opponent to play with')
     async def battleship(self, ctx: GuildContext, *, other: discord.Member):
         """Play a game of battleship with someone else"""
+        if other.bot:
+            await ctx.send('You cannot play against a bot.', ephemeral=True)
+            return
         prompt = battleship.Prompt(ctx.author, other)
         prompt.message = await ctx.send(
             f'{other.mention} has been challenged to a game of Battleship by {ctx.author.mention}.\n'
