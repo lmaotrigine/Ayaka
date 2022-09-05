@@ -39,6 +39,7 @@ class Minigame(commands.GroupCog):
     @app_commands.rename(other='with')
     @app_commands.describe(other='The opponent to play with')
     async def gobblet(self, ctx: GuildContext, *, other: discord.Member) -> None:
+        """Play a game of Gobblet Gobblers"""
         if other.bot:
             await ctx.send('You cannot play against a bot.', ephemeral=True)
             return
