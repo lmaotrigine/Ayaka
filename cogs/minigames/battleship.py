@@ -341,6 +341,9 @@ class BoardSetupView(discord.ui.View):
 
                 start_x += dx
                 start_y += dy
+            
+            self.taken_lengths.add(size)
+            self.last_location = None
 
     def is_done(self) -> bool:
         return len(self.placements) == 9
