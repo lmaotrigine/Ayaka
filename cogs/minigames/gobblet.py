@@ -257,7 +257,7 @@ class Prompt(discord.ui.View):
 
         await interaction.response.send_message(
             f'Challenge accepted! {order[0].mention} goes first and {order[1].mention} goes second.\n\n'
-            f"It is not \N{LARGE BLUE SQUARE} {order[0].mention}'s turn",
+            f"It is now \N{LARGE BLUE SQUARE} {order[0].mention}'s turn",
             view=Gobblers(players),
             allowed_mentions=discord.AllowedMentions.none(),
         )

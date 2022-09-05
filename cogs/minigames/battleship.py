@@ -122,7 +122,7 @@ class Button(discord.ui.Button['BoardView']):
         self.x = x
         self.y = y
         self.cell = cell
-        self.button = self
+        cell.button = self
 
     def update(self) -> None:
         self.style = discord.ButtonStyle.red if self.cell.bomb_state else discord.ButtonStyle.blurple
@@ -147,7 +147,7 @@ class Button(discord.ui.Button['BoardView']):
 
         if enemy.is_dead():
             self.view.disable()
-            await interaction.response.send_message('You win!', view=self.view)
+            await interaction.response.edit_message(content='You win!', view=self.view)
             # Update the enemy state as well
             if enemy_cell.button and enemy_cell.button.view:
                 enemy_cell.button.update()
@@ -160,7 +160,7 @@ class Button(discord.ui.Button['BoardView']):
             return
 
         content = f"{enemy.member.mention}'s turn."
-        enemy_content = f'Your ({enemy.member.mention}) turn.'
+        enemy_content = f'Your ({enemy.member.mention}) turn!'
         if enemy_cell.emoji is not None and enemy.is_ship_sunk(enemy_cell.emoji):
             content = f'{content}\n\nYou sunk their {enemy_cell.emoji}!'
             enemy_content = f'{enemy_content}\n\nYour {enemy_cell.emoji} was sunk :('
@@ -341,7 +341,7 @@ class BoardSetupView(discord.ui.View):
 
                 start_x += dx
                 start_y += dy
-            
+
             self.taken_lengths.add(size)
             self.last_location = None
 
