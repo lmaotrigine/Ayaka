@@ -86,6 +86,8 @@ class SnoozeButton(discord.ui.Button['ReminderView']):
 
 
 class ReminderView(discord.ui.View):
+    message: discord.Message
+
     def __init__(self, *, url: str, timer: Timer, cog: Reminder, author_id: int) -> None:
         super().__init__(timeout=300)
         self.author_id = author_id
@@ -98,6 +100,10 @@ class ReminderView(discord.ui.View):
             await interaction.response.send_message('This snooze button is not for you, sorry!', ephemeral=True)
             return False
         return True
+    
+    async def on_timeout(self) -> None:
+        self.snooze.disabled = True
+        await self.message.edit(view=self)
 
 
 class DucklingConverter(commands.Converter[datetime.datetime]):
@@ -491,9 +497,12 @@ class Reminder(commands.Cog):
             url = f'https://discord.com/channels/{guild_id}/{channel.id}/{message_id}'
             view = ReminderView(url=url, timer=timer, cog=self, author_id=author_id)
         try:
-            await channel.send(msg, allowed_mentions=discord.AllowedMentions(users=True), view=view)  # type: ignore # can't make this a non-messageable lol
+            msg = await channel.send(msg, allowed_mentions=discord.AllowedMentions(users=True), view=view)  # type: ignore # can't make this a non-messageable lol
         except discord.HTTPException:
             return
+        else:
+            if view is not discord.utils.MISSING:
+                view.message = msg
 
 
 async def setup(bot):
