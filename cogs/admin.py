@@ -15,6 +15,7 @@ import io
 import os
 import re
 import secrets
+import shlex
 import subprocess
 import sys
 import textwrap
@@ -101,7 +102,7 @@ class Admin(commands.Cog):
     async def run_process(self, command: str) -> list[str]:
         if os.name != 'nt':
             shell = os.getenv('SHELL', '/bin/bash')
-            command = f'{shell} -c "{command}"'
+            command = f'{shell} -c {shlex.quote(command)}'
         process = await asyncio.create_subprocess_shell(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = await process.communicate()
         return [output.decode() for output in result]
