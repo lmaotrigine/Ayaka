@@ -71,7 +71,9 @@ class SnoozeModal(discord.ui.Modal, title='Snooze'):
         )
         author_id, _, message = self.timer.args
         delta = time.human_timedelta(when, source=refreshed.created_at)
-        await interaction.followup.send(f"Alright <@{author_id}>, I've snoozed your reminder for {delta}: {message}")
+        await interaction.followup.send(
+            f"Alright <@{author_id}>, I've snoozed your reminder for {delta}: {message}", ephemeral=True
+        )
 
 
 class SnoozeButton(discord.ui.Button['ReminderView']):
@@ -100,7 +102,7 @@ class ReminderView(discord.ui.View):
             await interaction.response.send_message('This snooze button is not for you, sorry!', ephemeral=True)
             return False
         return True
-    
+
     async def on_timeout(self) -> None:
         self.snooze.disabled = True
         await self.message.edit(view=self)
