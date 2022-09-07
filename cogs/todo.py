@@ -862,7 +862,7 @@ class Todo(commands.Cog):
                        guild_id,
                        cached_content,
                        due_date,
-                       title
+                       content
                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                    RETURNING *;
                 """
