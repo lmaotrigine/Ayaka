@@ -15,7 +15,7 @@ import re
 import time
 from functools import partial
 from textwrap import fill
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import bottom
 import discord
@@ -285,10 +285,10 @@ class Fun(commands.Cog):
     async def do_translate(
         self,
         ctx: Context,
-        message: Optional[Union[discord.Message, str]],
+        message: discord.Message | str | None,
         *,
-        from_: Optional[str] = 'auto',
-        to: Optional[str] = 'en',
+        from_: str | None = 'auto',
+        to: str | None = 'en',
     ):
         reply = ctx.replied_message
         if message is None:
@@ -316,7 +316,7 @@ class Fun(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def translate(self, ctx: Context, *, message: Optional[MessageOrCleanContent] = None) -> None:
+    async def translate(self, ctx: Context, *, message: MessageOrCleanContent | None = None) -> None:
         """Translates a message to English using Google Translate."""
         """
         To avoid parsing ambiguities, the message will have to be prefixed with `text:`.
@@ -818,7 +818,7 @@ class Fun(commands.Cog):
         pages = RoboPages(UrbanDictionaryPageSource(data), ctx=ctx)
         await pages.start()
 
-    def safe_chan(self, member: discord.Member, channels: list[discord.VoiceChannel]) -> Optional[discord.VoiceChannel]:
+    def safe_chan(self, member: discord.Member, channels: list[discord.VoiceChannel]) -> discord.VoiceChannel | None:
         random.shuffle(channels)
         for channel in channels:
             if channel.permissions_for(member).connect:
@@ -827,7 +827,7 @@ class Fun(commands.Cog):
 
     @commands.command(hidden=True, name='scatter', aliases=['scattertheweak'])
     @checks.is_admin()
-    async def scatter(self, ctx: GuildContext, voice_channel: Optional[discord.VoiceChannel] = None) -> None:
+    async def scatter(self, ctx: GuildContext, voice_channel: discord.VoiceChannel | None = None) -> None:
         if voice_channel:
             channel = voice_channel
         else:

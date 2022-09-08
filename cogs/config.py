@@ -7,7 +7,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, AsyncIterator, Iterable, Optional, Union
+from typing import TYPE_CHECKING, AsyncIterator, Iterable
 
 import asyncpg
 import discord
@@ -89,7 +89,7 @@ class ResolvedCommandPermissions:
     def __init__(self, guild_id: int, records: list[tuple[str, int, bool]]):
         self.guild_id: int = guild_id
 
-        self._lookup: defaultdict[Optional[int], ResolvedCommandPermissions._Entry] = defaultdict(self._Entry)
+        self._lookup: defaultdict[int | None, ResolvedCommandPermissions._Entry] = defaultdict(self._Entry)
 
         # channel_id: { allow: [commands], deny: [commands] }
 
@@ -119,7 +119,7 @@ class ResolvedCommandPermissions:
         # then apply the channel-level denies
         return ret | (channel.deny - channel.allow)
 
-    def _is_command_blocked(self, name: str, channel_id: int) -> Optional[bool]:
+    def _is_command_blocked(self, name: str, channel_id: int) -> bool | None:
         command_names = self._split(name)
 
         guild = self._lookup[None]  # no special channel_id
@@ -154,13 +154,13 @@ class ResolvedCommandPermissions:
 
         return blocked
 
-    def is_command_blocked(self, name: str, channel_id: int) -> Optional[bool]:
+    def is_command_blocked(self, name: str, channel_id: int) -> bool | None:
         # fast path
         if len(self._lookup) == 0:
             return False
         return self._is_command_blocked(name, channel_id)
 
-    def is_blocked(self, ctx: Context) -> Optional[bool]:
+    def is_blocked(self, ctx: Context) -> bool | None:
         # fast path
         if len(self._lookup) == 0:
             return False
@@ -190,9 +190,9 @@ class Config(commands.Cog):
         self,
         guild_id: int,
         member_id: int,
-        channel: Optional[discord.VoiceChannel | discord.TextChannel | discord.Thread] = None,
+        channel: discord.VoiceChannel | discord.TextChannel | discord.Thread | None = None,
         *,
-        connection: Optional[Connection | Pool] = None,
+        connection: Connection | Pool | None = None,
         check_bypass: bool = True,
     ) -> bool:
         if member_id in self.bot.blacklist or guild_id in self.bot.blacklist:
@@ -241,7 +241,7 @@ class Config(commands.Cog):
 
     @cache.cache()
     async def get_command_permissions(
-        self, guild_id: int, *, connection: Optional[Connection | Pool] = None
+        self, guild_id: int, *, connection: Connection | Pool | None = None
     ) -> ResolvedCommandPermissions:
         connection = connection or self.bot.pool
         query = "SELECT name, channel_id, whitelist FROM command_config WHERE guild_id=$1;"
@@ -289,7 +289,7 @@ class Config(commands.Cog):
 
     @config.group(invoke_without_command=True, aliases=['plonk'])
     @checks.is_mod()
-    async def ignore(self, ctx: GuildContext, *entities: Union[discord.TextChannel, discord.Member, discord.VoiceChannel]):
+    async def ignore(self, ctx: GuildContext, *entities: discord.TextChannel | discord.Member | discord.VoiceChannel):
         """Ignores text channels or members from using the bot.
 
         If no channel or member is specified, the current channel is ignored.
@@ -362,7 +362,7 @@ class Config(commands.Cog):
 
     @config.group(pass_context=True, invoke_without_command=True, aliases=['unplonk'])
     @checks.is_mod()
-    async def unignore(self, ctx: GuildContext, *entities: Union[discord.TextChannel, discord.Member, discord.VoiceChannel]):
+    async def unignore(self, ctx: GuildContext, *entities: discord.TextChannel | discord.Member | discord.VoiceChannel):
         """Allows channels or members to use the bot again.
 
         If nothing is specified, it unignores the current channel.
@@ -403,7 +403,7 @@ class Config(commands.Cog):
         self,
         pool: Pool,
         guild_id: int,
-        channel_id: Optional[int],
+        channel_id: int | None,
         name: str,
         *,
         whitelist: bool = True,
@@ -484,7 +484,7 @@ class Config(commands.Cog):
 
     @config.command(name='enable')
     @checks.is_mod()
-    async def config_enable(self, ctx: GuildContext, channel: Optional[discord.TextChannel], *, command: CommandName):
+    async def config_enable(self, ctx: GuildContext, channel: discord.TextChannel | None, *, command: CommandName):
         """Enables a command the server or a channel."""
 
         channel_id = channel.id if channel else None
@@ -498,7 +498,7 @@ class Config(commands.Cog):
 
     @config.command(name='disable')
     @checks.is_mod()
-    async def config_disable(self, ctx: GuildContext, channel: Optional[discord.TextChannel], *, command: CommandName):
+    async def config_disable(self, ctx: GuildContext, channel: discord.TextChannel | None, *, command: CommandName):
         """Disables a command for the server or a channel."""
 
         channel_id = channel.id if channel else None
@@ -512,9 +512,7 @@ class Config(commands.Cog):
 
     @config.command(name='disabled')
     @checks.is_mod()
-    async def config_disabled(
-        self, ctx: GuildContext, *, channel: Optional[Union[discord.TextChannel, discord.VoiceChannel]] = None
-    ):
+    async def config_disabled(self, ctx: GuildContext, *, channel: discord.TextChannel | discord.VoiceChannel | None = None):
         """Shows the disabled commands for the channel given."""
 
         channel_id: int

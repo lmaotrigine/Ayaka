@@ -13,7 +13,7 @@ import random
 import re
 import shlex
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiohttp
 import asyncpg
@@ -121,7 +121,7 @@ class BooruConfig:
 
     __slots__ = ('guild_id', 'bot', 'record', 'blacklist', 'auto_six_digits')
 
-    def __init__(self, *, guild_id: int, bot: Ayaka, record: Optional[Record] = None):
+    def __init__(self, *, guild_id: int, bot: Ayaka, record: Record | None = None):
         self.guild_id = guild_id
         self.bot = bot
         self.record = record
@@ -137,11 +137,11 @@ class BooruConfig:
 class GelbooruEntry:
     def __init__(self, payload: dict[str, Any]) -> None:
         self.image: bool = payload['width'] != 0
-        self.source: Optional[str] = payload.get('source')
-        self.gb_id: Optional[str] = payload.get('id')
+        self.source: str | None = payload.get('source')
+        self.gb_id: str | None = payload.get('id')
         self.rating: str = payload.get('rating', 'N/A')
-        self.score: Optional[int] = payload.get('score')
-        self.url: Optional[str] = payload.get('file_url')
+        self.score: int | None = payload.get('score')
+        self.url: str | None = payload.get('file_url')
         self.raw_tags: str = payload['tags']
 
     @property
@@ -154,13 +154,13 @@ class DanbooruEntry:
         self.ext: str = payload.get('file_ext', 'none')
         self.image: bool = self.ext in ('png', 'jpg', 'jpeg', 'gif')
         self.video: bool = self.ext in ('mp4', 'gifv', 'webm')
-        self.source: Optional[str] = payload.get('source')
-        self.db_id: Optional[str] = payload.get('id')
-        self.rating: Optional[str] = RATING.get(payload.get('rating', 'fail'))
-        self.score: Optional[int] = payload.get('score')
-        self.large: Optional[bool] = payload.get('has_large', False)
-        self.file_url: Optional[str] = payload.get('file_url')
-        self.large_url: Optional[str] = payload.get('large_file_url')
+        self.source: str | None = payload.get('source')
+        self.db_id: str | None = payload.get('id')
+        self.rating: str | None = RATING.get(payload.get('rating', 'fail'))
+        self.score: int | None = payload.get('score')
+        self.large: bool | None = payload.get('has_large', False)
+        self.file_url: str | None = payload.get('file_url')
+        self.large_url: str | None = payload.get('large_file_url')
         self.raw_tags: str = payload['tag_string']
 
     @property
@@ -168,7 +168,7 @@ class DanbooruEntry:
         return self.raw_tags.split(' ')
 
     @property
-    def url(self) -> Optional[str]:
+    def url(self) -> str | None:
         return self.large_url if self.large else self.file_url
 
 
@@ -205,10 +205,9 @@ class Lewd(commands.Cog):
             return await ctx.send(f"Stop being horny. You're on cooldown for {error.retry_after:.02f}s.")
 
     @cache.cache()
-    async def get_booru_config(self, guild_id: int, *, connection: Union[Pool, Connection, None] = None) -> BooruConfig:
+    async def get_booru_config(self, guild_id: int, *, connection: Pool | Connection | None = None) -> BooruConfig:
         connection = connection or self.bot.pool
         query = """
-                --begin-sql
                 SELECT *
                 FROM lewd_config
                 WHERE guild_id = $1;
@@ -562,7 +561,7 @@ class Lewd(commands.Cog):
     @commands.is_nsfw()
     async def nhentai(self, ctx: Context, hentai_id: int):
         """Naughty. Return info, the cover, and links to an nhentai gallery."""
-        gallery: Optional[nhentai.Gallery] = await self.bot.hentai_client.fetch_gallery(hentai_id)
+        gallery: nhentai.Gallery | None = await self.bot.hentai_client.fetch_gallery(hentai_id)
 
         if not gallery:
             raise BadNHentaiID(hentai_id, "Doesn't seem to be a valid ID.")

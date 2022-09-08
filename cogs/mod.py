@@ -12,7 +12,7 @@ import io
 import logging
 import re
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping
 
 import asyncpg
 import discord
@@ -73,12 +73,12 @@ class ModConfig:
     bot: Ayaka
     automod_flags: AutoModFlags
     id: int
-    broadcast_channel_id: Optional[int]
-    broadcast_webhook_url: Optional[str]
-    mention_count: Optional[int]
+    broadcast_channel_id: int | None
+    broadcast_webhook_url: str | None
+    mention_count: int | None
     safe_automod_entity_ids: set[int]
     muted_members: set[int]
-    mute_role_id: Optional[int]
+    mute_role_id: int | None
 
     @classmethod
     def from_record(cls, record: Any, bot: Ayaka):
@@ -97,7 +97,7 @@ class ModConfig:
         return self
 
     @property
-    def broadcast_channel(self) -> Optional[discord.TextChannel]:
+    def broadcast_channel(self) -> discord.TextChannel | None:
         guild = self.bot.get_guild(self.id)
         return guild and guild.get_channel(self.broadcast_channel_id)  # type: ignore
 
@@ -112,14 +112,14 @@ class ModConfig:
         return discord.Webhook.from_url(self.broadcast_webhook_url, session=self.bot.session)
 
     @property
-    def mute_role(self) -> Optional[discord.Role]:
+    def mute_role(self) -> discord.Role | None:
         guild = self.bot.get_guild(self.id)
         return guild and self.mute_role_id and guild.get_role(self.mute_role_id)  # type: ignore
 
     def is_muted(self, member: discord.abc.Snowflake) -> bool:
         return member.id in self.muted_members
 
-    async def apply_mute(self, member: discord.Member, reason: Optional[str]):
+    async def apply_mute(self, member: discord.Member, reason: str | None):
         if self.mute_role_id:
             await member.add_roles(discord.Object(id=self.mute_role_id), reason=reason)
 
@@ -305,62 +305,60 @@ def safe_reason_append(base: str, to_append: str) -> str:
 
 
 class MassbanFlags(commands.FlagConverter):
-    channel: Optional[Union[discord.TextChannel, discord.Thread, discord.VoiceChannel]] = commands.flag(
+    channel: discord.TextChannel | discord.Thread | discord.VoiceChannel | None = commands.flag(
         description='The channel to search for message history', default=None
     )
-    reason: Optional[str] = commands.flag(description='The reason to ban the members for', default=None)
-    username: Optional[str] = commands.flag(description='The regex that usernames must match', default=None)
-    created: Optional[int] = commands.flag(
+    reason: str | None = commands.flag(description='The reason to ban the members for', default=None)
+    username: str | None = commands.flag(description='The regex that usernames must match', default=None)
+    created: int | None = commands.flag(
         description='Matches users whose accounts were created less than specified minutes ago.', default=None
     )
-    joined: Optional[int] = commands.flag(
+    joined: int | None = commands.flag(
         description='Matches users that joined less than specified minutes ago.', default=None
     )
-    joined_before: Optional[discord.Member] = commands.flag(
+    joined_before: discord.Member | None = commands.flag(
         description='Matches users who joined before this member', default=None, name='joined-before'
     )
-    joined_after: Optional[discord.Member] = commands.flag(
+    joined_after: discord.Member | None = commands.flag(
         description='Matches users who joined after this member', default=None, name='joined-after'
     )
-    avatar: Optional[bool] = commands.flag(
+    avatar: bool | None = commands.flag(
         description='Matches users depending on whether they have avatars or not', default=None
     )
-    roles: Optional[bool] = commands.flag(
-        description='Matches users depending on whether they have roles or not', default=None
-    )
+    roles: bool | None = commands.flag(description='Matches users depending on whether they have roles or not', default=None)
     show: bool = commands.flag(description='Show members instead of banning them', default=False)
 
     # Message history related flags
-    contains: Optional[str] = commands.flag(description='The substring to search for in the message.', default=None)
-    starts: Optional[str] = commands.flag(description='The substring to search if the message starts with.', default=None)
-    ends: Optional[str] = commands.flag(description='The substring to search if the message ends with.', default=None)
-    match: Optional[str] = commands.flag(description='The regex to match the message content to.', default=None)
+    contains: str | None = commands.flag(description='The substring to search for in the message.', default=None)
+    starts: str | None = commands.flag(description='The substring to search if the message starts with.', default=None)
+    ends: str | None = commands.flag(description='The substring to search if the message ends with.', default=None)
+    match: str | None = commands.flag(description='The regex to match the message content to.', default=None)
     search: commands.Range[int, 1, 2000] = commands.flag(description='How many messages to search for', default=100)
-    after: Annotated[Optional[int], Snowflake] = commands.flag(
+    after: Annotated[int | None, Snowflake] = commands.flag(
         description='Messages must come after this message ID.', default=None
     )
-    before: Annotated[Optional[int], Snowflake] = commands.flag(
+    before: Annotated[int | None, Snowflake] = commands.flag(
         description='Messages must come before this message ID.', default=None
     )
-    files: Optional[bool] = commands.flag(description='Whether the message should have attachments.', default=None)
-    embeds: Optional[bool] = commands.flag(description='Whether the message should have embeds.', default=None)
+    files: bool | None = commands.flag(description='Whether the message should have attachments.', default=None)
+    embeds: bool | None = commands.flag(description='Whether the message should have embeds.', default=None)
 
 
 class PurgeFlags(commands.FlagConverter):
-    user: Optional[discord.User] = commands.flag(description="Remove messages from this user", default=None)
-    contains: Optional[str] = commands.flag(
+    user: discord.User | None = commands.flag(description="Remove messages from this user", default=None)
+    contains: str | None = commands.flag(
         description='Remove messages that contains this string (case sensitive)', default=None
     )
-    prefix: Optional[str] = commands.flag(
+    prefix: str | None = commands.flag(
         description='Remove messages that start with this string (case sensitive)', default=None
     )
-    suffix: Optional[str] = commands.flag(
+    suffix: str | None = commands.flag(
         description='Remove messages that end with this string (case sensitive)', default=None
     )
-    after: Annotated[Optional[int], Snowflake] = commands.flag(
+    after: Annotated[int | None, Snowflake] = commands.flag(
         description='Search for messages that come after this message ID', default=None
     )
-    before: Annotated[Optional[int], Snowflake] = commands.flag(
+    before: Annotated[int | None, Snowflake] = commands.flag(
         description='Search for messages that come before this message ID', default=None
     )
     bot: bool = commands.flag(description='Remove messages from bots (not webhooks!)', default=False)
@@ -401,16 +399,16 @@ class SpamChecker:
     def __init__(self):
         self.by_content = CooldownByContent.from_cooldown(15, 17.0, commands.BucketType.member)
         self.by_user = commands.CooldownMapping.from_cooldown(10, 12.0, commands.BucketType.user)
-        self.last_join: Optional[datetime.datetime] = None
+        self.last_join: datetime.datetime | None = None
         self.new_user = commands.CooldownMapping.from_cooldown(30, 35.0, commands.BucketType.channel)
-        self._by_mentions: Optional[commands.CooldownMapping] = None
-        self._by_mentions_rate: Optional[int] = None
+        self._by_mentions: commands.CooldownMapping | None = None
+        self._by_mentions_rate: int | None = None
 
         # user_id flag mapping (for about 30 minutes)
         self.fast_joiners: MutableMapping[int, bool] = cache.ExpiringCache(seconds=1800.0)
         self.hit_and_run = commands.CooldownMapping.from_cooldown(10, 12, commands.BucketType.channel)
 
-    def by_mentions(self, config: ModConfig) -> Optional[commands.CooldownMapping]:
+    def by_mentions(self, config: ModConfig) -> commands.CooldownMapping | None:
         if not config.mention_count:
             return None
 
@@ -619,7 +617,7 @@ class Mod(commands.Cog):
         async with self._batch_message_lock:
             for ((guild_id, channel_id), messages) in self.message_batches.items():
                 guild = self.bot.get_guild(guild_id)
-                channel: Optional[discord.abc.Messageable] = guild and guild.get_channel(channel_id)  # type: ignore
+                channel: discord.abc.Messageable | None = guild and guild.get_channel(channel_id)  # type: ignore
                 if channel is None:
                     continue
 
@@ -636,7 +634,7 @@ class Mod(commands.Cog):
             self.message_batches.clear()
 
     @cache.cache()
-    async def get_guild_config(self, guild_id: int) -> Optional[ModConfig]:
+    async def get_guild_config(self, guild_id: int) -> ModConfig | None:
         query = """SELECT * FROM guild_mod_config WHERE id=$1;"""
         async with self.bot.pool.acquire(timeout=300.0) as con:
             record = await con.fetchrow(query, guild_id)
@@ -1059,7 +1057,7 @@ class Mod(commands.Cog):
         query = f'UPDATE guild_mod_config SET {updates} WHERE id=$1 RETURNING broadcast_webhook_url'
 
         guild_id = ctx.guild.id
-        record: Optional[tuple[Optional[str]]] = await self.bot.pool.fetchrow(query, guild_id)
+        record: tuple[str | None] | None = await self.bot.pool.fetchrow(query, guild_id)
         self._spam_check.pop(guild_id, None)
         self.get_guild_config.invalidate(self, guild_id)
         if record is not None and record[0] is not None and protection in ('all', 'joins'):
@@ -1282,7 +1280,7 @@ class Mod(commands.Cog):
         ctx: GuildContext,
         member: Annotated[discord.abc.Snowflake, MemberID],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Kicks a member from the server.
 
@@ -1305,7 +1303,7 @@ class Mod(commands.Cog):
         ctx: GuildContext,
         member: Annotated[discord.abc.Snowflake, MemberID],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Bans a member from the server.
 
@@ -1331,7 +1329,7 @@ class Mod(commands.Cog):
         ctx: GuildContext,
         members: Annotated[List[discord.abc.Snowflake], commands.Greedy[MemberID]],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Bans multiple members from the server.
 
@@ -1528,7 +1526,7 @@ class Mod(commands.Cog):
         ctx: GuildContext,
         member: Annotated[discord.abc.Snowflake, MemberID],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Soft bans a member from the server.
 
@@ -1556,7 +1554,7 @@ class Mod(commands.Cog):
         ctx: GuildContext,
         member: Annotated[discord.guild.BanEntry, BannedMember],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Unbans a member from the server.
 
@@ -1586,7 +1584,7 @@ class Mod(commands.Cog):
         duration: time.FutureTime,
         member: Annotated[discord.abc.Snowflake, MemberID],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Temporarily bans a member for the specified duration.
 
@@ -1656,7 +1654,7 @@ class Mod(commands.Cog):
     @commands.guild_only()
     @checks.hybrid_permissions_check(manage_messages=True)
     @app_commands.describe(search='How many messages to search for')
-    async def purge(self, ctx: GuildContext, search: Optional[commands.Range[int, 1, 2000]] = None, *, flags: PurgeFlags):
+    async def purge(self, ctx: GuildContext, search: commands.Range[int, 1, 2000] | None = None, *, flags: PurgeFlags):
         """Removes messages that meet a criteria.
 
         This command uses a syntax similar to Discord's search bar.
@@ -1784,7 +1782,7 @@ class Mod(commands.Cog):
     # Mute related stuff
 
     async def update_mute_role(
-        self, ctx: GuildContext, config: Optional[ModConfig], role: discord.Role, *, merge: bool = False
+        self, ctx: GuildContext, config: ModConfig | None, role: discord.Role, *, merge: bool = False
     ) -> None:
         guild = ctx.guild
         if config and merge:
@@ -1845,7 +1843,7 @@ class Mod(commands.Cog):
         ctx: ModGuildContext,
         members: commands.Greedy[discord.Member],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Mutes members using the configured mute role.
 
@@ -1885,7 +1883,7 @@ class Mod(commands.Cog):
         ctx: ModGuildContext,
         members: commands.Greedy[discord.Member],
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Unmutes members using the configured mute role.
 
@@ -1926,7 +1924,7 @@ class Mod(commands.Cog):
         duration: time.FutureTime,
         member: discord.Member,
         *,
-        reason: Annotated[Optional[str], ActionReason] = None,
+        reason: Annotated[str | None, ActionReason] = None,
     ):
         """Temporarily mutes a member for the specified duration.
 
@@ -2213,7 +2211,7 @@ class Mod(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send('Missing a duration to selfmute for.')
 
-    def _hoisters_magic(self, guild: discord.Guild) -> Optional[discord.File]:
+    def _hoisters_magic(self, guild: discord.Guild) -> discord.File | None:
         fmt = []
         for member in guild.members:
             character = ord(member.display_name[0])
@@ -2424,7 +2422,7 @@ class Mod(commands.Cog):
             pass
 
     async def get_lockdown_information(
-        self, guild_id: int, channel_ids: Optional[list[int]] = None
+        self, guild_id: int, channel_ids: list[int] | None = None
     ) -> dict[int, discord.PermissionOverwrite]:
         rows: list[tuple[int, int, int]]
         if channel_ids is None:
@@ -2493,11 +2491,11 @@ class Mod(commands.Cog):
         self,
         guild: discord.Guild,
         *,
-        channel_ids: Optional[list[int]] = None,
-        reason: Optional[str] = None,
+        channel_ids: list[int] | None = None,
+        reason: str | None = None,
     ) -> list[discord.abc.GuildChannel]:
         get_channel = guild.get_channel
-        http_fallback: Optional[dict[int, discord.abc.GuildChannel]] = None
+        http_fallback: dict[int, discord.abc.GuildChannel] | None = None
         default_role = guild.default_role
         failures = []
         lockdowns = await self.get_lockdown_information(guild.id, channel_ids=channel_ids)
@@ -2523,7 +2521,7 @@ class Mod(commands.Cog):
         return failures
 
     def is_potential_lockout(
-        self, me: discord.Member, channel: Union[discord.Thread, discord.VoiceChannel, discord.TextChannel]
+        self, me: discord.Member, channel: discord.Thread | discord.VoiceChannel | discord.TextChannel
     ) -> bool:
         if isinstance(channel, discord.Thread):
             parent = channel.parent
@@ -2556,7 +2554,7 @@ class Mod(commands.Cog):
     @commands.bot_has_guild_permissions(manage_roles=True)
     @commands.cooldown(1, 30.0, commands.BucketType.guild)
     @app_commands.describe(channels='A space separated list of text or voice channels to lock down')
-    async def lockdown(self, ctx: GuildContext, channels: commands.Greedy[Union[discord.TextChannel, discord.VoiceChannel]]):
+    async def lockdown(self, ctx: GuildContext, channels: commands.Greedy[discord.TextChannel | discord.VoiceChannel]):
         """Locks down specific channels.
         A lockdown is done by forbidding users from communicating with the channels.
         This is implemented by blocking certain permissions for the default everyone
@@ -2619,7 +2617,7 @@ class Mod(commands.Cog):
         self,
         ctx: GuildContext,
         duration: time.ShortTime,
-        channels: commands.Greedy[Union[discord.TextChannel, discord.VoiceChannel]],
+        channels: commands.Greedy[discord.TextChannel | discord.VoiceChannel],
     ):
         """Locks down specific channels for a specified amount of time.
 

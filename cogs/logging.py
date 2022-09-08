@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from io import BytesIO
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import asyncpg
 import discord
@@ -27,7 +27,7 @@ class AvatarCache:
 
     user_id: int
     urls: list[str]
-    last_avatar: Optional[str]
+    last_avatar: str
 
     @classmethod
     def from_record(cls, records: list[asyncpg.Record]) -> AvatarCache:

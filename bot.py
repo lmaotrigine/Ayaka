@@ -12,7 +12,7 @@ import logging
 import pathlib
 import traceback
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable
 
 import aiohttp
 import discord
@@ -95,7 +95,7 @@ def _prefix_callable(bot: Ayaka, msg: discord.Message) -> list[str]:
     if msg.guild is None:
         return commands.when_mentioned_or('hey babe ')(bot, msg)
     else:
-        prefs: Optional[list[str]] = bot.prefixes.get(msg.guild.id)
+        prefs: list[str] | None = bot.prefixes.get(msg.guild.id)
         if prefs is None:
             prefs = ['hey babe ']
         return commands.when_mentioned_or(*prefs)(bot, msg)
@@ -137,7 +137,7 @@ class Tree(app_commands.CommandTree):
 class Ayaka(commands.AutoShardedBot):
     pool: Pool
     tree: Tree
-    _original_help_command: Optional[commands.HelpCommand]
+    _original_help_command: commands.HelpCommand | None
     user: discord.ClientUser  # typechecker lie
     command_stats: Counter[str]
     socket_stats: Counter[str]
@@ -276,7 +276,7 @@ class Ayaka(commands.AutoShardedBot):
         except KeyError:
             pass
 
-    async def get_or_fetch_member(self, guild: discord.Guild, member_id: int) -> Optional[discord.Member]:
+    async def get_or_fetch_member(self, guild: discord.Guild, member_id: int) -> discord.Member | None:
         member = guild.get_member(member_id)
         if member is not None:
             return member
@@ -348,7 +348,7 @@ class Ayaka(commands.AutoShardedBot):
 
     async def log_spammer(
         self, ctx: Context, message: discord.Message, retry_after: float, *, autoblock: bool = False
-    ) -> Optional[discord.WebhookMessage]:
+    ) -> discord.WebhookMessage | None:
         guild_name = getattr(ctx.guild, 'name', 'No guild (DMs)')
         guild_id = getattr(ctx.guild, 'id', None)
         fmt = 'User %s (ID %s) in guild %r (ID %s) spamming, retry_after: %.2fs'

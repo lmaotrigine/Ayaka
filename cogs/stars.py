@@ -836,7 +836,7 @@ class Stars(commands.Cog):
                 return
 
         # slow path, try to fetch the content
-        channel: Optional[discord.abc.Messageable] = ctx.guild.get_channel_or_thread(record['channel_id'])  # type: ignore
+        channel: discord.abc.Messageable | None = ctx.guild.get_channel_or_thread(record['channel_id'])  # type: ignore
         if channel is None:
             return await ctx.send("The message's channel has been deleted.")
 

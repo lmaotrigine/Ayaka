@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime
 import logging
 from textwrap import shorten
-from typing import TYPE_CHECKING, Callable, Coroutine, Optional, Union
+from typing import TYPE_CHECKING, Callable, Coroutine
 
 import discord
 import mangadex
@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 class MangadexConverter(commands.Converter):
     def lookup(
         self, bot: Ayaka, item: str
-    ) -> Optional[Callable[[str], Coroutine[None, None, Union[mangadex.Manga, mangadex.Chapter, mangadex.Author]]]]:
+    ) -> Callable[[str], Coroutine[None, None, mangadex.Manga | mangadex.Chapter | mangadex.Author]] | None:
         table = {
             'title': bot.manga_client.view_manga,
             'chapter': bot.manga_client.get_chapter,
@@ -41,9 +41,7 @@ class MangadexConverter(commands.Converter):
 
         return table.get(item, None)
 
-    async def convert(
-        self, ctx: Context, argument: str
-    ) -> Optional[Union[mangadex.Manga, mangadex.Chapter, mangadex.Author]]:
+    async def convert(self, ctx: Context, argument: str) -> mangadex.Manga | mangadex.Chapter | mangadex.Author | None:
         search = mangadex.MANGADEX_URL_REGEX.search(argument)
         if search is None:
             return None
@@ -60,7 +58,7 @@ class MangaView(discord.ui.View):
     def __init__(self, user: discord.abc.Snowflake, bot: Ayaka, manga: list[mangadex.Manga], /) -> None:
         self.user = user
         self.bot = bot
-        self.manga_id: Optional[str] = None
+        self.manga_id: str | None = None
         options = []
         for idx, mango in enumerate(manga, start=1):
             options.append(
@@ -145,7 +143,7 @@ class MangaCog(commands.Cog, name='Manga'):
             return
         await ctx.send(embed=embed)
 
-    async def perform_search(self, search_query: str) -> Optional[list[mangadex.Manga]]:
+    async def perform_search(self, search_query: str) -> list[mangadex.Manga] | None:
         order = MangaListOrderQuery(relevance=Order.descending)
 
         collection = await self.bot.manga_client.manga_list(limit=5, title=search_query, order=order)

@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import datetime
 import re
 import zoneinfo
-from typing import Any, Literal, Optional, Sequence, Type, TypedDict
+from typing import Any, Literal, Sequence, Type, TypedDict
 
 import discord
 import yarl
@@ -110,7 +110,7 @@ class RedditMediaURL:
 
 class DatetimeConverter(commands.Converter[datetime.datetime]):
     @staticmethod
-    async def get_timezone(ctx: Context) -> Optional[zoneinfo.ZoneInfo]:
+    async def get_timezone(ctx: Context) -> zoneinfo.ZoneInfo | None:
         if ctx.guild is None:
             tz = zoneinfo.ZoneInfo('UTC')
         else:
@@ -130,8 +130,8 @@ class DatetimeConverter(commands.Converter[datetime.datetime]):
         /,
         *,
         ctx: Context,
-        timezone: Optional[datetime.tzinfo] = datetime.timezone.utc,
-        now: Optional[datetime.datetime] = None,
+        timezone: datetime.tzinfo | None = datetime.timezone.utc,
+        now: datetime.datetime | None = None,
     ) -> list[tuple[datetime.datetime, int, int]]:
         now = now or datetime.datetime.now(datetime.timezone.utc)
 

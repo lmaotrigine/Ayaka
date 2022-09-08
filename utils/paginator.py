@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from textwrap import shorten
-from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar, overload
 
 import discord
 import mangadex
@@ -31,7 +31,7 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         self.source: SourceT = source
         self.check_embeds: bool = check_embeds
         self.ctx: Context = ctx
-        self.message: Optional[discord.Message] = None
+        self.message: discord.Message | None = None
         self.current_page: int = 0
         self.compact: bool = compact
         self.input_lock = asyncio.Lock()

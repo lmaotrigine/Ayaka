@@ -23,7 +23,7 @@ import time
 import traceback
 from collections import Counter  # type: ignore eval
 from contextlib import redirect_stdout
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 import discord
 from discord.ext import commands
@@ -548,7 +548,7 @@ class Admin(commands.Cog):
 
     @commands.command()
     async def sudo(
-        self, ctx: Context, channel: discord.TextChannel | None, who: Union[discord.Member, discord.User], *, command: str
+        self, ctx: Context, channel: discord.TextChannel | None, who: discord.Member | discord.User, *, command: str
     ) -> None:
         """Run a command as another user optionally in another channel."""
         msg = copy.copy(ctx.message)

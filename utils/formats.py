@@ -10,7 +10,7 @@ import json
 import re
 import sys
 import unicodedata
-from typing import Any, Iterable, Optional, Sequence, SupportsAbs
+from typing import Any, Iterable, Sequence, SupportsAbs
 
 from discord.utils import escape_markdown
 
@@ -110,7 +110,7 @@ class TabularData:
         return '\n'.join(to_draw)
 
 
-def format_dt(dt: datetime.datetime, style: Optional[str] = None) -> str:
+def format_dt(dt: datetime.datetime, style: str | None = None) -> str:
     if style is None:
         return f'<t:{int(dt.timestamp())}>'
     return f'<t:{int(dt.timestamp())}:{style}>'

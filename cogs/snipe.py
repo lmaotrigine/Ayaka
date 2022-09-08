@@ -295,9 +295,8 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
         self,
         ctx: GuildContext,
         amount: int | None = 5,
-        channel: typing.Union[discord.TextChannel, discord.Thread] = commands.parameter(
-            default=lambda x: x.channel, displayed_default='<current>'
-        ),
+        channel: discord.TextChannel
+        | discord.Thread = commands.parameter(default=lambda x: x.channel, displayed_default='<current>'),
     ):
         """Select the last N snipes from this channel."""
 
@@ -365,9 +364,8 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
         self,
         ctx: SnipeContext,
         *,
-        entity: typing.Union[discord.Member, discord.TextChannel] = commands.parameter(
-            default=lambda x: x.author, displayed_default='<self>'
-        ),
+        entity: discord.Member
+        | discord.TextChannel = commands.parameter(default=lambda x: x.author, displayed_default='<self>'),
     ):
         """Let's you toggle it for this channel / member / self."""
 
@@ -397,9 +395,8 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
     async def snipe_optin(
         self,
         ctx: SnipeContext,
-        entity: typing.Union[discord.Member, discord.TextChannel] = commands.parameter(
-            default=lambda x: x.author, displayed_default='<self>'
-        ),
+        entity: discord.Member
+        | discord.TextChannel = commands.parameter(default=lambda x: x.author, displayed_default='<self>'),
     ):
         """Let's you toggle it for this channel / member / self."""
         config = ctx.snipe_conf
@@ -431,9 +428,8 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
         self,
         ctx: GuildContext,
         amount: int | None = 5,
-        channel: typing.Union[discord.TextChannel, discord.Thread] = commands.parameter(
-            default=lambda x: x.channel, displayed_default='<current>'
-        ),
+        channel: discord.TextChannel
+        | discord.Thread = commands.parameter(default=lambda x: x.channel, displayed_default='<current>'),
     ):
         """Edit snipes. Shows the last N. Must have manage_messages to view from another channel."""
         assert amount is not None
@@ -463,9 +459,8 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
     async def _snipe_clear(
         self,
         ctx: GuildContext,
-        target: typing.Union[discord.Member, discord.TextChannel] = commands.parameter(
-            default=lambda x: x.author, displayed_default='<self>'
-        ),
+        target: discord.Member
+        | discord.TextChannel = commands.parameter(default=lambda x: x.author, displayed_default='<self>'),
     ):
         """Remove all data stored on snipes, including edits for the target Member or TextChannel.
 

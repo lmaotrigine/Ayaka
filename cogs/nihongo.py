@@ -14,7 +14,7 @@ from collections import defaultdict
 from functools import partial
 from io import BytesIO
 from textwrap import dedent, fill
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import quote
 
 import aiohttp
@@ -112,14 +112,14 @@ class JishoKanji:
         self.url = url
 
     @property
-    def taught_in(self) -> Optional[str]:
+    def taught_in(self) -> str | None:
         raw = self.data.find('div', class_='grade')
         if raw:
             return raw.select('strong')[0].text.title()  # type: ignore # bs4 types are bad
         return None
 
     @property
-    def jlpt_level(self) -> Optional[str]:
+    def jlpt_level(self) -> str | None:
         raw = self.data.find('div', class_='jlpt')
         if raw is None:
             return None
@@ -128,7 +128,7 @@ class JishoKanji:
         return level.title()
 
     @property
-    def stroke_count(self) -> Optional[str]:
+    def stroke_count(self) -> str | None:
         raw = self.data.find('div', class_='kanji-details__stroke-count')
         if raw is None:
             return None
@@ -150,7 +150,7 @@ class JishoKanji:
         return raw.text.strip()
 
     @property
-    def newspaper_frequency(self) -> Optional[str]:
+    def newspaper_frequency(self) -> str | None:
         raw = self.data.find('div', class_='frequency')
         if raw is None:
             return None
@@ -172,7 +172,7 @@ class JishoKanji:
                     fmt['Kun'] = [item.text.strip() for item in x.select('ul')]  # type: ignore # bs4 types are bad
         return fmt
 
-    def symbols(self, key: Literal['on', 'kun']) -> Optional[list[tuple[str, str]]]:
+    def symbols(self, key: Literal['on', 'kun']) -> list[tuple[str, str]] | None:
         raw = self.data.find('div', class_='kanji-details__main-readings')
         if raw is None:
             return None
@@ -197,18 +197,18 @@ class JishoKanji:
         return fmt
 
     @property
-    def on_readings(self) -> Optional[list[str]]:
+    def on_readings(self) -> list[str] | None:
         readings = self.reading_compounds()
         if not readings:
             return None
         return readings['On']
 
     @property
-    def on_symbols(self) -> Optional[list[tuple[str, str]]]:
+    def on_symbols(self) -> list[tuple[str, str]] | None:
         return self.symbols('on')
 
     @property
-    def kun_readings(self) -> Optional[list[str]]:
+    def kun_readings(self) -> list[str] | None:
         readings = self.reading_compounds()
         if not readings:
             return None
@@ -217,17 +217,17 @@ class JishoKanji:
             return kun_readings
 
     @property
-    def kun_symbols(self) -> Optional[list[tuple[str, str]]]:
+    def kun_symbols(self) -> list[tuple[str, str]] | None:
         return self.symbols('kun')
 
     @property
-    def radical(self) -> Optional[list[str]]:
+    def radical(self) -> list[str] | None:
         raw = self.data.find('div', class_='radicals')
         if raw and raw.find('span'):
             return raw.find('span').text.strip().rsplit()[:2]  # type: ignore #protected
         return None
 
-    def to_dict(self) -> dict[str, Union[str, list[str]]]:
+    def to_dict(self) -> dict[str, str | list[str]]:
         """Quick method to dump the object to a dict for JSON storage."""
 
         data = {}
@@ -492,7 +492,7 @@ class Nihongo(commands.Cog):
 
     @commands.command()
     @commands.cooldown(1, 10.0, commands.BucketType.channel)
-    async def kanarace(self, ctx: Context, amount: int = 10, kana: Optional[Literal['k', 'h']] = 'h'):
+    async def kanarace(self, ctx: Context, amount: int = 10, kana: Literal['k', 'h'] | None = 'h'):
         """Kana racing.
 
         This command will send an image of a string of Kana of [amount] length.
