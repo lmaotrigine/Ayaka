@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
+log = logging.getLogger(__name__)
+
 MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vm|vt|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?\>?')
 DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(?:\?(?:.*))?\>?')
 INSTAGRAM_PATTERN = re.compile(r'\<?((?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+)/?(?:\?.*?\=)?\>?')
@@ -39,6 +41,7 @@ BASE_URLS = [
     'api16-normal-useast5.us.tiktokv.com',
     'api16-normal-c-alisg.tiktokv.com',
     'api19-normal-useast1a.tiktokv.com',
+    'api22-normal-c-useast1a.tiktokv.com',
 ]
 VOICES: dict[str, str] = {
     # Default
@@ -263,15 +266,29 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             'speaker_map_type': 0,
             'text_speaker': voice,
             'req_text': text,
+            'aid': 1233,
         }
+        headers = {
+            'User-Agent': 'com.zhiliaoapp.musically/2022600030 (Linux; U; Android 7.1.2; es_ES; SM-G988N; Build/NRD90M;tt-ok/3.12.13.1)',
+            'Cookie': 'sessionid=57b7d8b3e04228a24cc1e6d25387603a',
+        }
+        data = {}
         for url in BASE_URLS:
-            async with self.bot.session.post(f'https://{url}/media/api/text/speech/invoke/', params=params) as resp:
+            async with self.bot.session.post(
+                f'https://{url}/media/api/text/speech/invoke/', params=params, headers=headers
+            ) as resp:
                 data = await resp.json()
             if data.get('message') == "Couldn't load speech. Try again.":
                 continue
             try:
                 res = data['data']['v_str']
             except KeyError:
+                log.error(
+                    'TikTok synth error.\nMessage: "%s"\nStatus Code: %d\nStatus Message: "%s"',
+                    text,
+                    data['status_code'],
+                    data['status_msg'],
+                )
                 raise TiktokError(resp)
             padding = len(res) % 4
             res = res + ('=' * padding)
@@ -279,6 +296,12 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             fp = BytesIO(bytes_)
             fp.seek(0)
             return fp
+        log.error(
+            'TikTok synth error.\nMessage: "%s"\nStatus Code: %d\nStatus Message: "%s"',
+            text,
+            data['status_code'],
+            data['status_msg'],
+        )
         raise RuntimeError('Tiktok broke, sorry.')
 
     async def voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
