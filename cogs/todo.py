@@ -943,7 +943,7 @@ class Todo(commands.Cog):
         else:
             view = discord.utils.MISSING
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f'<a:agreentick:1015344680520654898> Added todo item {item.id}.', embed=item.embed, view=view, ephemeral=True
         )
 
