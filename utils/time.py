@@ -65,10 +65,10 @@ class HumanTime:
     def __init__(self, argument: str, *, now: datetime.datetime | None = None, tz=zoneinfo.ZoneInfo('UTC')):
         now = now or discord.utils.utcnow()
         dt, status = self.calendar.parseDT(argument, sourceTime=now, tzinfo=tz)
-        if not status.hasDateOrTime:
+        if not status.hasDateOrTime:  # type: ignore
             raise commands.BadArgument('invalid time provided, try e.g. "tomorrow" or "3 days"')
 
-        if not status.hasTime:
+        if not status.hasTime:  # type: ignore
             # replace it with the current time
             dt = dt.replace(
                 hour=now.hour,

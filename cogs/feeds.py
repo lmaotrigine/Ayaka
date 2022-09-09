@@ -439,9 +439,10 @@ class Feeds(commands.Cog):
                     ),
                 )
                 # Still necessary to run in executor?
+                # lots of type ignores here because feedparser is a mess
                 ttl = None
                 if 'ttl' in feed_info.feed:
-                    ttl = int(feed_info.feed.ttl)
+                    ttl = int(feed_info.feed.ttl)  # type: ignore
                 await self.bot.pool.execute(
                     """
                     UPDATE rss_feeds
@@ -474,9 +475,9 @@ class Feeds(commands.Cog):
                     timestamp = None
                     try:
                         if 'published' in entry and entry.published:
-                            timestamp = dateutil.parser.parse(entry.published, tzinfos=self.tzinfos)
+                            timestamp = dateutil.parser.parse(entry.published, tzinfos=self.tzinfos)  # type: ignore
                         elif 'updated' in entry:  # and entry.updated necessary?; check updated first?
-                            timestamp = dateutil.parser.parse(entry.updated, tzinfos=self.tzinfos)
+                            timestamp = dateutil.parser.parse(entry.updated, tzinfos=self.tzinfos)  # type: ignore
                     except ValueError:
                         pass
                     # Get and set description, title, url + set timestamp
@@ -489,7 +490,7 @@ class Feeds(commands.Cog):
                             space_index = description.rfind(' ', 0, 4093)
                             description = description[:space_index] + '...'
                     if title := entry.get('title'):
-                        title = textwrap.shorten(entry.get('title'), width=256, placeholder='...')
+                        title = textwrap.shorten(entry.get('title'), width=256, placeholder='...')  # type: ignore
                         title = html.unescape(title)
                     embed = discord.Embed(
                         title=title,
@@ -507,47 +508,47 @@ class Feeds(commands.Cog):
                         (media_thumbnail := entry.get('media_thumbnail'))
                         and media_thumbnail[0].get('url')
                         or (
-                            (media_content := entry.get('media_content'))
+                            (media_content := entry.get('media_content'))  # type: ignore
                             and (media_image := discord.utils.find(lambda c: 'image' in c.get('medium', ''), media_content))
                             and media_image.get('url')
                         )
                         or (
                             (links := entry.get('links'))
-                            and (image_link := discord.utils.find(lambda l: 'image' in l.get('type', ''), links))  # type: ignore # idk
+                            and (image_link := discord.utils.find(lambda l: 'image' in l.get('type', ''), links))
                             and image_link.get('href')
                         )
                         or (
                             (content := entry.get('content'))
                             and (content_value := content[0].get('value'))
-                            and (content_img := getattr(BeautifulSoup(content_value, 'lxml'), 'img'))
+                            and (content_img := getattr(BeautifulSoup(content_value, 'lxml'), 'img'))  # type: ignore
                             and content_img.get('src')
                         )
                         or (
-                            (media_content := entry.get('media_content'))
+                            (media_content := entry.get('media_content'))  # type: ignore
                             and (media_content := discord.utils.find(lambda c: 'url' in c, media_content))
                             and media_content['url']
                         )
                         or (
                             (description := entry.get('description'))
-                            and (description_img := getattr(BeautifulSoup(description, 'lxml'), 'img'))
+                            and (description_img := getattr(BeautifulSoup(description, 'lxml'), 'img'))  # type: ignore
                             and description_img.get('src')
                         )
                     )
                     if thumbnail_url:
-                        if not urllib.parse.urlparse(thumbnail_url).netloc:
-                            thumbnail_url = feed_info.feed.link + thumbnail_url
+                        if not urllib.parse.urlparse(thumbnail_url).netloc:  # type: ignore
+                            thumbnail_url = feed_info.feed.link + thumbnail_url  # type: ignore
                         embed.set_thumbnail(url=thumbnail_url)
                     # Get and set footer icon url
                     footer_icon_url = (
-                        feed_info.feed.get('icon')
-                        or feed_info.feed.get('logo')
-                        or (feed_image := feed_info.feed.get('image'))
+                        feed_info.feed.get('icon')  # type: ignore
+                        or feed_info.feed.get('logo')  # type: ignore
+                        or (feed_image := feed_info.feed.get('image'))  # type: ignore
                         and feed_image.get('href')
                         or (parsed_image := BeautifulSoup(feed_text, 'lxml').image)
                         and next(iter(parsed_image.attrs.values()), None)
                         or None
                     )
-                    embed.set_footer(text=feed_info.feed.get('title', feed), icon_url=footer_icon_url)
+                    embed.set_footer(text=feed_info.feed.get('title', feed), icon_url=footer_icon_url)  # type: ignore
                     # Send embed(s)
                     channel_records = await self.bot.pool.fetch('SELECT channel_id FROM rss_feeds WHERE feed = $1', feed)
                     for record in channel_records:
@@ -587,7 +588,7 @@ class Feeds(commands.Cog):
                                         'In embed.footer.icon_url: Scheme' in e.text
                                         and "is not supported. Scheme must be one of ('http', 'https')." in e.text
                                     ):
-                                        embed.set_footer(text=feed_info.feed.title)
+                                        embed.set_footer(text=feed_info.feed.title)  # type: ignore
                                     await text_channel.send(embed=embed)
                                 else:
                                     raise
