@@ -19,7 +19,9 @@
   <body>
     <div class="my-gallery">
       {% for avatar in avatars %}
-        <img src="{{ avatar }}">
+        <a href="{{ avatar }}">
+          <img src="{{ avatar }}">
+        </a>
       {% end %}
     </div>
   </body>
