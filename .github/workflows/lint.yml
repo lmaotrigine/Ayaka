@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         id: install-deps
         run: |
-          curl -fsSL https://install.python-poetry.org | python3 - --preview
+          curl -fsSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH 
           poetry config virtualenvs.create false
           poetry install --with dev,web
