@@ -239,6 +239,8 @@ class Feeds(commands.Cog):
 
         A delay of up to 2 minutes is possible due to Twitter rate limits.
         """
+        if handle.startswith('@'):
+            handle = handle[1:]
         embed = discord.Embed(colour=TWITTER_COLOUR)
         query = """SELECT EXISTS (
                    SELECT FROM twitter_handles
