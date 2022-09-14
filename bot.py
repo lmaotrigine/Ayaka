@@ -142,7 +142,7 @@ class Ayaka(commands.AutoShardedBot):
     command_stats: Counter[str]
     socket_stats: Counter[str]
     command_types_used: Counter[bool]
-    gateway_handler: Any
+    logging_handler: Any
     bot_app_info: discord.AppInfo
 
     def __init__(self):
@@ -254,7 +254,7 @@ class Ayaka(commands.AutoShardedBot):
         local_inject: Callable[[Ayaka, discord.Message], list[str]] = _prefix_callable,
     ) -> list[str]:
         proxy_msg = ProxyObject(guild=guild)
-        return local_inject(self, proxy_msg)  # type: ignore # lying
+        return local_inject(self, proxy_msg)  # type: ignore # can't narrow?
 
     def get_raw_guild_prefixes(self, guild_id: int) -> list[str]:
         return self.prefixes.get(guild_id, ['hey babe '])
@@ -417,8 +417,8 @@ class Ayaka(commands.AutoShardedBot):
             super().close(),
             self.session.close(),
             self.manga_client.close(),
+            self.hentai_client.close(),
         )
-        self.hentai_client.close()
         await super().close()
 
     def run(self) -> None:
