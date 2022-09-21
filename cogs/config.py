@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, AsyncIterator, Iterable
 
 import asyncpg
 import discord
-from discord.ext import commands, menus
+from discord.ext import commands
 
 from utils import cache, checks
-from utils.paginator import RoboPages, SimplePages
+from utils.paginator import AsyncIteratorPageSource, RoboPages, SimplePages
 
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ async def plonk_iterator(bot: Ayaka, guild: discord.Guild, records: list[Record]
         yield str(resolved)
 
 
-class PlonkedPageSource(menus.AsyncIteratorPageSource):
+class PlonkedPageSource(AsyncIteratorPageSource):
     def __init__(self, bot: Ayaka, guild: discord.Guild, records: list[Record]):
         super().__init__(plonk_iterator(bot, guild, records), per_page=20)
 

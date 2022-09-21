@@ -12,10 +12,10 @@ import difflib
 import typing
 
 import discord
-from discord.ext import commands, menus, tasks
+from discord.ext import commands, tasks
 
 from utils import cache, formats
-from utils.paginator import RoboPages
+from utils.paginator import ListPageSource, RoboPages
 
 
 if typing.TYPE_CHECKING:
@@ -32,7 +32,7 @@ class RequiresSnipe(commands.CheckFailure):
     """Requires snipe configured."""
 
 
-class SnipePageSource(menus.ListPageSource):
+class SnipePageSource(ListPageSource):
     def __init__(self, data, embeds):
         self.data = data
         self.embeds = embeds

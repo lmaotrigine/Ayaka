@@ -17,12 +17,12 @@ from typing import TYPE_CHECKING, Any
 import asyncpg
 import discord
 from discord import app_commands, ui
-from discord.ext import commands, menus, tasks
+from discord.ext import commands, tasks
 from discord.utils import MISSING
 
 from utils import cache, fuzzy, time
 from utils.formats import plural
-from utils.paginator import FieldPageSource, RoboPages
+from utils.paginator import FieldPageSource, ListPageSource, RoboPages
 from utils.ui import ConfirmationView
 
 
@@ -478,7 +478,7 @@ class EditDueDateButton(ui.Button):
         await interaction.response.send_modal(modal)
 
 
-class TodoPageSource(menus.ListPageSource):
+class TodoPageSource(ListPageSource):
     def __init__(self, todos: list[TodoItem]) -> None:
         super().__init__(entries=todos, per_page=1)
 

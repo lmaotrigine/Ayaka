@@ -8,7 +8,6 @@ license = "MPL 2.0"
 [tool.poetry.dependencies]
 python = "^3.10"
 "discord.py" = {git = "https://github.com/Rapptz/discord.py", rev = "master", extras=["speed", "voice"]}
-discord-ext-menus = {git = "https://github.com/Rapptz/discord-ext-menus", rev = "master"}
 jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
 mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"}
 "nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}

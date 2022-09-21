@@ -7,12 +7,12 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 import asyncio
+import inspect
 from textwrap import shorten
-from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar, overload
+from typing import TYPE_CHECKING, Any, AsyncIterable, AsyncIterator, Callable, Generic, Sequence, Type, TypeVar, overload
 
 import discord
 import mangadex
-from discord.ext import menus
 from discord.ext.commands import Paginator as CommandPaginator
 
 from utils.context import Context
@@ -22,7 +22,129 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 T = TypeVar('T')
-SourceT = TypeVar('SourceT', bound='menus.PageSource')
+SourceT = TypeVar('SourceT', bound='PageSource')
+
+
+class PageSource(Generic[T]):
+    async def _prepare_once(self) -> None:
+        try:
+            # don't feel like formatting hasattr with
+            # the proper mangling
+            # read this as follows:
+            # if hasattr(self, '__prepare')
+            # except that it works as you expect
+            self.__prepare
+        except AttributeError:
+            await self.prepare()
+            self.__prepare = True
+    
+    async def prepare(self) -> None:
+        return
+    
+    def is_paginating(self) -> bool:
+        raise NotImplementedError
+    
+    def get_max_pages(self) -> int | None:
+        return None
+    
+    async def get_page(self, page_number: int) -> T:
+        raise NotImplementedError
+    
+    async def format_page(self, menu: RoboPages, page: T) -> str | discord.Embed | dict[str, Any]:
+        raise NotImplementedError
+
+
+def _aiter(obj: AsyncIterable[T], *, _isasync: Callable[[Any], bool] = inspect.iscoroutinefunction) -> AsyncIterator[T]:
+    cls = obj.__class__
+    try:
+        async_iter = cls.__aiter__
+    except AttributeError:
+        raise TypeError(f'{cls.__name__!r} object is not async iterable')
+    
+    async_iter = async_iter(obj)
+    if _isasync(async_iter):
+        raise TypeError(f'{cls.__name__!r} object is not async iterable')
+    return async_iter
+
+
+class AsyncIteratorPageSource(PageSource[T]):
+    def __init__(self, iterator: AsyncIterable[T], *, per_page: int) -> None:
+        self.iterator = _aiter(iterator)
+        self.per_page = per_page
+        self._exhausted = False
+        self._cache: list[T] = []
+    
+    async def _iterate(self, n: int) -> None:
+        it = self.iterator
+        cache = self._cache
+        for _ in range(0, n):
+            try:
+                elem = await it.__anext__()
+            except StopAsyncIteration:
+                self._exhausted = True
+                break
+            else:
+                cache.append(elem)
+    
+    async def prepare(self) -> None:
+        # Iterate until we have at least a bit more than a single page
+        await self._iterate(self.per_page + 1)
+    
+    def is_paginating(self) -> bool:
+        return len(self._cache) > self.per_page
+    
+    async def _get_single_page(self, page_number: int) -> T:
+        if page_number < 0:
+            raise IndexError('Negative page number.')
+        
+        if not self._exhausted and len(self._cache) <= page_number:
+            await self._iterate((page_number + 1) - len(self._cache))
+        return self._cache[page_number]
+    
+    async def _get_page_range(self, page_number: int) -> list[T]:
+        if page_number < 0:
+            raise IndexError('Negative page number.')
+        
+        base = page_number * self.per_page
+        max_base = base + self.per_page
+        if not self._exhausted and len(self._cache) <= max_base:
+            await self._iterate((max_base + 1) - len(self._cache))
+        
+        entries = self._cache[base:max_base]
+        if not entries and max_base > len(self._cache):
+            raise IndexError('Went too far.')
+        return entries
+    
+    async def get_page(self, page_number: int) -> T | list[T]:
+        if self.per_page == 1:
+            return await self._get_single_page(page_number)
+        else:
+            return await self._get_page_range(page_number)
+
+
+class ListPageSource(PageSource[T]):
+    def __init__(self, entries: Sequence[T], *, per_page: int) -> None:
+        self.entries = entries
+        self.per_page = per_page
+
+        pages, left_over = divmod(len(entries), per_page)
+        if left_over:
+            pages += 1
+        
+        self._max_pages = pages
+    
+    def is_paginating(self) -> bool:
+        return len(self.entries) > self.per_page
+    
+    def get_max_pages(self) -> int:
+        return self._max_pages
+    
+    async def get_page(self, page_number: int) -> T | Sequence[T]:
+        if self.per_page == 1:
+            return self.entries[page_number]
+        else:
+            base = page_number * self.per_page
+            return self.entries[base:base + self.per_page]
 
 
 class RoboPages(discord.ui.View, Generic[SourceT]):
@@ -222,7 +344,7 @@ class RoboPages(discord.ui.View, Generic[SourceT]):
         self.stop()
 
 
-class FieldPageSource(menus.ListPageSource):
+class FieldPageSource(ListPageSource):
     def __init__(
         self, entries: list[tuple[Any, Any]], *, per_page: int = 12, inline: bool = False, clear_description: bool = True
     ):
@@ -246,7 +368,7 @@ class FieldPageSource(menus.ListPageSource):
         return self.embed
 
 
-class TextPageSource(menus.ListPageSource):
+class TextPageSource(ListPageSource):
     def __init__(self, text: str, *, prefix: str = '```', suffix: str = '```', max_size: int = 2000) -> None:
         pages = CommandPaginator(prefix=prefix, suffix=suffix, max_size=max_size - 200)
         for line in text.split('\n'):
@@ -261,7 +383,7 @@ class TextPageSource(menus.ListPageSource):
         return content
 
 
-class SimplePageSource(menus.ListPageSource):
+class SimplePageSource(ListPageSource):
     async def format_page(self, menu: SimplePages, entries: list[str]) -> discord.Embed:
         pages = []
         for index, entry in enumerate(entries, start=menu.current_page * self.per_page):
@@ -282,20 +404,20 @@ class SimplePages(RoboPages):
         self.embed = discord.Embed(colour=discord.Colour.blurple())
 
 
-class SimpleListSource(menus.ListPageSource, Generic[T]):
+class SimpleListSource(ListPageSource[T]):
     def __init__(self, data: list[T], per_page: int = 1):
         self.data = data
         super().__init__(data, per_page=per_page)
 
     @overload
-    async def format_page(self, _: menus.Menu, entries: list[T]) -> list[T]:
+    async def format_page(self, _: RoboPages, entries: list[T]) -> list[T]:
         ...
 
     @overload
-    async def format_page(self, _: menus.Menu, entries: T) -> T:
+    async def format_page(self, _: RoboPages, entries: T) -> T:
         ...
 
-    async def format_page(self, _: menus.Menu, entries: T | list[T]):
+    async def format_page(self, _: RoboPages, entries: T | list[T]):
         return entries
 
 

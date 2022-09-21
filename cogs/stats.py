@@ -26,7 +26,7 @@ import discord
 import psutil
 import pygit2
 from discord import app_commands
-from discord.ext import commands, menus, tasks
+from discord.ext import commands, tasks
 from typing_extensions import Annotated
 
 from utils import formats, time
@@ -686,7 +686,7 @@ class Stats(commands.Cog):
             return
 
         error = error.original
-        if isinstance(error, (discord.Forbidden, discord.NotFound, menus.MenuError)):
+        if isinstance(error, (discord.Forbidden, discord.NotFound)):
             return
 
         e = discord.Embed(title='Command Error', colour=0xCC3366)

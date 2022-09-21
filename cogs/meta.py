@@ -22,12 +22,12 @@ from urllib.parse import urlencode
 
 import discord
 from discord import app_commands
-from discord.ext import commands, menus
+from discord.ext import commands
 
 from utils import checks, formats, time
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
-from utils.paginator import RoboPages, TextPageSource
+from utils.paginator import ListPageSource, PageSource, RoboPages, TextPageSource
 from utils.ui import AvatarView
 
 
@@ -46,7 +46,7 @@ class Prefix(commands.Converter):
         return argument
 
 
-class GroupHelpPageSource(menus.ListPageSource):
+class GroupHelpPageSource(ListPageSource):
     def __init__(self, group: commands.Group | commands.Cog, commands: list[commands.Command], *, prefix: str):
         super().__init__(entries=commands, per_page=6)
         self.group = group
@@ -110,7 +110,7 @@ class HelpSelectMenu(discord.ui.Select['HelpMenu']):
             await self.view.rebind(source, interaction)
 
 
-class FrontPageSource(menus.PageSource):
+class FrontPageSource(PageSource):
     def is_paginating(self) -> bool:
         # This forces the buttons to appear even in the front page
         return True
@@ -174,7 +174,7 @@ class FrontPageSource(menus.PageSource):
 
 
 class HelpMenu(RoboPages):
-    def __init__(self, source: menus.PageSource, *, ctx: Context):
+    def __init__(self, source: PageSource, *, ctx: Context):
         super().__init__(source, ctx=ctx, compact=True)
 
     def add_categories(self, commands: dict[commands.Cog, list[commands.Command]]) -> None:
@@ -182,7 +182,7 @@ class HelpMenu(RoboPages):
         self.add_item(HelpSelectMenu(commands, self.ctx.bot))
         self.fill_items()
 
-    async def rebind(self, source: menus.PageSource, interaction: discord.Interaction) -> None:
+    async def rebind(self, source: PageSource, interaction: discord.Interaction) -> None:
         self.source = source
         self.current_page = 0
 

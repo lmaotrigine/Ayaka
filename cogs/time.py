@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import zoneinfo
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Sequence
 
 import discord
 from discord import app_commands
-from discord.ext import commands, menus
+from discord.ext import commands
 from fuzzywuzzy import process
 
 from utils import time
-from utils.paginator import RoboPages
+from utils.paginator import ListPageSource, RoboPages
 
 
 if TYPE_CHECKING:
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from utils.context import Context, GuildContext
 
 
-class TZMenuSource(menus.ListPageSource):
-    def __init__(self, data: Iterable[int], embeds: list[discord.Embed]) -> None:
+class TZMenuSource(ListPageSource):
+    def __init__(self, data: Sequence[int], embeds: list[discord.Embed]) -> None:
         self.data = data
         self.embeds = embeds
         super().__init__(data, per_page=1)

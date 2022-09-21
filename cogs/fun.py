@@ -22,7 +22,7 @@ import discord
 import googletrans
 from currency_converter import CurrencyConverter
 from discord import app_commands
-from discord.ext import commands, menus
+from discord.ext import commands
 from lru import LRU
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -31,7 +31,7 @@ from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.converters import MessageOrCleanContent, MessageOrContent, RedditMediaURL
 from utils.formats import plural
-from utils.paginator import RoboPages
+from utils.paginator import ListPageSource, RoboPages
 
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ MESSAGE_LINK_RE = re.compile(
 SPOILER_EMOJI_ID = 956843179213209620
 
 
-class UrbanDictionaryPageSource(menus.ListPageSource):
+class UrbanDictionaryPageSource(ListPageSource):
     BRACKETED = re.compile(r'(\[(.+?)\])')
 
     def __init__(self, data):
