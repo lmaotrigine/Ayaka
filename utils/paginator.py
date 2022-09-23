@@ -37,19 +37,19 @@ class PageSource(Generic[T]):
         except AttributeError:
             await self.prepare()
             self.__prepare = True
-    
+
     async def prepare(self) -> None:
         return
-    
+
     def is_paginating(self) -> bool:
         raise NotImplementedError
-    
+
     def get_max_pages(self) -> int | None:
         return None
-    
+
     async def get_page(self, page_number: int) -> T:
         raise NotImplementedError
-    
+
     async def format_page(self, menu: RoboPages, page: T) -> str | discord.Embed | dict[str, Any]:
         raise NotImplementedError
 
@@ -60,7 +60,7 @@ def _aiter(obj: AsyncIterable[T], *, _isasync: Callable[[Any], bool] = inspect.i
         async_iter = cls.__aiter__
     except AttributeError:
         raise TypeError(f'{cls.__name__!r} object is not async iterable')
-    
+
     async_iter = async_iter(obj)
     if _isasync(async_iter):
         raise TypeError(f'{cls.__name__!r} object is not async iterable')
@@ -73,7 +73,7 @@ class AsyncIteratorPageSource(PageSource[T]):
         self.per_page = per_page
         self._exhausted = False
         self._cache: list[T] = []
-    
+
     async def _iterate(self, n: int) -> None:
         it = self.iterator
         cache = self._cache
@@ -85,36 +85,36 @@ class AsyncIteratorPageSource(PageSource[T]):
                 break
             else:
                 cache.append(elem)
-    
+
     async def prepare(self) -> None:
         # Iterate until we have at least a bit more than a single page
         await self._iterate(self.per_page + 1)
-    
+
     def is_paginating(self) -> bool:
         return len(self._cache) > self.per_page
-    
+
     async def _get_single_page(self, page_number: int) -> T:
         if page_number < 0:
             raise IndexError('Negative page number.')
-        
+
         if not self._exhausted and len(self._cache) <= page_number:
             await self._iterate((page_number + 1) - len(self._cache))
         return self._cache[page_number]
-    
+
     async def _get_page_range(self, page_number: int) -> list[T]:
         if page_number < 0:
             raise IndexError('Negative page number.')
-        
+
         base = page_number * self.per_page
         max_base = base + self.per_page
         if not self._exhausted and len(self._cache) <= max_base:
             await self._iterate((max_base + 1) - len(self._cache))
-        
+
         entries = self._cache[base:max_base]
         if not entries and max_base > len(self._cache):
             raise IndexError('Went too far.')
         return entries
-    
+
     async def get_page(self, page_number: int) -> T | list[T]:
         if self.per_page == 1:
             return await self._get_single_page(page_number)
@@ -130,21 +130,21 @@ class ListPageSource(PageSource[T]):
         pages, left_over = divmod(len(entries), per_page)
         if left_over:
             pages += 1
-        
+
         self._max_pages = pages
-    
+
     def is_paginating(self) -> bool:
         return len(self.entries) > self.per_page
-    
+
     def get_max_pages(self) -> int:
         return self._max_pages
-    
+
     async def get_page(self, page_number: int) -> T | Sequence[T]:
         if self.per_page == 1:
             return self.entries[page_number]
         else:
             base = page_number * self.per_page
-            return self.entries[base:base + self.per_page]
+            return self.entries[base : base + self.per_page]
 
 
 class RoboPages(discord.ui.View, Generic[SourceT]):
