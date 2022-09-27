@@ -121,14 +121,12 @@ class TwitterStream(tweepy.asynchronous.AsyncStream):
                         try:
                             await channel.send(embed=embed)  # TODO: Handle this better
                         except discord.Forbidden:
-                            await self.bot.stat_webhook.send(
-                                f'Twitter Stream: Missing permissions to send embed in #{channel.name} in {channel.guild.name}'
-                            )
+                            log.warning('Twitter Stream: Missing permissions to send embed in #%s in %s', channel.name, channel.guild.name)
                         except discord.DiscordServerError as e:
-                            await self.bot.stat_webhook.send(f'Twitter Stream Discord Server Error: {e}')
+                            log.error('Twitter Stream Discord Server Error: %r', e, exc_info=e)
 
     async def on_request_error(self, status_code):
-        await self.bot.stat_webhook.send(f'Twitter Stream: Request error {status_code}')
+        log.error(f'Twitter Stream: Request error {status_code}')
 
 
 class Feeds(commands.Cog):
@@ -168,7 +166,7 @@ class Feeds(commands.Cog):
                     if friend.protected:
                         self.blacklisted_handles.append(friend.screen_name.lower())
         except (AttributeError, tweepy.TweepyException) as e:
-            await self.bot.stat_webhook.send(f'Failed to initialise Twitter blacklist: {e}')
+            log.error('Failed to initialise Twitter blacklist: %r', e, exc_info=e)
         self.stream = TwitterStream(self.bot)
         self.task = self.bot.loop.create_task(self.start_twitter_feeds(), name='Start Twitter Stream')
 
@@ -616,7 +614,7 @@ class Feeds(commands.Cog):
                 # TODO: Add variable for sleep time
                 # TODO: Remove persistently erroring feed or exponentially backoff?
             except discord.DiscordServerError as e:
-                await self.bot.stat_webhook.send(f'RSS Task Discord Server Error: {e}')
+                log.error('RSS Task Discord Server Error: %r', e, exc_info=e)
                 await asyncio.sleep(60)
             except Exception as e:
                 log.error('Uncaught RSS Task exception\n', exc_info=(type(e), e, e.__traceback__))
