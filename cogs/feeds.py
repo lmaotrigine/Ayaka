@@ -121,7 +121,11 @@ class TwitterStream(tweepy.asynchronous.AsyncStream):
                         try:
                             await channel.send(embed=embed)  # TODO: Handle this better
                         except discord.Forbidden:
-                            log.warning('Twitter Stream: Missing permissions to send embed in #%s in %s', channel.name, channel.guild.name)
+                            log.warning(
+                                'Twitter Stream: Missing permissions to send embed in #%s in %s',
+                                channel.name,
+                                channel.guild.name,
+                            )
                         except discord.DiscordServerError as e:
                             log.error('Twitter Stream Discord Server Error: %r', e, exc_info=e)
 
