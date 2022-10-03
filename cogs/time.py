@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Sequence
 import discord
 from discord import app_commands
 from discord.ext import commands
-from fuzzywuzzy import process
+from thefuzz import process
 
 from utils import time
 from utils.paginator import ListPageSource, RoboPages
