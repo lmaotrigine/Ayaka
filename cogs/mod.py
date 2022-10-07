@@ -361,7 +361,7 @@ class PurgeFlags(commands.FlagConverter):
     before: Annotated[int | None, Snowflake] = commands.flag(
         description='Search for messages that come before this message ID', default=None
     )
-    bot: bool = commands.flag(description='Remove messages from bots (not webhooks!)', default=False)
+    bot: bool = commands.flag(description='Remove messages from bots (not webhooks!)', default=False, aliases=['bots'])
     webhooks: bool = commands.flag(description='Remove messages from webhooks', default=False)
     embeds: bool = commands.flag(description='Remove messages that have embeds', default=False)
     files: bool = commands.flag(description='Remove messages that have attachments', default=False)
@@ -1301,6 +1301,7 @@ class Mod(commands.Cog):
     async def ban(
         self,
         ctx: GuildContext,
+        spec: Literal['_0'] | None,
         member: Annotated[discord.abc.Snowflake, MemberID],
         *,
         reason: Annotated[str | None, ActionReason] = None,
@@ -1317,8 +1318,10 @@ class Mod(commands.Cog):
 
         if reason is None:
             reason = f'Action done by {ctx.author} (ID: {ctx.author.id})'
-
-        await ctx.guild.ban(member, reason=reason)
+        if spec == '_0':
+            await ctx.guild.ban(member, delete_message_days=0, reason=reason)
+        else:
+            await ctx.guild.ban(member, reason=reason)
         await ctx.send('\N{OK HAND SIGN}')
 
     @commands.command()
