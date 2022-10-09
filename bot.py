@@ -10,16 +10,14 @@ import asyncio
 import datetime
 import logging
 import pathlib
-import traceback
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Iterable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Coroutine, Iterable
 
 import aiohttp
 import discord
 import mangadex
 import nhentai
 import redis.asyncio as aioredis
-from discord import app_commands
 from discord.ext import commands
 
 import config
@@ -88,6 +86,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.private.logging',
     'cogs.private.games',
     'cogs.private.roles',
+    'cogs.private.dungeon',
 )
 
 
@@ -107,36 +106,8 @@ class ProxyObject(discord.Object):
         self.guild: discord.abc.Snowflake | None = guild
 
 
-class Tree(app_commands.CommandTree):
-    async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        assert interaction.command is not None
-        self.client.dispatch('app_command_error', interaction, error)
-        e = discord.Embed(title='Tree Error', colour=0xA32952)
-        e.add_field(name='Name', value=interaction.command.qualified_name)
-        e.add_field(
-            name='Type',
-            value='Context Menu' if isinstance(interaction.command, app_commands.ContextMenu) else 'Slash Command',
-        )
-        e.add_field(name='Author', value=f'{interaction.user} (ID: {interaction.user.id})')
-        fmt = f'Channel: {interaction.channel} (ID: {interaction.channel_id})'
-        if interaction.guild:
-            fmt = f'{fmt}\nGuild: {interaction.guild} (ID: {interaction.guild.id})'
-
-        e.add_field(name='Location', value=fmt, inline=False)
-        fmt = command_args = ' '.join([f'{k}: {v!r}' for k, v in interaction.namespace.__dict__.items()])
-        if fmt:
-            e.add_field(name='Parameters', value=command_args)
-
-        trace = ''.join(traceback.format_exception(type(error), error, error.__traceback__, chain=False))
-        e.description = f'```py\n{trace}\n```'
-        e.timestamp = discord.utils.utcnow()
-        hook = self.client.stat_webhook
-        await hook.send(embed=e)
-
-
 class Ayaka(commands.AutoShardedBot):
     pool: Pool
-    tree: Tree
     _original_help_command: commands.HelpCommand | None
     user: discord.ClientUser  # typechecker lie
     command_stats: Counter[str]
@@ -144,13 +115,13 @@ class Ayaka(commands.AutoShardedBot):
     command_types_used: Counter[bool]
     logging_handler: Any
     bot_app_info: discord.AppInfo
+    old_tree_error: Callable[[discord.Interaction, discord.app_commands.AppCommandError], Coroutine[Any, Any, None]]
 
     def __init__(self):
         intents = discord.Intents.all()
 
         super().__init__(
             command_prefix=_prefix_callable,
-            tree_cls=Tree,
             description=DESCRIPTION,
             allowed_mentions=discord.AllowedMentions.none(),
             pm_help=None,
