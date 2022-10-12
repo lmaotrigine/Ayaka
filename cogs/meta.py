@@ -620,12 +620,10 @@ class Meta(commands.Cog):
 
     @commands.command(aliases=['guildinfo'], usage='')
     @commands.guild_only()
-    async def serverinfo(self, ctx: GuildContext, *, guild: discord.Guild | None = None) -> None:
+    async def serverinfo(self, ctx: GuildContext, *, guild: discord.Guild = commands.CurrentGuild) -> None:
         """Shows info about the current server."""
 
-        if await self.bot.is_owner(ctx.author):
-            guild = guild or ctx.guild
-        else:
+        if not await self.bot.is_owner(ctx.author):
             guild = ctx.guild
 
         roles = [role.mention for role in guild.roles[1:]]
