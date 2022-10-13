@@ -5,7 +5,6 @@ class _Booru(TypedDict):
     user_id: str
     api_key: str
 
-
 class _Mangadex(TypedDict):
     username: str
     password: str
