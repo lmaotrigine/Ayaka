@@ -1,4 +1,5 @@
 # Ayaka
+
 ***
 
 [![licence][licence-badge]](LICENSE)
@@ -7,10 +8,11 @@
 [![PostgreSQL version](https://img.shields.io/badge/psql->=9-blue)](https://www.postgresql.org/download/)
 [![CodeQL][codeql-badge]](https://github.com/lmaotrigine/Ayaka/actions/workflows/codeql-analysis.yml)
 [![lint][lint-badge]](https://github.com/lmaotrigine/Ayaka/actions/workflows/lint.yml)
-
+<!-- markdownlint-disable MD053 -->
 [licence-badge]: https://img.shields.io/github/license/lmaotrigine/Ayaka
 [codeql-badge]: https://github.com/lmaotrigine/Ayaka/actions/workflows/codeql-analysis.yml/badge.svg
 [lint-badge]: https://github.com/lmaotrigine/Ayaka/actions/workflows/lint.yml/badge.svg
+<!-- markdownlint-enable MD053 -->
 ***
 
 A personal bot for Discord, written with love and fun.
