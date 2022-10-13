@@ -33,6 +33,16 @@ jobs:
           poetry config virtualenvs.create false
           poetry install --with dev,web
       
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Run Pyright
+        uses: jakebailey/pyright-action@v1
+        with:
+          warnings: false
+      
       - name: Run black
         if: ${{ always() && steps.install-deps.outcome == 'success' }}
         run: |
