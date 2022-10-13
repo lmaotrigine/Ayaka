@@ -1,6 +1,5 @@
 from typing import TypedDict
 
-
 class _Booru(TypedDict):
     user_id: str
     api_key: str
