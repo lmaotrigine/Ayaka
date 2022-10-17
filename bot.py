@@ -129,6 +129,7 @@ class Ayaka(commands.AutoShardedBot):
             heartbeat_timeout=150.0,
             intents=intents,
             application_id=config.application_id,
+            enable_debug_events=True,
         )
         self.session = aiohttp.ClientSession()
         self.dashboard_client = HTTPClient(self)
