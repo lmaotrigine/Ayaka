@@ -1107,7 +1107,7 @@ class Mod(commands.Cog):
     async def robomod_mentions(self, ctx: GuildContext, count: commands.Range[int, 3]):
         """Enables auto-banning accounts that spam more than "count" mentions.
 
-         If a message contains `count` or more mentions then the
+        If a message contains `count` or more mentions then the
         bot will automatically attempt to auto-ban the member.
         The `count` must be greater than 3.
 
