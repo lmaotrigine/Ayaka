@@ -15,12 +15,13 @@ import re
 import sys
 import zlib
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Generator
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, Callable, Generator
 
 import asyncpg  # type: ignore # rtfs
 import discord
-from discord import app_commands
-from discord.ext import commands, menus, tasks  # type: ignore # rtfs
+from discord import app_commands, ui  # type: ignore # rtfs
+from discord.ext import commands, tasks  # type: ignore # rtfs
 from jishaku.codeblocks import Codeblock, codeblock_converter
 from jishaku.shell import ShellReader
 from lxml import etree
@@ -35,7 +36,25 @@ if TYPE_CHECKING:
     from bot import Ayaka
 
 
-RTFS = ('discord', 'discord.app_commands', 'discord.ext.commands', 'discord.ext.tasks', 'discord.ext.menus', 'asyncpg')
+RTFS = (
+    'discord',
+    'discord.app_commands',
+    'app_commands',
+    'discord.ext.commands',
+    'commands',
+    'discord.ext.tasks',
+    'tasks',
+    'discord.ui',
+    'ui',
+    'asyncpg',
+)
+
+RTFS_LOOKUP = {
+    'tasks': 'discord.ext.tasks',
+    'commands': 'discord.ext.commands',
+    'ui': 'discord.ui',
+    'app_commands': 'discord.app_commands',
+}
 
 RTFM_PAGES = {
     'discord.py': 'https://discordpy.readthedocs.io/en/stable',
@@ -53,30 +72,37 @@ class BadSource(commands.CommandError):
 class SourceConverter(commands.Converter):
     async def convert(self, ctx: Context, argument: str) -> str | None:
         args = argument.split('.')
-        top_level = args[0]
-        if top_level in ('commands', 'menus', 'tasks'):
-            top_level = f'discord.ext.{top_level}'
-
+        top_level = args.pop(0)
         if top_level not in RTFS:
             raise BadSource(f'`{top_level}`is not an allowed sourceable module.')
 
-        recur = sys.modules[top_level]  # type: ignore
+        top_level = RTFS_LOOKUP.get(top_level, top_level)
+        module = sys.modules[top_level]
 
-        if len(args) == 1:
-            return inspect.getsource(recur)
+        if not args:
+            return inspect.getsource(module)
 
-        for item in args[1:]:
+        current = top_level
+
+        recur: ModuleType | Callable[[Any], Any] | property | None = None
+
+        for item in args:
             if item == '':
                 raise BadSource("Don't even try.")
 
-            recur = inspect.getattr_static(recur, item, None)
+            if recur:
+                recur = inspect.getattr_static(recur, item, None)
+            else:
+                recur = inspect.getattr_static(module, item, None)
+            current += f'.{item}'
 
             if recur is None:
-                raise BadSource(f'{argument} is not a valid module path.')
+                raise BadSource(f'{current} is not a valid module path.')
 
         if isinstance(recur, property):
-            recur: Callable[..., None] = recur.fget
-        return inspect.getsource(recur)
+            recur = recur.fget
+
+        return inspect.getsource(recur)  # type: ignore # unreachable
 
 
 class SphinxObjectFileReader:
@@ -308,8 +334,8 @@ class RTFX(commands.Cog):
     async def rtfs_error(self, ctx: Context, error: commands.CommandError) -> None:
         error = getattr(error, 'original', error)
 
-        if isinstance(error, TypeError):
-            await ctx.send('Not a valid source-able type or path.')
+        if isinstance(error, (TypeError, BadSource)):
+            await ctx.send(f'Not a valid source-able type or path:-\n\n{error}')
 
     @commands.command(name='pyright', aliases=['pr'])
     async def _pyright(self, ctx: Context, *, codeblock: Codeblock = commands.param(converter=codeblock_converter)) -> None:
