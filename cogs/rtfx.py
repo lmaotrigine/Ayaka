@@ -356,7 +356,8 @@ class RTFX(commands.Cog):
                             'typeCheckingMode': 'basic',
                             'useLibraryCodeForTypes': False,
                             'reportMissingImports': True,
-                        }
+                        },
+                        indent=2,
                     )
                 )
         await ctx.typing()
