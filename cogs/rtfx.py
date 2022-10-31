@@ -425,6 +425,7 @@ class RTFX(commands.Cog):
                 return
             if resp.url.path != '/mwiki/index.php':
                 await ctx.send(f'<{resp.url}>')
+                return
             e = discord.Embed()
             root = etree.fromstring(await resp.text(), etree.HTMLParser())
             nodes = root.findall(".//div[@class='mw-search-result-heading']/a")
