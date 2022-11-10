@@ -69,7 +69,7 @@ class MangaView(discord.ui.View):
         self.select.options = options
 
     @discord.ui.select(min_values=1, max_values=1, options=[])
-    async def select(self, interaction: discord.Interaction, item) -> None:
+    async def select(self, interaction: discord.Interaction, item: discord.ui.Select) -> None:
         assert interaction.user is not None
         assert interaction.channel is not None
         assert not isinstance(interaction.channel, discord.PartialMessageable)
