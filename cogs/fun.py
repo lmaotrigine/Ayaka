@@ -282,6 +282,34 @@ class Fun(commands.Cog):
         e.add_field(name='Pronouns', value=f'```md\n# {pronouns}```')
         await interaction.followup.send(embed=e, ephemeral=True)
 
+    @commands.command(hidden=True)
+    async def feelgood(self, ctx: Context) -> None:
+        """press"""
+        await ctx.send('*pressed*')
+
+    @commands.command(hidden=True)
+    async def feelbad(self, ctx: Context) -> None:
+        """depress"""
+        await ctx.send('*depressed*')
+
+    @commands.command()
+    async def love(self, ctx: Context) -> None:
+        """What is love?"""
+        responses = [
+            'https://www.youtube.com/watch?v=HEXWRTEbj1I',
+            'https://www.youtube.com/watch?v=i0p1bmr0EmE',
+            'an intense feeling of deep affection',
+            'something we don\'t have',
+        ]
+
+        response = random.choice(responses)
+        await ctx.send(response)
+
+    @commands.command(hidden=True)
+    async def bored(self, ctx: Context) -> None:
+        """boredom looms"""
+        await ctx.send('https://i.imgur.com/BuTKSzf.png')
+
     async def do_translate(
         self,
         ctx: Context,

@@ -11,7 +11,7 @@ import datetime
 import logging
 import pathlib
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Coroutine, Iterable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Coroutine, Iterable, TypeVar
 
 import aiohttp
 import discord
@@ -42,6 +42,8 @@ if TYPE_CHECKING:
     from cogs.config import Config as ConfigCog
     from cogs.logging import Logging as LoggingCog
     from cogs.reminders import Reminder
+    
+    ContextT = TypeVar('ContextT', bound=Context)
 
 DESCRIPTION = """
 Hello! I'm a bot written by VJ#5945 to provide some nice utilities.
@@ -86,6 +88,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.private.logging',
     'cogs.private.games',
     'cogs.private.roles',
+    'cogs.private.scotrail',
     'cogs.private.dungeon',
 )
 
@@ -336,8 +339,8 @@ class Ayaka(commands.AutoShardedBot):
         embed.timestamp = discord.utils.utcnow()
         return await webhook.send(embed=embed, wait=True)
 
-    async def get_context(self, origin: discord.Message | discord.Interaction, /, *, cls=Context) -> Context:
-        return await super().get_context(origin, cls=cls)
+    async def get_context(self, origin: discord.Message | discord.Interaction, /, *, cls: type[ContextT]=Context) -> ContextT:
+        return await super().get_context(origin, cls=cls)  # type: ignore # not sure
 
     async def process_commands(self, message: discord.Message) -> None:
         ctx: Context = await self.get_context(message)
