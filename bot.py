@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from cogs.config import Config as ConfigCog
     from cogs.logging import Logging as LoggingCog
     from cogs.reminders import Reminder
-    
+
     ContextT = TypeVar('ContextT', bound=Context)
 
 DESCRIPTION = """
@@ -339,7 +339,9 @@ class Ayaka(commands.AutoShardedBot):
         embed.timestamp = discord.utils.utcnow()
         return await webhook.send(embed=embed, wait=True)
 
-    async def get_context(self, origin: discord.Message | discord.Interaction, /, *, cls: type[ContextT]=Context) -> ContextT:
+    async def get_context(
+        self, origin: discord.Message | discord.Interaction, /, *, cls: type[ContextT] = Context
+    ) -> ContextT:
         return await super().get_context(origin, cls=cls)  # type: ignore # not sure
 
     async def process_commands(self, message: discord.Message) -> None:
