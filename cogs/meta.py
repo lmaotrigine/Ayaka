@@ -7,6 +7,8 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from __future__ import annotations
 
 import colorsys
+import contextlib
+import contextvars
 import datetime
 import inspect
 import itertools
@@ -14,10 +16,11 @@ import json
 import os
 import pathlib
 import textwrap
+import traceback
 import unicodedata
 from collections import Counter, defaultdict
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Iterator
 from urllib.parse import urlencode
 
 import discord
@@ -299,6 +302,27 @@ class FeedbackModal(discord.ui.Modal, title='Submit Feedback'):
         await interaction.response.send_message('Successfully submitted feedback', ephemeral=True)
 
 
+_current = contextvars.ContextVar[discord.Interaction]('_current')
+
+
+class PatchedContext(Context):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.first_interaction_sent = False
+    
+    async def send(self, content: str | None = None, **kwargs: Any) -> discord.Message | None:
+        if not self.first_interaction_sent:
+            self.first_interaction_sent = True
+            kwargs.pop('allowed_mentions', None)
+            return await _current.get().response.send_message(content, ephemeral=False, **kwargs)
+        else:
+            return await super().send(content=content, **kwargs)
+    
+    @contextlib.asynccontextmanager
+    async def typing(self) -> AsyncGenerator[None, None]:
+        yield
+
+
 class Meta(commands.Cog):
     """Commands for utilities related to Discord or the Bot itself."""
 
@@ -308,7 +332,9 @@ class Meta(commands.Cog):
         self.bot.help_command = PaginatedHelpCommand()
         self.bot.help_command.cog = self
         self.ctx_menu = app_commands.ContextMenu(name='Raw Message', callback=self.raw_message_callback)
+        self.interpret_as_command_ctx_menu = app_commands.ContextMenu(name='Interpret as Command', callback=self.interpret_as_command_callback)
         self.bot.tree.add_command(self.ctx_menu)
+        self.bot.tree.add_command(self.interpret_as_command_ctx_menu)
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -318,10 +344,37 @@ class Meta(commands.Cog):
         assert self.bot._original_help_command is not None
         self.bot.help_command = self.bot._original_help_command
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+        self.bot.tree.remove_command(self.interpret_as_command_ctx_menu.name, type=self.interpret_as_command_ctx_menu.type)
 
     async def cog_command_error(self, ctx: Context, error: commands.CommandError) -> None:
         if isinstance(error, commands.BadArgument):
             await ctx.send(str(error))
+    
+    async def interpret_as_command_callback(self, interaction: discord.Interaction, message: discord.Message, /) -> None:
+        if message.author.bot:
+            return await interaction.response.send_message('Cannot invoke commands from bot messages.', ephemeral=True)
+        
+        if interaction.user.id != message.author.id:
+            return await interaction.response.send_message('Sorry, this is not your message.', ephemeral=True)
+        
+        context = await self.bot.get_context(message, cls=PatchedContext)
+        
+        if not context.valid:
+            return await interaction.response.send_message('This does not look like a valid command for me.', ephemeral=True)
+        
+        _current.set(interaction)
+        
+        try:
+            await context.command.invoke(context)
+        except (commands.UserInputError, commands.CheckFailure, commands.DisabledCommand, commands.CommandOnCooldown, commands.MaxConcurrencyReached) as e:
+            await interaction.response.send_message(f'{type(e).__name__}: {e}')
+        except Exception as e:
+            info = ''.join(traceback.format_exception(type(e), e, e.__traceback__, 2))
+            await interaction.response.send_message(f'Some exception occurred, sorry:\n```py\n{info}\n```')
+            raise
+        
+        if not context.first_interaction_sent:
+            await interaction.response.send_message('Command finished with no output.', ephemeral=True)
 
     @commands.command()
     async def charinfo(self, ctx: Context, *, characters: str) -> None:
