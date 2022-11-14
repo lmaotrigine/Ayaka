@@ -20,8 +20,11 @@ import discord
 import yt_dlp
 from discord import app_commands
 from discord.ext import commands
+from yt_dlp.extractor.instagram import InstagramIE
+from yt_dlp.extractor.tiktok import TikTokIE, TikTokVMIE
 
 from utils.fuzzy import extract
+from utils.time import ordinal
 
 
 if TYPE_CHECKING:
@@ -33,9 +36,9 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
 log = logging.getLogger(__name__)
 
-MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vm|vt|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+)(?:/\?.*)?\>?')
-DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(?:\?(?:.*))?\>?')
-INSTAGRAM_PATTERN = re.compile(r'\<?((?:https?://)?(?:www\.)?instagram\.com/reel/[a-zA-Z0-9\-\_]+)/?(?:\?.*?\=)?\>?')
+MOBILE_PATTERN: re.Pattern[str] = re.compile(TikTokVMIE._VALID_URL)
+DESKTOP_PATTERN: re.Pattern[str] = re.compile(TikTokIE._VALID_URL)
+INSTAGRAM_PATTERN: re.Pattern[str] = re.compile(InstagramIE._VALID_URL)
 
 BASE_URLS = [
     'api16-normal-useast5.us.tiktokv.com',
@@ -144,11 +147,11 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         await interaction.response.defer(thinking=True)
 
         if match := MOBILE_PATTERN.search(message.content):
-            url = match[1]
+            url = match[0]
         elif match := DESKTOP_PATTERN.search(message.content):
-            url = match[1]
+            url = match[0]
         elif match := INSTAGRAM_PATTERN.search(message.content):
-            url = match[1]
+            url = match['url']
         else:
             await interaction.followup.send("I couldn't find any processable links in this message.")
             return
@@ -166,7 +169,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         fn = functools.partial(ydl.extract_info, url, download=True)
         try:
             info = await loop.run_in_executor(None, fn)
-        except yt_dlp.DownloadError as e:
+        except (yt_dlp.DownloadError, yt_dlp.utils.ExtractorError) as e:
             if 'You need to log in' in str(e) or 'login required' in str(e):
                 raise NeedsLogin('Need to log in.')
             raise
@@ -204,15 +207,17 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             return
 
         matches = (
-            MOBILE_PATTERN.findall(message.content)
-            or DESKTOP_PATTERN.findall(message.content)
-            or INSTAGRAM_PATTERN.findall(message.content)
+            MOBILE_PATTERN.finditer(message.content)
+            or DESKTOP_PATTERN.finditer(message.content)
+            or INSTAGRAM_PATTERN.finditer(message.content)
         )
+        matches = list(matches)
         if not matches:
             return
         log.info(f'Processing {len(matches)} detected TikToks...')
 
         async with message.channel.typing():
+            _errors = []
             for idx, url in enumerate(matches, start=1):
                 if isinstance(url, str):
                     exposed_url = url
@@ -226,10 +231,23 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
                 except ValueError:
                     await message.reply(f'TikTok link #{idx} in your message exceeded the file size limit.')
                     continue
+                except (yt_dlp.DownloadError, yt_dlp.utils.ExtractorError):
+                    _errors.append(idx)
+                    continue
 
                 if message.mentions:
                     content = ' '.join(m.mention for m in message.mentions) + '\n\n' + content
-                await message.reply(content[:1000], file=file)
+
+                content = content[:1000] + f'\nRequested by: {message.author} | Replying to: {message.jump_url}'
+
+                await message.channel.send(content, file=file)
+                if _errors:
+                    formatted = (
+                        'I had issues downloading the '
+                        f'{", ".join(ordinal(idx) for idx in _errors)} '
+                        'links in your message.'
+                    )
+                    await message.channel.send(formatted)
                 if message.channel.permissions_for(message.guild.me).manage_messages and any(
                     [
                         INSTAGRAM_PATTERN.fullmatch(message.content),
