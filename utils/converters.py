@@ -11,7 +11,7 @@ from typing import Any, Literal, Sequence, Type, TypedDict
 import discord
 import yarl
 from discord.ext import commands
-from typing_extensions import Self
+from typing_extensions import NotRequired, Self
 
 from utils.context import Context, GuildContext
 
@@ -21,20 +21,17 @@ class DucklingNormalised(TypedDict):
     value: int
 
 
-class _DucklingResponseValue(TypedDict, total=False):
-    minute: int
-    hour: int
-    second: int
-    day: int
-    week: int
-    hour: int
-
-
-class DucklingResponseValue(_DucklingResponseValue):
+class DucklingResponseValue(TypedDict):
     normalized: DucklingNormalised
     type: Literal['value']
     unit: str
-    value: int
+    value: NotRequired[str]
+    minute: NotRequired[int]
+    hour: NotRequired[int]
+    second: NotRequired[int]
+    day: NotRequired[int]
+    week: NotRequired[int]
+    hour: NotRequired[int]
 
 
 class DucklingResponse(TypedDict):

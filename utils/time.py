@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime
 import re
 import zoneinfo
+from typing import TYPE_CHECKING
 
 import discord
 import parsedatetime as pdt
@@ -21,6 +22,10 @@ from utils.context import Context
 
 from .context import Context
 from .formats import format_dt, human_join, plural
+
+
+if TYPE_CHECKING:
+    from .converters import DucklingResponse
 
 
 # Monkeypatch mins and secs into units
@@ -125,7 +130,53 @@ class TimeTransformer(app_commands.Transformer):
                 tz = zoneinfo.ZoneInfo('UTC')
         return tz
 
-    def transform(self, interaction: discord.Interaction, value: str) -> datetime.datetime:
+    @classmethod
+    async def parse(
+        cls,
+        argument: str,
+        /,
+        *,
+        interaction: discord.Interaction,
+        timezone: datetime.tzinfo | None = datetime.timezone.utc,
+        now: datetime.datetime | None = None,
+    ) -> list[tuple[datetime.datetime, int, int]]:
+        now = now or datetime.datetime.now(datetime.timezone.utc)
+
+        times: list[tuple[datetime.datetime, int, int]] = []
+
+        _data = {'locale': 'en_GB', 'text': argument, 'dims': '["time", "duration"]', 'tz': str(timezone)}
+        async with interaction.client.session.post('http://127.0.0.1:7731/parse', data=_data) as resp:  # type: ignore # TypeVar defaults :(
+            data: list[DucklingResponse] = await resp.json()
+
+            for time in data:
+                if time['dim'] == 'time' and 'value' in time['value']:
+                    times.append((datetime.datetime.fromisoformat(time['value']['value']), time['start'], time['end']))
+                elif time['dim'] == 'duration':
+                    times.append(
+                        (
+                            datetime.datetime.now(datetime.timezone.utc)
+                            + datetime.timedelta(time['value']['normalized']['value']),
+                            time['start'],
+                            time['end'],
+                        )
+                    )
+        return times
+
+    @classmethod
+    async def transform(cls, interaction: discord.Interaction, argument: str) -> datetime.datetime:
+        timezone = await cls.get_timezone(interaction)
+        now = interaction.created_at.astimezone(timezone)
+
+        parsed_times = await cls.parse(argument, interaction=interaction, timezone=timezone, now=now)
+
+        if len(parsed_times) == 0:
+            raise BadTimeTransform('Invalid time provided. Try e.g. "tomorrow" or "3 days"')
+        elif len(parsed_times) > 1:
+            ...  # TODO: raise on too many?
+
+        return parsed_times[0][0]
+
+    def _transform(self, interaction: discord.Interaction, value: str) -> datetime.datetime:
         now = interaction.created_at
         try:
             short = ShortTime(value, now=now)
