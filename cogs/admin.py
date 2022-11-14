@@ -131,7 +131,7 @@ class Admin(commands.Cog):
         await guild.leave()
 
     @leave.error
-    async def leave_Error(self, ctx: Context, error: commands.CommandError) -> None:
+    async def leave_error(self, ctx: Context, error: commands.CommandError) -> None:
         if isinstance(error, commands.BadArgument):
             await ctx.send(str(error))
 
