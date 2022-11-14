@@ -191,14 +191,18 @@ class WhenAndWhatConverter(commands.Converter[tuple[datetime.datetime, str]]):
         parsed_times = await DatetimeConverter.parse(argument, ctx=ctx, timezone=timezone, now=now)
 
         if len(parsed_times) == 0:
-            raise commands.BadArgument('Could not parse time.')
+            raise commands.BadArgument('Invalid time provided. Try e.g. "tomorrow" or "3 days".')
         elif len(parsed_times) > 1:
             ...  # TODO: raise on too many?
 
         when, begin, end = parsed_times[0]
 
         if begin != 0 and end != len(argument):
-            raise commands.BadArgument('Could not distinguish time from argument')
+            raise commands.BadArgument(
+                'Time is either in an inappropriate location, which '
+                'must be either at the end or beginning of your input, '
+                'or I just flat out did not understand what you meant. Sorry.'
+            )
 
         if begin == 0:
             what = argument[end + 1 :].lstrip(' ,.!:;')
