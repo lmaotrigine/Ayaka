@@ -21,7 +21,6 @@ import yt_dlp
 from discord import app_commands
 from discord.ext import commands
 from yt_dlp.extractor.instagram import InstagramIE
-from yt_dlp.extractor.tiktok import TikTokIE, TikTokVMIE
 
 from utils.fuzzy import extract
 from utils.time import ordinal
@@ -36,9 +35,9 @@ ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
 
 log = logging.getLogger(__name__)
 
-MOBILE_PATTERN: re.Pattern[str] = re.compile(TikTokVMIE._VALID_URL)
-DESKTOP_PATTERN: re.Pattern[str] = re.compile(TikTokIE._VALID_URL)
-INSTAGRAM_PATTERN: re.Pattern[str] = re.compile(InstagramIE._VALID_URL)
+MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vt|vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+/?)(?:/\?.*\>)?\>?')
+DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?\>?')
+INSTAGRAM_PATTERN = re.compile(rf'\<?{InstagramIE._VALID_URL}\>?')
 
 BASE_URLS = [
     'api16-normal-useast5.us.tiktokv.com',
@@ -147,9 +146,9 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         await interaction.response.defer(thinking=True)
 
         if match := MOBILE_PATTERN.search(message.content):
-            url = match[0]
+            url = match[1]
         elif match := DESKTOP_PATTERN.search(message.content):
-            url = match[0]
+            url = match[1]
         elif match := INSTAGRAM_PATTERN.search(message.content):
             url = match['url']
         else:
@@ -219,10 +218,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         async with message.channel.typing():
             _errors = []
             for idx, url in enumerate(matches, start=1):
-                if isinstance(url, str):
-                    exposed_url = url
-                else:
-                    exposed_url = url[0]
+                exposed_url = url[1]
                 try:
                     file, content = await self.process_url(exposed_url, message.guild)
                 except NeedsLogin as e:
