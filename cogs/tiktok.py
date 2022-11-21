@@ -22,6 +22,7 @@ from discord import app_commands
 from discord.ext import commands
 from yt_dlp.extractor.instagram import InstagramIE
 
+from utils.cache import ExpiringCache
 from utils.fuzzy import extract
 from utils.time import ordinal
 
@@ -132,6 +133,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             guild_ids=[932533101530349568, 714196770879438888],
         )
         self.bot.tree.add_command(self.ctx_menu)
+        self._tasks: dict[str, asyncio.Task] = ExpiringCache(seconds=20)
 
     async def cog_load(self) -> None:
         ret: list[app_commands.Choice[str]] = []
@@ -189,11 +191,18 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             file_loc.unlink(missing_ok=True)
             raise ValueError('Video exceeded the file size limit.')
         file = discord.File(str(fixed_file_loc), filename=fixed_file_loc.name)
-        file_loc.unlink(missing_ok=True)
-        fixed_file_loc.unlink(missing_ok=True)
         content = f'**Uploader:**: {info["uploader"]}\n\n' * bool(info['uploader'])
         content += f'**Description:** {info["description"]}' * bool(info['description'])
+        if file_loc.name in self._tasks:
+            self._tasks[file_loc.name].cancel()
+        task = loop.create_task(self._cleanup_paths(file_loc, fixed_file_loc))
+        self._tasks[file_loc.name] = task
         return file, content
+    
+    async def _cleanup_paths(self, *args: pathlib.Path) -> None:
+        await asyncio.sleep(20)
+        for path in args:
+            path.unlink(missing_ok=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
