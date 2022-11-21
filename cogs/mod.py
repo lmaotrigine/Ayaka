@@ -12,7 +12,7 @@ import io
 import logging
 import re
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping, Union
 
 import asyncpg
 import discord
@@ -285,7 +285,7 @@ class ActionReason(commands.Converter):
         return ret
 
 
-IgnoreableEntity = discord.TextChannel | discord.VoiceChannel | discord.Thread | discord.User | discord.Role
+IgnoreableEntity = Union[discord.TextChannel, discord.VoiceChannel, discord.Thread, discord.User, discord.Role]
 
 
 class IgnoreEntity(commands.Converter):
