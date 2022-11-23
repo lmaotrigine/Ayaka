@@ -38,9 +38,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+## Constants
+IMS_ID = 714196770879438888
+CLINICAL_CATEGORY_ID = 785742280086519828
+# For *some* reason, this isn't synced :pain:
+RANDOM_OFFSHOOT_ID = 792735525634965524
+
+
 ## Misc utilities
-
-
 class AutoModFlags(flags.BaseFlags):
     @flags.flag_value
     def joins(self) -> int:
@@ -2279,6 +2284,11 @@ class Mod(commands.Cog):
         if confirm:
             return await ctx.author.ban(reason='Suicide.', delete_message_days=0)
 
+    def get_block_channels(self, guild: discord.Guild, channel: discord.abc.GuildChannel) -> list[discord.abc.GuildChannel]:
+        if guild.id == IMS_ID and channel.category_id == CLINICAL_CATEGORY_ID:
+            return [guild.get_channel(CLINICAL_CATEGORY_ID), guild.get_channel(RANDOM_OFFSHOOT_ID)]  # type: ignore # not none
+        return [channel]
+
     @commands.command()
     @can_use_block()
     async def block(self, ctx: ModGuildContext, *, member: discord.Member) -> None:
@@ -2295,16 +2305,18 @@ class Mod(commands.Cog):
             else:
                 await ctx.send('\N{THUMBS UP SIGN}')
             return
+        channels = self.get_block_channels(ctx.guild, ctx.channel)
         try:
-            await ctx.channel.set_permissions(
-                member,
-                send_messages=False,
-                add_reactions=False,
-                create_public_threads=False,
-                create_private_threads=False,
-                send_messages_in_threads=False,
-                reason=reason,
-            )
+            for channel in channels:
+                await channel.set_permissions(
+                    member,
+                    send_messages=False,
+                    add_reactions=False,
+                    create_public_threads=False,
+                    create_private_threads=False,
+                    send_messages_in_threads=False,
+                    reason=reason,
+                )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
@@ -2326,16 +2338,18 @@ class Mod(commands.Cog):
             else:
                 await ctx.send('\N{THUMBS UP SIGN}')
             return
+        channels = self.get_block_channels(ctx.guild, ctx.channel)
         try:
-            await ctx.channel.set_permissions(
-                member,
-                send_messages=None,
-                add_reactions=None,
-                create_public_threads=None,
-                create_private_threads=None,
-                send_messages_in_threads=None,
-                reason=reason,
-            )
+            for channel in channels:
+                await channel.set_permissions(
+                    member,
+                    send_messages=None,
+                    add_reactions=None,
+                    create_public_threads=None,
+                    create_private_threads=None,
+                    send_messages_in_threads=None,
+                    reason=reason,
+                )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
@@ -2365,6 +2379,7 @@ class Mod(commands.Cog):
         if isinstance(ctx.channel, discord.Thread):
             await ctx.send('Cannot execute tempblock in threads. Use block instead.')
             return
+        channels = self.get_block_channels(ctx.guild, ctx.channel)
         await reminder.create_timer(
             duration.dt,
             'tempblock',
@@ -2376,15 +2391,16 @@ class Mod(commands.Cog):
         )
         reason = f'Tempblock by {ctx.author} (ID: {ctx.author.id}) until {duration.dt}'
         try:
-            await ctx.channel.set_permissions(
-                member,
-                send_messages=False,
-                add_reactions=False,
-                create_public_threads=False,
-                create_private_threads=False,
-                send_messages_in_threads=False,
-                reason=reason,
-            )
+            for channel in channels:
+                await channel.set_permissions(
+                    member,
+                    send_messages=False,
+                    add_reactions=False,
+                    create_public_threads=False,
+                    create_private_threads=False,
+                    send_messages_in_threads=False,
+                    reason=reason,
+                )
         except:
             await ctx.channel.send('\N{THUMBS DOWN SIGN}')
         else:
