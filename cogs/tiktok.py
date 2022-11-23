@@ -20,7 +20,6 @@ import discord
 import yt_dlp
 from discord import app_commands
 from discord.ext import commands
-from yt_dlp.extractor.instagram import InstagramIE
 
 from utils.cache import ExpiringCache
 from utils.fuzzy import extract
