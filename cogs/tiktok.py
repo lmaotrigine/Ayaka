@@ -32,13 +32,15 @@ if TYPE_CHECKING:
     from utils.context import Context
 
 
-ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True})
+ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True, 'cookiefile': 'configs/insta_cookies.txt'})
 
 log = logging.getLogger(__name__)
 
 MOBILE_PATTERN = re.compile(r'\<?(https?://(?:vt|vm|www)\.tiktok\.com/(?:t/)?[a-zA-Z0-9]+/?)(?:/\?.*\>)?\>?')
 DESKTOP_PATTERN = re.compile(r'\<?(https?://(?:www\.)?tiktok\.com/@(?P<user>.*)/video/(?P<video_id>[0-9]+))(\?(?:.*))?\>?')
-INSTAGRAM_PATTERN = re.compile(rf'\<?{InstagramIE._VALID_URL}\>?')
+INSTAGRAM_PATTERN = re.compile(
+    rf'\<?(?P<url>https?://(?:www\.)?instagram\.com(?:/[^/]+)?/(?:p|tv|reel)/(?P<id>[^/?#&]+))\>?'
+)
 
 BASE_URLS = [
     'api16-normal-useast5.us.tiktokv.com',
@@ -164,6 +166,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             return
         await interaction.followup.send(content, file=file)
 
+    # async def _extract_info(self, url: str)
     async def process_url(self, url: str, guild: discord.Guild | None = None) -> tuple[discord.File, str]:
         max_len = guild and guild.filesize_limit or 8388608
         loop = asyncio.get_running_loop()
@@ -198,7 +201,7 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
         task = loop.create_task(self._cleanup_paths(file_loc, fixed_file_loc))
         self._tasks[file_loc.name] = task
         return file, content
-    
+
     async def _cleanup_paths(self, *args: pathlib.Path) -> None:
         await asyncio.sleep(20)
         for path in args:
@@ -215,11 +218,10 @@ class TikTok(commands.Cog, command_attrs=dict(hidden=True)):
             return
 
         matches = (
-            MOBILE_PATTERN.finditer(message.content)
-            or DESKTOP_PATTERN.finditer(message.content)
-            or INSTAGRAM_PATTERN.finditer(message.content)
+            list(MOBILE_PATTERN.finditer(message.content))
+            + list(DESKTOP_PATTERN.finditer(message.content))
+            + list(INSTAGRAM_PATTERN.finditer(message.content))
         )
-        matches = list(matches)
         if not matches:
             return
         log.info(f'Processing {len(matches)} detected TikToks...')
