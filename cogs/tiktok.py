@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Annotated
 import aiohttp
 import discord
 import yt_dlp
+import yt_dlp.utils
 from discord import app_commands
 from discord.ext import commands
 
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from utils.context import Context
 
 
+yt_dlp.utils.std_headers['User-Agent'] = 'facebookexternalhit/1.1'
 ydl = yt_dlp.YoutubeDL({'outtmpl': 'buffer/%(id)s.%(ext)s', 'quiet': True, 'cookiefile': 'configs/insta_cookies.txt'})
 
 log = logging.getLogger(__name__)
