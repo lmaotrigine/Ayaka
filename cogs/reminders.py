@@ -439,7 +439,7 @@ class Reminder(commands.Cog):
 
         status = await ctx.db.execute(query, id, str(ctx.author.id))
         if status == 'DELETE 0':
-            return await ctx.send('Could not delete any reminders with that ID.')
+            return await ctx.send('Could not delete any reminders with that ID.', ephemeral=True)
 
         # if the current timer is being deleted
         if self._current_timer and self._current_timer.id == id:
@@ -447,7 +447,7 @@ class Reminder(commands.Cog):
             self._task.cancel()
             self._task = self.bot.loop.create_task(self.dispatch_timers())
 
-        await ctx.send('Successfully deleted reminder.')
+        await ctx.send('Successfully deleted reminder.', ephemeral=True)
 
     @reminder.command(name='clear', ignore_extra=False)
     async def reminder_clear(self, ctx: Context):
