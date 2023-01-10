@@ -466,7 +466,7 @@ class Reminder(commands.Cog):
         assert total is not None  # will always be an int
         total = total[0]
         if total == 0:
-            return await ctx.send('You do not have any reminders to delete.')
+            return await ctx.send('You do not have any reminders to delete.', ephemeral=True)
 
         confirm = await ctx.prompt(f'Are you sure you want to delete {formats.plural(total):reminder}?')
         if not confirm:
@@ -479,7 +479,7 @@ class Reminder(commands.Cog):
         if self._current_timer and self._current_timer.author_id == ctx.author.id:
             self._task.cancel()
             self._task = self.bot.loop.create_task(self.dispatch_timers())
-        await ctx.send(f'Successfully deleted {formats.plural(total):reminder}.')
+        await ctx.send(f'Successfully deleted {formats.plural(total):reminder}.', ephemeral=True)
 
     @commands.Cog.listener()
     async def on_reminder_timer_complete(self, timer: Timer) -> None:
