@@ -39,3 +39,6 @@ github_token: str
 chess_hook: str
 cotd_salt: str
 ims_news_hook: str
+open_collective_token: str
+oc_discord_client_id: int
+oc_discord_client_secret: str
