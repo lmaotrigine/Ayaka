@@ -90,6 +90,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.private.roles',
     'cogs.private.scotrail',
     'cogs.private.dungeon',
+    'cogs.private.oc',
 )
 
 
