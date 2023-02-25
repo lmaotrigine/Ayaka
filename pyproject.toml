@@ -9,9 +9,9 @@ license = "MPL 2.0"
 python = "^3.10"
 "discord.py" = {git = "https://github.com/Rapptz/discord.py", rev = "master", extras=["speed", "voice"]}
 jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
-mangadex = {git = "https://git.5ht2.me/darthshittious/mangadex.py", rev = "main"}
-"nhentai.py" = {git = "https://git.5ht2.me/darthshittious/nhentai.py", rev = "main"}
-bottom = {git = "https://git.5ht2.me/darthshittious/bottom", rev = "main"}
+mangadex = {git = "https://git.5ht2.me/lmaotrigine/mangadex.py", rev = "main"}
+"nhentai.py" = {git = "https://git.5ht2.me/lmaotrigine/nhentai.py", rev = "main"}
+bottom = {git = "https://git.5ht2.me/lmaotrigine/bottom", rev = "main"}
 dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
 asyncpg = "*"
 aiohttp = {extras = ["speedups"], version = "^3.8.1"}
@@ -42,7 +42,7 @@ hiredis = "^2.0.0"
 optional = true
 
 [tool.poetry.group.private.dependencies]
-py-markov = {git = "https://git.5ht2.me/darthshittious/py-markov", rev = "main"}
+py-markov = {git = "https://git.5ht2.me/lmaotrigine/py-markov", rev = "main"}
 numpy = "^1.22.3"
 chess = "^1.9.1"
 CairoSVG = "^2.5.2"
