@@ -1045,7 +1045,7 @@ class Stars(commands.Cog):
     @star.command(name='random')
     @requires_starboard()
     @app_commands.describe(member='The member to show random stars of, if not given then shows a random star in the server')
-    async def star_random(self, ctx: StarboardContext, *, member: discord.Member | None = None):
+    async def star_random(self, ctx: StarboardContext, *, member: discord.User | None = None):
         """Shows a random starred message."""
 
         await ctx.defer()
@@ -1078,6 +1078,11 @@ class Stars(commands.Cog):
             await ctx.send(message.content, embed=message.embeds[0])
         else:
             await ctx.send(message.content)
+
+    @star_random.error
+    async def star_random_error(self, ctx: StarboardContext, error: commands.CommandError) -> None:
+        if isinstance(error, commands.UserNotFound):
+            await ctx.send('Could not find that member.')
 
     @star.command(name='lock')
     @checks.is_manager()
