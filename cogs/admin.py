@@ -366,6 +366,7 @@ class Admin(commands.Cog):
                 return
 
             executor = exec
+            code = ''
             if cleaned.count('\n') == 0:
                 # single statement, potentially 'eval'
                 try:
