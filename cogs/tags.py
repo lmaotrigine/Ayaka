@@ -90,7 +90,7 @@ class TagEditModal(discord.ui.Modal, title='Edit Tag'):
         super().__init__()
         self.content.default = text
 
-    async def on_submit(self, interaction: discord.Interaction) -> None:
+    async def on_submit(self, interaction: discord.Interaction[Ayaka]) -> None:
         self.interaction = interaction
         self.text = str(self.content)
         self.stop()
@@ -107,7 +107,7 @@ class TagMakeModal(discord.ui.Modal, title='Create New Tag'):
         self.cog = cog
         self.ctx = ctx
 
-    async def on_submit(self, interaction: discord.Interaction) -> None:
+    async def on_submit(self, interaction: discord.Interaction[Ayaka]) -> None:
         assert interaction.guild_id is not None
         name = str(self.name).strip()
         converter = TagName()
@@ -623,7 +623,7 @@ class Tags(commands.Cog):
 
         emoji = 129351  # ord(':first_place:')
 
-        for (offset, (name, uses, _, _)) in enumerate(records):
+        for offset, (name, uses, _, _) in enumerate(records):
             if name:
                 value = f'{name} ({uses} uses)'
             else:

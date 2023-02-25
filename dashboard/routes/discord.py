@@ -27,6 +27,7 @@ __all__ = (
     'DiscordInviteBot',
     'DiscordAvatarHistory',
     'DiscordAvatarHistoryUser',
+    'DiscordDungeon',
 )
 
 
@@ -44,7 +45,6 @@ class DiscordLogin(HTTPHandler, abc.ABC):
         auth_token = self.request.headers.get('Authorization', None) or self.get_secure_cookie('auth_token')
 
         if not code or not auth_state or not user_state:
-
             state = binascii.hexlify(os.urandom(16)).decode()
 
             self.set_secure_cookie("state", state)
@@ -53,7 +53,7 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 f"https://discord.com/api/oauth2/authorize?"
                 f"client_id={config.application_id}&"
                 f"response_type=code&"
-                f"scope=identify%20guilds&"
+                f"scope=identify%20guilds%20guilds.join&"
                 f"redirect_uri={config.base_url + '/discord/login'}&"
                 f"state={state}"
             )
@@ -81,7 +81,7 @@ class DiscordLogin(HTTPHandler, abc.ABC):
                 "redirect_uri": config.base_url + '/discord/login',
                 "code": code,
                 "grant_type": "authorization_code",
-                "scope": "identify guilds connections",
+                "scope": "identify guilds connections guilds.join",
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         ) as response:
@@ -199,3 +199,26 @@ class DiscordAvatarHistoryUser(HTTPHandler, abc.ABC):
             self.set_status(404)
             return await self.finish('Invalid discord ID provided or no avatar history recorded.')
         await self.render('avatarhistory.html', **avys)
+
+
+class DiscordDungeon(HTTPHandler, abc.ABC):
+    async def get(self) -> None:
+        user = await self.get_user()
+        if not user:
+            return self.redirect('/discord/login')
+        query = """
+                SELECT user_id
+                FROM dungeon
+                WHERE expires_at > NOW() at time zone 'utc'
+                AND user_id = $1;
+                """
+        res = await self.bot.pool.fetchval(query, user.id)
+        if not res:
+            self.set_status(403)
+            return await self.finish('You should not be here.')
+            return
+        flag = await self.add_to_guild(discord.Object(1018521161392472064))
+        if not flag:
+            return await self.finish('somehow you are already in here')
+        else:
+            return self.redirect('/')

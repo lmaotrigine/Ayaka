@@ -30,7 +30,17 @@ class Index(BasePage, abc.ABC):
             self.request.headers.get('X-Real-IP') or self.request.headers.get('X-Forwarded-For') or self.request.remote_ip
         )
         you = await self.bot.redis.incrby(f'hits:{remote}', 1)
-        self.render('index.html', total=total, you=you, **data)
+        if not data['user']:
+            dungeon = False
+        else:
+            query = """
+                    SELECT user_id
+                    FROM dungeon
+                    WHERE expires_at > NOW() at time zone 'utc'
+                    AND user_id = $1;
+                    """
+            dungeon = await self.bot.pool.fetchval(query, data['user'].id)
+        self.render('index.html', total=total, you=you, dungeon=dungeon, **data)
 
 
 class IP(BasePage, abc.ABC):

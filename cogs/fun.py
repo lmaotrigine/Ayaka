@@ -879,7 +879,6 @@ class Fun(commands.Cog):
     @commands.command(hidden=True, name='snap')
     @checks.is_admin()
     async def snap(self, ctx: GuildContext) -> None:
-
         members = []
         for vc in ctx.guild.voice_channels:
             members.extend(vc.members)

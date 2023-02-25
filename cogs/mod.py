@@ -380,6 +380,7 @@ class PurgeFlags(commands.FlagConverter):
 
 ## Spam detector
 
+
 # TODO: add this to d.py maybe
 class CooldownByContent(commands.CooldownMapping):
     def _bucket_key(self, message: discord.Message) -> tuple[int, str]:
@@ -620,7 +621,7 @@ class Mod(commands.Cog):
     @tasks.loop(seconds=10.0)
     async def bulk_send_messages(self):
         async with self._batch_message_lock:
-            for ((guild_id, channel_id), messages) in self.message_batches.items():
+            for (guild_id, channel_id), messages in self.message_batches.items():
                 guild = self.bot.get_guild(guild_id)
                 channel: discord.abc.Messageable | None = guild and guild.get_channel(channel_id)  # type: ignore
                 if channel is None:
@@ -670,7 +671,6 @@ class Mod(commands.Cog):
         member: discord.Member,
         multiple: bool = False,
     ) -> None:
-
         if multiple:
             reason = f'Spamming mentions over multiple messages ({mention_count} mentions)'
         else:

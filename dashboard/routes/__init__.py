@@ -20,6 +20,7 @@ def setup_routes(**kwargs: Any) -> Any:
         (r'/voice', VoiceRecognition, kwargs),
         (r'/discord', DiscordIndex, kwargs),
         (r'/discord/login', DiscordLogin, kwargs),
+        (r'/discord/dungeon', DiscordDungeon, kwargs),
         (r'/discord/logout', DiscordLogout, kwargs),
         (r'/discord/invite-bot', DiscordInviteBot, kwargs),
         (r'/discord/avatarhistory', DiscordAvatarHistory, kwargs),

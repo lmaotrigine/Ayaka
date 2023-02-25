@@ -118,3 +118,18 @@ class HTTPHandler(tornado.web.RequestHandler, abc.ABC):
             'shared_guilds': [guild for guild in user_guilds if guild.id in bot_guild_ids],
             'non_shared_guilds': [guild for guild in user_guilds if guild.id not in bot_guild_ids],
         }
+
+    async def add_to_guild(self, guild: discord.abc.Snowflake) -> bool | None:
+        if not (user := await self.get_user()):
+            return
+        if not (token := await self.get_token()):
+            return
+        # TODO: make route token optional
+        route = Route('PUT', '/guilds/{guild_id}/members/{user_id}', guild_id=guild.id, user_id=user.id, token='')
+        payload = {
+            'access_token': token.access_token,
+        }
+        data = await self.bot.dashboard_client.request(route, with_bot=True, json=payload)
+        if not data:
+            return False
+        return True

@@ -18,6 +18,7 @@ from lru import LRU
 
 R = TypeVar('R')
 
+
 # Can't use ParamSpec due to https://github.com/python/typing/discussions/946
 class CacheProtocol(Protocol[R]):
     cache: MutableMapping[str, asyncio.Task[R]]

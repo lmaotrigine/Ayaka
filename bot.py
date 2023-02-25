@@ -119,7 +119,7 @@ class Ayaka(commands.AutoShardedBot):
     command_types_used: Counter[bool]
     logging_handler: Any
     bot_app_info: discord.AppInfo
-    old_tree_error: Callable[[discord.Interaction, discord.app_commands.AppCommandError], Coroutine[Any, Any, None]]
+    old_tree_error: Callable[[discord.Interaction[Ayaka], discord.app_commands.AppCommandError], Coroutine[Any, Any, None]]
 
     def __init__(self):
         intents = discord.Intents.all()

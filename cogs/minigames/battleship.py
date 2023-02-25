@@ -57,7 +57,7 @@ class PlayerState:
         # self.generate_board()
 
     def generate_board(self) -> None:
-        for (size, emoji) in ((4, '\N{SHIP}'), (3, '\N{SAILBOAT}'), (2, '\N{CANOE}')):
+        for size, emoji in ((4, '\N{SHIP}'), (3, '\N{SAILBOAT}'), (2, '\N{CANOE}')):
             dx, dy = (1, 0) if random.randint(0, 1) else (0, 1)
             positions = self.get_available_positions(dx, dy, size)
             x, y = random.choice(positions)

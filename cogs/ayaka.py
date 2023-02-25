@@ -99,7 +99,6 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         *,
         body: Codeblock = commands.param(converter=codeblock_converter),
     ) -> None:
-
         await ctx.message.add_reaction(self.bot.emoji[None])
         timeit_globals = {
             'ctx': ctx,
@@ -163,7 +162,6 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         ]
     )
     async def ayaka_task(self) -> None:
-
         profile = self.ayaka_details[self.light]
         name = profile.name
         path = profile.path

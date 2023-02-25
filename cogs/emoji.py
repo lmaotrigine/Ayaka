@@ -241,7 +241,6 @@ class Emoji(commands.Cog):
         return f'{name}: {count} uses ({p:.1%}), {per_day:.1f} uses/day.'
 
     async def get_guild_stats(self, ctx: GuildContext) -> None:
-
         e = discord.Embed(title='Emoji Leaderboard', colour=discord.Colour.og_blurple())
 
         query = """SELECT
@@ -274,7 +273,6 @@ class Emoji(commands.Cog):
         await ctx.send(embed=e)
 
     async def get_emoji_stats(self, ctx: GuildContext, emoji_id: int) -> None:
-
         e = discord.Embed(title='Emoji Stats', colour=discord.Colour.og_blurple())
         cdn = f'https://cdn.discordapp.com/emojis/{emoji_id}.png'
 

@@ -31,7 +31,6 @@ __all__ = ('Route', 'HTTPClient')
 
 
 class Route:
-
     BASE: ClassVar[str] = 'https://discord.com/api/v10'
 
     def __init__(self, method: str, path: str, token: str, *, metadata: str | None = None, **parameters: Any) -> None:
@@ -64,7 +63,6 @@ class Route:
 
 
 class Ratelimit:
-
     __slots__ = (
         'limit',
         'remaining',
@@ -233,7 +231,7 @@ class HTTPClient:
             self._try_clear_expired_ratelimits()
         return value
 
-    async def request(self, route: Route, **kwargs: Any) -> Any:
+    async def request(self, route: Route, with_bot: bool = False, **kwargs: Any) -> Any:
         route_key = route.key
         bucket_hash = None
         try:
@@ -244,8 +242,10 @@ class HTTPClient:
             key = f'{bucket_hash}:{route.major_parameters}'
 
         ratelimit = self.get_ratelimit(key)
-
-        kwargs['headers'] = {'Authorization': f'Bearer {route.token}'}
+        if not with_bot:
+            kwargs['headers'] = {'Authorization': f'Bearer {route.token}'}
+        else:
+            kwargs['headers'] = {'Authorization': f'Bot {self.bot.http.token}'}
 
         if not self._global_over.is_set():
             await self._global_over.wait()

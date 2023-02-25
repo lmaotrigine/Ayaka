@@ -110,7 +110,6 @@ class ReminderView(discord.ui.View):
 
 class DucklingConverter(commands.Converter[datetime.datetime]):
     async def get_tz(self, ctx: GuildContext) -> str | None:
-
         row: asyncpg.Record = await ctx.bot.pool.fetchval(
             'SELECT tz FROM tz_store WHERE user_id = $1 and $2 = ANY(guild_ids);', ctx.author.id, ctx.guild.id
         )

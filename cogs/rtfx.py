@@ -217,7 +217,6 @@ class RTFX(commands.Cog):
         self._rtfm_cache = cache
 
     async def do_rtfm(self, ctx: Context, key: str, obj: str | None) -> None:
-
         if obj is None:
             await ctx.send(RTFM_PAGES[key])
             return
