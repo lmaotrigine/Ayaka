@@ -259,6 +259,52 @@ class Reminder(commands.Cog):
         event_name = f'{timer.event}_timer_complete'
         self.bot.dispatch(event_name, timer)
 
+    async def get_timer(self, event: str, /, **kwargs: Any) -> Timer | None:
+        r"""Gets a timer from the database.
+
+        Note you cannot find a timer by its expiry or creation time.
+
+        Parameters
+        ----------
+        event: str
+            The name of the event to search for.
+        \*\*kwargs
+            Keyword arguments to search for in the database.
+
+        Returns
+        -------
+        Optional[:class:`Timer`]
+            The timer if found, otherwise ``None``.
+        """
+
+        filtered_clause = [f"extra #>> ARRAY['kwargs', '{key}'] = ${i}" for i, key in enumerate(kwargs.keys(), start=2)]
+        query = f'SELECT * FROM reminders WHERE event = $1 AND {" AND ".join(filtered_clause)} LIMIT 1;'
+        record = await self.bot.pool.fetchrow(query, event, *kwargs.values())
+        return Timer(record=record) if record else None
+
+    async def delete_timer(self, event: str, /, **kwargs: Any) -> None:
+        r"""Deletes a timer from the database.
+
+        Note you cannot find a timer by its expiry or creation time.
+
+        Parameters
+        ----------
+        event: str
+            The name of the event to search for.
+        \*\*kwargs
+            Keyword arguments to search for in the database.
+        """
+
+        filtered_clause = [f"extra #>> ARRAY['kwargs', '{key}'] = ${i}" for i, key in enumerate(kwargs.keys(), start=2)]
+        query = f'DELETE FROM reminders WHERE event = $1 AND {" AND ".join(filtered_clause)} RETURNING id;'
+        record: Any = await self.bot.pool.fetchrow(query, event, *kwargs.values())
+
+        # if the current timer is being deleted
+        if record is not None and self._current_timer and self._current_timer.id == record['id']:
+            # cancel the task and re-run it
+            self._task.cancel()
+            self._task = self.bot.loop.create_task(self.dispatch_timers())
+
     async def create_timer(self, when: datetime.datetime, event: str, /, *args: Any, **kwargs: Any) -> Timer:
         r"""Creates a timer.
 
