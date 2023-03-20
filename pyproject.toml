@@ -45,7 +45,7 @@ optional = true
 py-markov = {git = "https://git.5ht2.me/lmaotrigine/py-markov", rev = "main"}
 numpy = "^1.22.3"
 chess = "^1.9.1"
-CairoSVG = "^2.5.2"
+CairoSVG = "^2.7.0"
 
 [tool.poetry.group.web]
 optional = true
