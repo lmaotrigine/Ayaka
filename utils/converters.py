@@ -169,7 +169,7 @@ class DatetimeConverter(commands.Converter[datetime.datetime]):
         return parsed_times[0][0]
 
 
-class WhenAndWhatConverter(commands.Converter[tuple[datetime.datetime, str]]):
+class WhenAndWhatConverter_(commands.Converter[tuple[datetime.datetime, str]]):
     @classmethod
     async def convert(cls, ctx: GuildContext, argument: str) -> tuple[datetime.datetime, str]:
         timezone = await DatetimeConverter.get_timezone(ctx)

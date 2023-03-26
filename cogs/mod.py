@@ -1606,7 +1606,8 @@ class Mod(commands.Cog):
         duration such as "until thursday at 3PM" or a more concrete time
         such as "2024-12-31".
 
-        Note that times are in UTC.
+        Note that times are in UTC unless the timezone is
+        specified using the "timezone set" command.
 
         You can also ban from ID to ban regardless whether they're
         in the server or not.
@@ -1634,8 +1635,15 @@ class Mod(commands.Cog):
 
         reason = safe_reason_append(reason, until)
         await ctx.guild.ban(member, reason=reason)
+        zone = await reminder.get_timezone(ctx.author.id)
         await reminder.create_timer(
-            duration.dt, 'tempban', ctx.guild.id, ctx.author.id, member.id, created=ctx.message.created_at
+            duration.dt,
+            'tempban',
+            ctx.guild.id,
+            ctx.author.id,
+            member.id,
+            created=ctx.message.created_at,
+            timezone=zone or 'UTC',
         )
         await ctx.send(f'Banned {member} for {time.format_relative(duration.dt)}.')
 
@@ -1664,7 +1672,7 @@ class Mod(commands.Cog):
         reason = f'Automatic unban from timer made on {timer.created_at} by {moderator}.'
         await guild.unban(discord.Object(id=member_id), reason=reason)
 
-    @commands.hybrid_command(aliases=['remove'], usage='[search] [flags...]')
+    @commands.hybrid_command(aliases=['remove'], usage='[search] [flags...]', ignore_extra=False)
     @commands.guild_only()
     @checks.hybrid_permissions_check(manage_messages=True)
     @app_commands.describe(search='How many messages to search for')
@@ -1960,7 +1968,8 @@ class Mod(commands.Cog):
         duration such as "until thursday at 3PM" or a more concrete time
         such as "2024-12-31".
 
-        Note that times are in UTC.
+        Note that times are in UTC unless a timezone is specified
+        using the "timezone set" command.
 
         This has the same permissions as the `mute` command.
         """
@@ -1975,8 +1984,16 @@ class Mod(commands.Cog):
         assert ctx.guild_config.mute_role_id is not None
         role_id = ctx.guild_config.mute_role_id
         await member.add_roles(discord.Object(id=role_id), reason=reason)
+        zone = await reminder.get_timezone(ctx.author.id)
         await reminder.create_timer(
-            duration.dt, 'tempmute', ctx.guild.id, ctx.author.id, member.id, role_id, created=ctx.message.created_at
+            duration.dt,
+            'tempmute',
+            ctx.guild.id,
+            ctx.author.id,
+            member.id,
+            role_id,
+            created=ctx.message.created_at,
+            timezone=zone or 'UTC',
         )
         await ctx.send(f'Muted {discord.utils.escape_mentions(str(member))} for {time.format_relative(duration.dt)}.')
 
@@ -2378,7 +2395,8 @@ class Mod(commands.Cog):
         duration such as "until thursday at 3PM" or a more concrete time
         such as "2017-12-31".
 
-        Note that times are in UTC.
+        Note that times are in UTC unless the timezone is specified
+        using the "timezone set" command.
         """
 
         if member.top_role >= ctx.author.top_role and not self.bot.is_owner(ctx.author):
@@ -2394,6 +2412,7 @@ class Mod(commands.Cog):
             await ctx.send('Cannot execute tempblock in threads. Use block instead.')
             return
         channels = self.get_block_channels(ctx.guild, ctx.channel)
+        zone = await reminder.get_timezone(ctx.author.id)
         await reminder.create_timer(
             duration.dt,
             'tempblock',
@@ -2402,6 +2421,7 @@ class Mod(commands.Cog):
             ctx.channel.id,
             member.id,
             created=created_at,
+            timezone=zone or 'UTC',
         )
         reason = f'Tempblock by {ctx.author} (ID: {ctx.author.id}) until {duration.dt}'
         try:

@@ -136,11 +136,11 @@ def cache(
                 except KeyError:
                     continue
 
-        wrapper.cache = _internal_cache
-        wrapper.get_key = lambda *args, **kwargs: _make_key(args, kwargs)
-        wrapper.invalidate = _invalidate
-        wrapper.get_stats = _stats
-        wrapper.invalidate_containing = _invalidate_containing
+        wrapper.cache = _internal_cache  # type: ignore # can't be done
+        wrapper.get_key = lambda *args, **kwargs: _make_key(args, kwargs)  # type: ignore # can't be done
+        wrapper.invalidate = _invalidate  # type: ignore # can't be done
+        wrapper.get_stats = _stats  # type: ignore # can't be done
+        wrapper.invalidate_containing = _invalidate_containing  # type: ignore # can't be done
         return wrapper  # type: ignore # can't be done
 
     return decorator
