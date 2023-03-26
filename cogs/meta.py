@@ -659,6 +659,43 @@ class Meta(commands.Cog):
         e.add_field(name='Joined', value=format_date(getattr(user, 'joined_at', None)), inline=False)
         e.add_field(name='Created', value=format_date(user.created_at), inline=False)
 
+        badges_to_emoji = {
+            'partner': '<:partnernew:1089441980813148260>',
+            'verified_bot_developer': '<:verifiedbotdev:1089441991177281548>',
+            'hypesquad_balance': '<:balance:1089441943001501726>',
+            'hypesquad_bravery': '<:bravery:1089441950484140114>',
+            'hypersquad_brilliance': '<:brilliance:1089441954854608949>',
+            'bug_hunter': '<:bughunter:1089441959044718722>',
+            'hypesquad': '<:hypesquad_events:1089441973431173173>',
+            'early_supporter': '<:supporter:1089441988744585269>',
+            'bug_hunter_level_2': '<:goldbughunter:1089441969383669793>',
+            'staff': '<:staff_badge:1089441984579633162>',
+            'discord_certified_moderator': '<:certified_mod_badge:1089441962949619828>',
+            'active_developer': '<:active_developer:1089441940296183879>',
+        }
+
+        misc_flag_descriptions = {
+            'team_user': 'Application Team User',
+            'system': 'System User',
+            'spammer': 'Spammer',
+            'verified_bot': 'Verified Bot',
+            'bot_http_interactions': 'HTTP Interactions Bot',
+        }
+
+        set_flags = {flag for flag, value in user.public_flags if value}
+        subset_flags = set_flags & badges_to_emoji.keys()
+        badges = [badges_to_emoji[flag] for flag in subset_flags]
+
+        if ctx.guild is not None and ctx.guild.owner_id == user.id:
+            badges.append('<:owner:1089441976451084298>')
+
+        if isinstance(user, discord.Member) and user.premium_since is not None:
+            e.add_field(name='Boosted', value=format_date(user.premium_since), inline=False)
+            badges.append('<:booster:1089441946994495521>')
+
+        if badges:
+            e.description = ''.join(badges)
+
         voice = getattr(user, 'voice', None)
         if voice is not None:
             vc = voice.channel
@@ -668,6 +705,12 @@ class Meta(commands.Cog):
 
         if roles:
             e.add_field(name='Roles', value=', '.join(roles) if len(roles) < 10 else f'{len(roles)} roles', inline=False)
+
+        remaining_flags = (set_flags - subset_flags) & misc_flag_descriptions.keys()
+        if remaining_flags:
+            e.add_field(
+                name='Public Flags', value='\n'.join(misc_flag_descriptions[flag] for flag in remaining_flags), inline=False
+            )
 
         colour = user.colour
         if colour.value:
