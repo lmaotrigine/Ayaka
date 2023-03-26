@@ -31,8 +31,6 @@ if TYPE_CHECKING:
     from bot import Ayaka
     from utils.context import Context
 
-    from .reminders import Reminder
-
 
 log = logging.getLogger(__name__)
 MESSAGE_URL_REGEX = re.compile(
