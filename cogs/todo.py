@@ -91,7 +91,7 @@ def ensure_future_time(
 async def future_time_from_interaction(
     argument: str, interaction: discord.Interaction[Ayaka]
 ) -> tuple[str, datetime.datetime]:
-    reminder: Reminder | None = interaction.client.get_cog('Reminder')  # type: ignore
+    reminder = interaction.client.reminder
     timezone = 'UTC'
     tzinfo = datetime.timezone.utc
     if reminder is not None:
