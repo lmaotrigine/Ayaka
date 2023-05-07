@@ -1062,11 +1062,11 @@ class Mod(commands.Cog):
         query = f'UPDATE guild_mod_config SET {updates} WHERE id=$1 RETURNING broadcast_webhook_url'
 
         guild_id = ctx.guild.id
-        record: tuple[str | None] | None = await self.bot.pool.fetchrow(query, guild_id)  # type: ignore
+        record: tuple[str | None] | None = await self.bot.pool.fetchrow(query, guild_id)
         self._spam_check.pop(guild_id, None)
         self.get_guild_config.invalidate(self, guild_id)
         if record is not None and record[0] is not None and protection in ('all', 'joins'):
-            wh = discord.Webhook.from_url(record[0], session=self.bot.session)
+            wh = discord.Webhook.from_url(record[0], session=self.bot.session)  # type: ignore
             try:
                 await wh.delete(reason=message)
             except discord.HTTPException:

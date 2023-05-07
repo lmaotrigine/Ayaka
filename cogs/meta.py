@@ -724,6 +724,12 @@ class Meta(commands.Cog):
 
         await ctx.send(embed=e)
 
+    @info.error
+    async def info_error(self, ctx: Context, error: commands.CommandError) -> None:
+        if isinstance(error, commands.BadUnionArgument):
+            error = error.errors[-1]
+        await ctx.send(str(error))
+
     @commands.command(aliases=['guildinfo'], usage='')
     @commands.guild_only()
     async def serverinfo(self, ctx: GuildContext, *, guild: discord.Guild = commands.CurrentGuild) -> None:
