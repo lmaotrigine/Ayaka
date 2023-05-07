@@ -84,7 +84,7 @@ class HumanTime:
         self, argument: str, *, now: datetime.datetime | None = None, tzinfo: datetime.tzinfo = datetime.timezone.utc
     ):
         now = now or datetime.datetime.now(tzinfo)
-        dt, status = self.calendar.parseDT(argument, sourceTime=now, tzinfo=tzinfo)
+        dt, status = self.calendar.parseDT(argument, sourceTime=now, tzinfo=None)
         if not status.hasDateOrTime:  # type: ignore
             raise commands.BadArgument('invalid time provided, try e.g. "tomorrow" or "3 days"')
 
@@ -97,7 +97,7 @@ class HumanTime:
                 microsecond=now.microsecond,
                 tzinfo=datetime.timezone.utc,
             )
-        self.dt = dt
+        self.dt = dt.replace(tzinfo=tzinfo)
         self._past = dt < now
 
     @classmethod
@@ -229,8 +229,8 @@ class UserFriendlyTime(commands.Converter):
                     argument = argument[6:]
 
             # have to adjust  the timezone so pdt knows how to handle things like "tomorrow at 6pm" in an aware way
-            adjusted_now = now.astimezone(tzinfo)
-            elements = calendar.nlp(argument, sourceTime=adjusted_now)
+            now = now.astimezone(tzinfo)
+            elements = calendar.nlp(argument, sourceTime=now)
             if elements is None or len(elements) == 0:
                 raise commands.BadArgument('Invalid time provided, try e.g. "tomorrow" or "3 days".')
 
