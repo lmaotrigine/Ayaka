@@ -263,6 +263,8 @@ class Reminder(commands.Cog):
             'PDT': 'America/Los_Angeles',
         }
         self._default_timezones: list[app_commands.Choice[str]] = []
+        self.ctx_menu = app_commands.ContextMenu(name='Get Current Time', callback=self.time_context_menu)
+        self.bot.tree.add_command(self.ctx_menu)
 
     async def cog_load(self) -> None:
         await self.parse_bcp47_timezones()
@@ -273,6 +275,25 @@ class Reminder(commands.Cog):
 
     def cog_unload(self) -> None:
         self._task.cancel()
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+
+    async def time_context_menu(self, interaction: discord.Interaction[Ayaka], user: discord.User) -> None:
+        self_query = user.id == interaction.user.id
+        tz = await self.get_timezone(user.id)
+        if tz is None:
+            if self_query:
+                await interaction.response.send_message('You have not set your timezone.', ephemeral=True)
+            else:
+                await interaction.response.send_message(f'{user} has not set their timezone.', ephemeral=True)
+            return
+
+        time = discord.utils.utcnow().astimezone(dateutil.tz.gettz(tz)).strftime('%Y-%m-%d %I:%M %p')
+        if self_query:
+            await interaction.response.send_message(f'Your timezone is {tz!r}. The current time is {time}.', ephemeral=True)
+            await asyncio.sleep(5)
+            await interaction.edit_original_response(content=f'Your current time is {time}.')
+        else:
+            await interaction.response.send_message.send(f'The current time for {user} is {time}.', ephemer=True)
 
     async def cog_command_error(self, ctx: Context, error: commands.CommandError) -> None:
         if isinstance(error, commands.BadArgument):
