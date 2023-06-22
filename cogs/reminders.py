@@ -69,8 +69,14 @@ class SnoozeModal(discord.ui.Modal, title='Snooze'):
         self.parent.snooze.disabled = True
         await interaction.response.edit_message(view=self.parent)
 
+        zone = await self.cog.get_timezone(interaction.user.id)
         refreshed = await self.cog.create_timer(
-            when, self.timer.event, *self.timer.args, **self.timer.kwargs, created=interaction.created_at
+            when,
+            self.timer.event,
+            *self.timer.args,
+            **self.timer.kwargs,
+            created=interaction.created_at,
+            timezone=zone or 'UTC',
         )
         author_id, _, message = self.timer.args
         delta = time.human_timedelta(when, source=refreshed.created_at)
@@ -725,7 +731,25 @@ class Reminder(commands.Cog):
         self.get_timezone.invalidate(self, ctx.author.id)
         await ctx.send(f'Your timezone has been set to {tz.label} (IANA ID: {tz.key}).', ephemeral=True, delete_after=10)
 
+    @timezone.command(name='info')
+    @app_commands.describe(tz='The timezone to get info about.')
+    async def timezone_info(self, ctx: Context, *, tz: TimeZone) -> None:
+        """Retrieves info about a timezone."""
+
+        embed = discord.Embed(title=tz.key, colour=discord.Colour.blurple())
+        dt = discord.utils.utcnow().astimezone(dateutil.tz.gettz(tz.key))
+        time = dt.strftime('%Y-%m-%d %I:%M %p')
+        embed.add_field(name='Current Time', value=time)
+        offset = dt.utcoffset()
+        if offset is not None:
+            minutes, _ = divmod(int(offset.total_seconds()), 60)
+            hours, minutes = divmod(minutes, 60)
+            embed.add_field(name='UTC Offset', value=f'{hours:+03d}:{minutes:02d}')
+        embed.add_field(name='IANA ID', value=tz.key)
+        await ctx.send(embed=embed)
+
     @timezone_set.autocomplete('tz')
+    @timezone_info.autocomplete('tz')
     async def timezone_set_autocomplete(
         self, interaction: discord.Interaction, argument: str
     ) -> list[app_commands.Choice[str]]:

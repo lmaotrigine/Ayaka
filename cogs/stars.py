@@ -625,7 +625,8 @@ class Stars(commands.Cog):
 
         starboard = await self.get_starboard(ctx.guild.id)
         if starboard.channel is not None:
-            return await ctx.send(f'This server already has a starboard ({starboard.channel.mention}).')
+            setattr(ctx, 'starboard', starboard)
+            return await self.starboard_info(ctx)
 
         if hasattr(starboard, 'locked'):
             try:
@@ -828,6 +829,8 @@ class Stars(commands.Cog):
             msg = await self.get_message(ctx.starboard.channel, bot_message_id)
             if msg is not None:
                 embed = msg.embeds[0] if msg.embeds else None
+                if embed is None:
+                    return await ctx.send(msg.content)
                 return await ctx.send(msg.content, embed=embed)
             else:
                 # somehow it got deleted, so just delete the entry

@@ -63,7 +63,7 @@ class ShortTime:
 
         data = {k: int(v) for k, v in match.groupdict(default=0).items()}
         now = now or datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-        self.dt = now + relativedelta(**data)
+        self.dt = now + relativedelta(**data)  # type: ignore
         if tzinfo is not datetime.timezone.utc:
             self.dt = self.dt.astimezone(tzinfo)
 
@@ -208,7 +208,7 @@ class UserFriendlyTime(commands.Converter):
             if match is not None and match.group(0):
                 data = {k: int(v) for k, v in match.groupdict(default=0).items()}
                 remaining = argument[match.end() :].strip()
-                dt = now + relativedelta(**data)
+                dt = now + relativedelta(**data)  # type: ignore
                 result = FriendlyTimeResult(dt.astimezone(tzinfo))
                 await result.ensure_constraints(ctx, self, now, remaining)
                 return result
