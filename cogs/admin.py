@@ -524,6 +524,22 @@ class Admin(commands.Cog):
 
         await self.send_sql_results(ctx, results)
 
+    @sql.command(name='explain', aliases=['analyze'], hidden=True)
+    async def sql_explain(self, ctx: Context, *, query: str) -> None:
+        """Explain an SQL query."""
+        query = self.cleanup_code(query)
+        analyze = ctx.invoked_with == 'analyze'
+        if analyze:
+            query = f'EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON)\n{query}'
+        else:
+            query = f'EXPLAIN (COSTS, VERBOSE, FORMAT JSON)\n{query}'
+        json = await ctx.db.fetchrow(query)
+        if json is None:
+            await ctx.send('Somehow nothing returned.')
+            return
+        file = discord.File(io.BytesIO(json[0].encode('utf-8')), filename='explain.json')
+        await ctx.send(file=file)
+
     @commands.group(invoke_without_command=True)
     @commands.guild_only()
     async def sync(self, ctx: GuildContext, guild_id: int | None, copy: bool = False) -> None:
