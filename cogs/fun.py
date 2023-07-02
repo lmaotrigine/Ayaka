@@ -268,7 +268,7 @@ async def parse_free_dictionary_for_word(session: ClientSession, *, word: str) -
             return None
         node = section[0]
         h2 = node.find('h2')
-        if h2 is not None:
+        if h2 is None:
             log.info('Could not find word element')
             return None
         try:
