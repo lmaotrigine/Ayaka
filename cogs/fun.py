@@ -9,21 +9,24 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import logging
 import math
 import random
 import re
 import time
 from functools import partial
 from textwrap import fill
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Any, Callable, NamedTuple
 
 import bottom
 import discord
 import googletrans
+import yarl
 from currency_converter import CurrencyConverter
 from discord import app_commands
 from discord.ext import commands
 from lru import LRU
+from lxml import html
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from utils import checks, translator
@@ -35,12 +38,354 @@ from utils.paginator import ListPageSource, RoboPages
 
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
+    from typing_extensions import Self
+
     from bot import Ayaka
 
 MESSAGE_LINK_RE = re.compile(
     r'^(?:https?://)(?:(?:canary|ptb)\.)?discord(?:app)?\.com/channels/(?P<guild>\d{16,20})/(?P<channel>\d{16,20})/(?P<message>\d{16,20})/?$'
 )
 SPOILER_EMOJI_ID = 956843179213209620
+DICTIONARY_EMBED_COLOUR = discord.Colour(0x5F9EB3)
+
+
+log = logging.getLogger(__name__)
+
+
+def html_to_markdown(node: Any, *, include_spans: bool = False) -> str:
+    text = []
+    italics_marker = '_'
+    for child in node:
+        if child.tag == 'i':
+            text.append(f'{italics_marker}{child.text.strip()}{italics_marker}')
+            italics_marker = '_' if italics_marker == '*' else '*'
+        elif child.tag == 'b':
+            if text and text[-1].endswith('*'):
+                text.append('\u200b')
+            text.append(f'**{child.text.strip()}**')
+        elif child.tag == 'a':
+            # no markup for links
+            text.append(child.text.strip())
+        elif include_spans and child.tag == 'span':
+            text.append(child.text.strip())
+        if child.tail:
+            text.append(child.tail)
+    return ''.join(text).strip()
+
+
+class FreeDictionaryDefinition(NamedTuple):
+    definition: str
+    example: str | None
+    children: list[FreeDictionaryDefinition]
+
+    @classmethod
+    def from_node(cls, node: Any) -> Self:
+        # note that in here we're inside either a ds-list or a ds-single node
+        # the first child is basically always a superfluous bolded number
+        number = node.find('b')
+        definition: str = node.text or ''
+        if number is not None:
+            tail = number.tail and number.tail.strip()
+            node.remove(number)
+            if tail:
+                definition = tail
+        definition += html_to_markdown(node, include_spans=False)
+        example: str | None = None
+        example_nodes = node.xpath('./span[@class="illustration"]')
+        if example_nodes:
+            example = example_nodes[0].text_content()
+        children: list[FreeDictionaryDefinition] = [cls.from_node(child) for child in node.xpath('./div[@class="sds-list"]')]
+        return cls(definition, example, children)
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'definition': self.definition,
+            'example': self.example,
+            'children': [child.to_json() for child in self.children],
+        }
+
+    def to_markdown(self, *, indent: int = 2) -> str:
+        content = self.definition
+        if self.example:
+            content = f'{content} [*{self.example}*]'
+        if not content:
+            content = '\u200b'
+        if self.children:
+            inner = '\n'.join(f'{" " * indent}- {child.to_markdown(indent=indent + 2)}' for child in self.children)
+            return f'{content}\n{inner}'
+        return content
+
+
+class FreeDictionaryMeaning:
+    part_of_speech: str
+    definitions: list[FreeDictionaryDefinition]
+
+    __slots__ = ('part_of_speech', 'definitions')
+
+    def __init__(self, definitions: Any, part_of_speech: str) -> None:
+        self.part_of_speech = part_of_speech
+        self.definitions = [FreeDictionaryDefinition.from_node(node) for node in definitions]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'part_of_speech': self.part_of_speech,
+            'definitions': [definition.to_json() for definition in self.definitions],
+        }
+
+    @property
+    def markdown(self) -> str:
+        inner = '\n'.join(f'{i}. {definition.to_markdown()}' for i, definition in enumerate(self.definitions, 1))
+        return f'{self.part_of_speech}\n{inner}'
+
+
+class FreeDictionaryPhrasalVerb(NamedTuple):
+    word: str
+    meaning: FreeDictionaryMeaning
+
+    def to_embed(self) -> discord.Embed:
+        return discord.Embed(title=self.word, colour=DICTIONARY_EMBED_COLOUR, description=self.meaning.markdown)
+
+
+class FreeDictionaryWord:
+    raw_word: str
+    word: str
+    pronunciation_url: str | None
+    pronunciation: str | None
+    meanings: list[FreeDictionaryMeaning]
+    phrasal_verbs: list[FreeDictionaryPhrasalVerb]
+
+    def __init__(self, raw_word: str, word: str, node: Any) -> None:
+        self.raw_word = raw_word
+        self.word = word
+        self.meanings = []
+        self.phrasal_verbs = []
+        self.get_pronunciation(node)
+        self.get_meanings(node)
+
+    def get_pronunciation(self, node) -> None:
+        self.pronunciation_url = None
+        self.pronunciation = None
+        snd = node.xpath('span[@class="snd" and @data-snd]')
+        if not snd:
+            return
+        snd = snd[0]
+        pron = node.xpath('span[@class="pron"]')
+        if pron:
+            self.pronunciation = pron[0].text_content() + (pron[0].tail or '')
+            self.pronunciation = self.pronunciation.strip()
+        data_src = node.attrib.get('data-src')
+        if data_src is not None:
+            mp3 = snd.attrib.get('data-snd')
+            self.pronunciation_url = f'https://img.tfd.com/{data_src}/{mp3}.mp3'
+
+    def get_meanings(self, node) -> None:
+        conjugations: str | None = None
+        data_src = node.attrib.get('data-src')
+        child_nodes = []
+        if data_src == 'hm':
+            child_nodes = node.xpath('./div[@class="pseg"]')
+        elif data_src == 'hc_dict':
+            child_nodes = node.findall('div')
+        elif data_src == 'rHouse':
+            child_nodes = node
+        for div in child_nodes:
+            definitions = div.xpath('./div[@class="ds-list" or @class="ds-single"]')
+            if not definitions:
+                # Probably a conjugation
+                # If it isn't a conjugation then it probably just has a single definition
+                bolded = div.find('b')
+                if bolded is not None:
+                    children = iter(div)
+                    next(children)  # skip the italic `v.` bit
+                    conjugations = html_to_markdown(children, include_spans=True)
+                    continue
+            pos_node = div.find('i')
+            if pos_node is None:
+                continue
+            pos = html_to_markdown(div)
+            if conjugations is not None:
+                if conjugations.startswith(','):
+                    pos = f'{pos}{conjugations}'
+                else:
+                    pos = f'{pos} {conjugations}'
+            meaning = FreeDictionaryMeaning(definitions, pos)
+            self.meanings.append(meaning)
+        for div in node.find_class('pvseg'):
+            # phrasal verbs are simple
+            # <b><i>{word}</i></b>
+            # ... definitions
+            word = div.find('b/i')
+            if word is None:
+                continue
+            word = word.text_content().strip()
+            meaning = FreeDictionaryMeaning(div, 'phrasal verb')
+            self.phrasal_verbs.append(FreeDictionaryPhrasalVerb(word, meaning))
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'raw_word': self.raw_word,
+            'word': self.word,
+            'pronunciation_url': self.pronunciation_url,
+            'pronunciation': self.pronunciation,
+            'meanings': [meaning.to_json() for meaning in self.meanings],
+            'phrasal_verbs': [{'word': verb.word, 'meaning': verb.meaning.to_json()} for verb in self.phrasal_verbs],
+        }
+
+
+async def parse_free_dictionary_for_word(session: ClientSession, *, word: str) -> FreeDictionaryWord | None:
+    url = yarl.URL('https://www.thefreedictionary.com') / word
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
+        'TE': 'trailers',
+    }
+
+    async with session.get(url, headers=headers) as resp:
+        if resp.status != 200:
+            log.info('Got non-200 status code from FreeDictionary for word %r: %s', word, resp.status)
+            return None
+        text = await resp.text()
+        document = html.document_fromstring(text)
+        try:
+            definitions = document.get_element_by_id('Definition')
+        except KeyError:
+            log.info('could not find definition element')
+            return None
+        h1 = document.find('h1')
+        raw_word = h1.text if h1 is not None else word
+        section = definitions.xpath('section[@data-src="hm" or @data-src="hc_dict" or @data-src="rHouse"]')
+        if not section:
+            log.info('Could not find section element')
+            return None
+        node = section[0]
+        h2 = node.find('h2')
+        if h2 is not None:
+            log.info('Could not find word element')
+            return None
+        try:
+            return FreeDictionaryWord(raw_word, h2.text, node)
+        except RuntimeError:
+            log.exception('Error happened while parsing free dictionary')
+            return None
+
+
+async def free_dicitonary_autocomplete_query(session: ClientSession, *, query: str) -> list[str]:
+    url = yarl.URL('https://www.thefreedictionary.com/_/search/suggest.ashx')
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
+        'TE': 'trailers',
+    }
+
+    async with session.get(url, params={'query': query}, headers=headers) as resp:
+        if resp.status != 200:
+            return []
+        js = await resp.json()
+        if len(js) == 2:
+            return js[1]
+        return []
+
+
+class FreeDictionaryWordMeaningPageSource(ListPageSource):
+    def __init__(self, word: FreeDictionaryWord) -> None:
+        super().__init__(entries=word.meanings, per_page=1)
+        self.word = word
+
+    async def format_page(self, menu: RoboPages, page: FreeDictionaryMeaning) -> discord.Embed:
+        maximum = self.get_max_pages()
+        heading = f'{self.word.raw_word}: {menu.current_page + 1} out of {maximum}' if maximum >= 2 else self.word.raw_word
+        if self.word.pronunciation:
+            title = f'{self.word.word} {self.word.pronunciation}'
+        else:
+            title = self.word.word
+        embed = discord.Embed(title=title, colour=DICTIONARY_EMBED_COLOUR)
+        embed.set_author(name=heading)
+        embed.description = page.markdown
+        return embed
+
+
+class ConvertibleUnit(NamedTuple):
+    # (value) -> (converted, unit)
+    formula: Callable[[float], tuple[float, str]]
+    capture: str
+
+
+UNIT_CONVERSIONS: dict[str, ConvertibleUnit] = {
+    'km': ConvertibleUnit(lambda v: (v * 0.621371, 'mi'), r'km|(?:kilometer|kilometre)s?'),
+    'm': ConvertibleUnit(lambda v: (v * 3.28084, 'ft'), r'm|(?:meter|metre)s?'),
+    'ft': ConvertibleUnit(lambda v: (v * 0.3048, 'm'), r'ft|foot|feet'),
+    'cm': ConvertibleUnit(lambda v: (v * 0.393701, 'in'), r'cm|(?:centimeter|centimetre)s?'),
+    'in': ConvertibleUnit(lambda v: (v * 2.54, 'cm'), r'in|inch|inches'),
+    'mi': ConvertibleUnit(lambda v: (v * 1.60934, 'km'), r'mi|mile|miles'),
+    'kg': ConvertibleUnit(lambda v: (v * 2.20462, 'lb'), r'kg|kilogram|kilograms'),
+    'lb': ConvertibleUnit(lambda v: (v * 0.453592, 'kg'), r'(?:lb|pound)s?'),
+    'L': ConvertibleUnit(lambda v: (v * 0.264172, 'gal'), r'l|(?:liter|litre)s?'),
+    'gal': ConvertibleUnit(lambda v: (v * 3.78541, 'L'), r'gal|gallon|gallons'),
+    'C': ConvertibleUnit(lambda v: (v * 1.8 + 32, 'F'), r'c|°c|celsius'),
+    'F': ConvertibleUnit(lambda v: ((v - 32) / 1.8, 'C'), r'f|°f|fahrenheit'),
+}
+
+UNIT_CONVERSION_REGEX_COMPONENT = '|'.join(f'(?P<{name}>{unit.capture})' for name, unit in UNIT_CONVERSIONS.items())
+UNIT_CONVERSION_REGEX = re.compile(
+    rf'(?P<value>\-?[0-9]+(?:[,.][0-9]+)?)\s*(?:{UNIT_CONVERSION_REGEX_COMPONENT})\b', re.IGNORECASE
+)
+
+
+class Unit(NamedTuple):
+    value: float
+    unit: str
+
+    @classmethod
+    async def convert(cls, ctx: Context, argument: str) -> Self:
+        match = UNIT_CONVERSION_REGEX.match(argument)
+        if match is None:
+            raise commands.BadArgument('Could not find a unit')
+        value = float(match.group('value'))
+        unit = match.lastgroup
+        if unit is None:
+            raise commands.BadArgument('Could not find a unit')
+        return cls(value, unit)
+
+    def converted(self) -> Self:
+        return Unit(*UNIT_CONVERSIONS[self.unit].formula(self.value))
+
+    @property
+    def display_unit(self) -> str:
+        # work around the fact that ° can't be used in group names
+        if self.unit in ('F', 'C'):
+            return f'°{self.unit}'
+        return f' {self.unit}'
+
+
+class UnitCollector(commands.Converter):
+    async def convert(self, ctx: Context, argument: str) -> set[Unit]:
+        units = set()
+        for match in UNIT_CONVERSION_REGEX.finditer(argument):
+            value = float(match.group('value'))
+            unit = match.lastgroup
+            if unit is None:
+                raise commands.BadArgument('Could not find a unit')
+            units.add(Unit(value, unit))
+        if not units:
+            raise commands.BadArgument('Could not find a unit')
+        return units
 
 
 class UrbanDictionaryPageSource(ListPageSource):
@@ -888,6 +1233,74 @@ class Fun(commands.Cog):
 
         for m in choices:
             await m.move_to(None)
+
+    @commands.hybrid_command(name='define')
+    @app_commands.describe(word='The word to look up')
+    async def _define(self, ctx: Context, *, word: str) -> None:
+        """Looks up an English word in the dictionary."""
+
+        result = await parse_free_dictionary_for_word(ctx.session, word=word)
+        if result is None:
+            await ctx.send('Could not find that word.', ephemeral=True)
+            return
+
+        # check if it's a phrasal verb somehow
+        phrase = discord.utils.find(lambda v: v.word.lower() == word.lower(), result.phrasal_verbs)
+        if phrase is not None:
+            embed = phrase.to_embed()
+            await ctx.send(embed=embed)
+            return
+
+        if not result.meanings:
+            await ctx.send('Could not find any definitions for that word.', ephemeral=True)
+            return
+
+        pages = RoboPages(FreeDictionaryWordMeaningPageSource(result), ctx=ctx, compact=True)
+        await pages.start()
+
+    @_define.autocomplete('word')
+    async def _define_word_autocomplete(
+        self, interaction: discord.Interaction, query: str
+    ) -> list[app_commands.Choice[str]]:
+        if not query:
+            return []
+        result = await free_dicitonary_autocomplete_query(self.bot.session, query=query)
+        return [app_commands.Choice(name=word, value=word) for word in result][:25]
+
+    @commands.command(name='convert')
+    async def _convert(self, ctx: Context, *, values: Annotated[set[Unit], UnitCollector] | None = None) -> None:
+        """Converts between various units.
+
+        Supported unit conversions:
+
+        - km <-> mi
+        - m <-> ft
+        - cm <-> in
+        - kg <-> lb
+        - L <-> gal
+        - °C <-> °F
+        """
+        if values is None:
+            reply = ctx.replied_message
+            if reply is None:
+                await ctx.send('You need to provide some values to convert or reply to a message with values.')
+                return
+            values = await UnitCollector().convert(ctx, reply.content)
+        pairs: list[tuple[str, str]] = []
+        for value in values:
+            original = f'{value.value:g}{value.display_unit}'
+            converted = value.converted()
+            pairs.append((original, f'{converted.value:g}{converted.display_unit}'))
+
+        # pad for width since this is monospace
+        width = max(len(original) for original, _ in pairs)
+        fmt = '\n'.join(f'{original:<{width}} -> {converted}' for original, converted in pairs)
+        await ctx.send(f'```\n{fmt}\n```')
+
+    @_convert.error
+    async def on_convert_error(self, ctx: Context, error: commands.CommandError) -> None:
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(str(error))
 
 
 async def setup(bot: Ayaka):
