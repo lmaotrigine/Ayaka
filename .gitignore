@@ -1,0 +1,17 @@
+.vscode/
+.venv/
+__pycache__/
+/buffer/
+cogs/_testing/
+cogs/private/
+cogs/testing.py
+cogs/dead/
+static/
+migrations/*.json
+*.log
+/config.py
+configs/*.json
+configs/*.txt
+_pyright/*.py
+_pyright/core
+.mangadex-refresh-token

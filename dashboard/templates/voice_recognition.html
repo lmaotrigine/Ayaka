@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at https://mozilla.org/MPL/2.0/.
+-->
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Speech Recording</title>
+  </head>
+  <body>
+    <script>
+      window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      let finalTranscript = '';
+      let recognition = new window.SpeechRecognition();
+
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 10;
+      recognition.continuous = true;
+
+      recognition.onresult  = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex, len = events.results.length; i < len; i++) {
+          let transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        document.querySelector('body').innerHTML = finalTranscript + '<i style="color: #ddd;">' + interimTranscript + '</i>';
+      }
+      recognition.start();
+    </script>
+  </body>
+</html>

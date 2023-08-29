@@ -1,0 +1,51 @@
+"""
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+from __future__ import annotations
+
+import time
+from typing import TypedDict
+
+import orjson
+from typing_extensions import NotRequired
+
+
+__all__ = ('TokenData', 'Token')
+
+
+class TokenData(TypedDict):
+    access_token: str
+    token_type: str
+    expires_in: int
+    refresh_token: str
+    scope: str
+
+    fetch_time: NotRequired[float]
+
+
+class Token:
+    def __init__(self, data: TokenData) -> None:
+        self.data: TokenData = data
+
+        self.access_token: str = data['access_token']
+        self.token_type: str = data['token_type']
+        self.expires_in: int = data['expires_in']
+        self.refresh_token: str = data['refresh_token']
+        self.scope: str = data['scope']
+
+    @property
+    def fetch_time(self) -> float:
+        return self.data.get('fetch_time') or time.time()
+
+    @property
+    def expired(self) -> bool:
+        return (time.time() - self.fetch_time) > self.expires_in
+
+    @property
+    def json(self) -> str:
+        data = self.data.copy()
+        data['fetch_time'] = self.fetch_time
+        return orjson.dumps(data).decode('utf-8')

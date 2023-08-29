@@ -1,0 +1,28 @@
+<!--
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at https://mozilla.org/MPL/2.0/.
+-->
+
+<html lang="en">
+  <head>
+    <meta property="og:title" content="{{ user }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="{{ image }}" />
+    <meta name="theme-color" content="#1e1e1e" />
+    <meta property="og:site_name" content="Discord Avatar History" />
+    <title>User: {{ user }}</title>
+    <link rel="icon" href="{{ image }}">
+    <link rel="stylesheet" href="/static/css/gallery.css">
+  </head>
+
+  <body>
+    <div class="my-gallery">
+      {% for avatar in avatars %}
+        <a href="{{ avatar }}">
+          <img src="{{ avatar }}">
+        </a>
+      {% end %}
+    </div>
+  </body>
+</html>

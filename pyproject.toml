@@ -1,0 +1,98 @@
+[tool.poetry]
+name = "ayaka"
+version = "0.1.0"
+description = "A general purpose and fun Discord bot."
+authors = ["Varun J <root@5ht2.me>"]
+license = "MPL 2.0"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+"discord.py" = {git = "https://github.com/Rapptz/discord.py", rev = "master", extras=["speed", "voice"]}
+jishaku = {git = "https://github.com/Gorialis/jishaku", rev = "master"}
+mangadex = {git = "https://git.5ht2.me/lmaotrigine/mangadex.py", rev = "main"}
+"nhentai.py" = {git = "https://git.5ht2.me/lmaotrigine/nhentai.py", rev = "main"}
+bottom = {git = "https://git.5ht2.me/lmaotrigine/bottom", rev = "main"}
+dice-parser = {git = "https://github.com/lmaotrigine/dice-parser", rev = "main"}
+asyncpg = "*"
+aiohttp = {extras = ["speedups"], version = "^3.8.5"}
+googletrans = "3.1.0a0"
+psutil = "*"
+click = "^8.0.1"
+parsedatetime = "*"
+lru = {git = "https://git.5ht2.me/lmaotrigine/lru", rev = "mistress"}
+lxml = "*"
+python-dateutil = "*"
+thefuzz = "*"
+feedparser = "*"
+CurrencyConverter = "*"
+pykakasi = "*"
+beautifulsoup4 = "*"
+Pillow = "*"
+pygit2 = "^1.5.0"
+yt-dlp = {git = "https://github.com/yt-dlp/yt-dlp", rev = "master"}
+typing-extensions = "^4.1.1"
+uvloop = {version = "*", markers = "platform_system != 'Windows' and implementation_name == 'cpython'"}
+python-Levenshtein = "^0.12.2"
+tweepy = "^4.8.0"
+async-lru = "^1.0.3"
+redis = "^4.5.4"
+hiredis = "^2.0.0"
+
+[tool.poetry.group.private]
+optional = true
+
+[tool.poetry.group.private.dependencies]
+py-markov = {git = "https://git.5ht2.me/lmaotrigine/py-markov", rev = "main"}
+numpy = "^1.22.3"
+chess = "^1.9.1"
+CairoSVG = "^2.7.0"
+
+[tool.poetry.group.web]
+optional = true
+
+[tool.poetry.group.web.dependencies]
+tornado = "^6.3"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+ipython = "*"
+black = "*"
+isort = "^5.10.1"
+
+[tool.black]
+line-length = 125
+skip-string-normalization = true
+
+[tool.isort]
+extend_skip = ["config.pyi"]
+profile = "black"
+combine_as_imports = true
+combine_star = true
+line_length = 125
+lines_after_imports = 2
+
+[tool.pyright]
+include = ["bot.py", "launcher.py", "utils/**.py", "cogs/**.py", "dashboard/**.py"]
+exclude = ["cogs/_testing/**.py", ".venv/"]
+useLibraryCodeForTypes = true
+typeCheckingMode = "basic"
+pythonVersion = "3.10"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+strictParameterNoneValue = true
+reportMissingImports = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportGeneralTypeIssues = "error"
+reportDuplicateImport = "error"
+reportUntypedFunctionDecorator = "error"
+reportUnnecessaryTypeIgnoreComment = "warning"
+
+[build-system]
+requires = ["poetry-core>=1.1.0"]
+build-backend = "poetry.core.masonry.api"
