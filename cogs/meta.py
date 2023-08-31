@@ -794,7 +794,7 @@ class Meta(commands.Cog):
         features = set(guild.features)
 
         for feature in features:
-            info.append(f'{ctx.tick(True)}: {feature.replace("_", " ").title()}')
+            info.append(f'\N{WHITE HEAVY CHECK MARK}\ufe0f: {feature.replace("_", " ").title()}')
 
         if info:
             e.add_field(name='Features', value='\n'.join(info))
