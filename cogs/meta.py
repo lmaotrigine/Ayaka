@@ -792,9 +792,25 @@ class Meta(commands.Cog):
 
         info = []
         features = set(guild.features)
+        all_features = {
+            'PARTNERED': 'Partnered',
+            'VERIFIED': 'Verified',
+            'DISCOVERABLE': 'Server Discovery',
+            'COMMUNITY': 'Community Server',
+            'FEATURABLE': 'Featured',
+            'WELCOME_SCREEN_ENABLED': 'Welcome Screen',
+            'INVITE_SPLASH': 'Invite Splash',
+            'VANITY_URL': 'Vanity Invite',
+            'COMMERCE': 'Commerce',
+            'LURKABLE': 'Lurkable',
+            'NEWS': 'News Channels',
+            'ANIMATED_ICON': 'Animated Icon',
+            'BANNER': 'Banner',
+        }
 
-        for feature in features:
-            info.append(f'\N{WHITE HEAVY CHECK MARK}\ufe0f: {feature.replace("_", " ").title()}')
+        for feature, label in all_features.items():
+            if feature in features:
+                info.append(f'{ctx.tick(True)}: {label}')
 
         if info:
             e.add_field(name='Features', value='\n'.join(info))
