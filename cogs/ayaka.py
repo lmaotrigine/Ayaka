@@ -64,7 +64,7 @@ class AyakaCore(commands.Cog, name='Ayaka'):
         embed = discord.Embed(colour=0xEC9FED)
         embed.set_image(url='attachment://ayaka.jpg')
         embed.description = (
-            f'Hello, I am {self.ayaka_details[time].name}, written by VJ#5945.\n\nYou should see my other side~'
+            f'Hello, I am {self.ayaka_details[time].name}, written by isis (`5ht2`).\n\nYou should see my other side~'
         )
 
         await ctx.send(embed=embed, file=file)
