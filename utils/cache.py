@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import enum
 import time
-from collections.abc import Callable, Coroutine, MutableMapping
+from collections.abc import Callable, Coroutine, Iterator, MutableMapping
 from functools import wraps
 from typing import Any, Protocol, TypeVar
 
@@ -47,7 +47,7 @@ class ExpiringCache(dict[str, tuple[R, float]]):
     def __verify_cache_integrity(self) -> None:
         # have to do this in two steps...
         current_time = time.monotonic()
-        to_remove = [k for k, (_, t) in self.items() if current_time > (t + self.__ttl)]
+        to_remove = [k for k, (_, t) in super().items() if current_time > (t + self.__ttl)]
         for k in to_remove:
             del self[k]
 
@@ -68,6 +68,12 @@ class ExpiringCache(dict[str, tuple[R, float]]):
 
     def __setitem__(self, key: str, value: R) -> None:
         super().__setitem__(key, (value, time.monotonic()))
+
+    def values(self) -> Iterator[R]:
+        return map(lambda x: x[0], super().values())
+
+    def items(self) -> Iterator[tuple[str, R]]:
+        return map(lambda x: (x[0], x[1][0]), super().items())
 
 
 class Strategy(enum.Enum):
