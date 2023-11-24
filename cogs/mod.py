@@ -13,7 +13,9 @@ import io
 import logging
 import re
 from collections import Counter, defaultdict
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, MutableMapping, Union
+from collections.abc import Hashable
+from time import time as unix_time
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, MutableMapping, TypeVar, Union
 
 import asyncpg
 import discord
@@ -35,6 +37,9 @@ if TYPE_CHECKING:
     class ModGuildContext(GuildContext):
         cog: Mod
         guild_config: ModConfig
+
+
+HashableT = TypeVar('HashableT', bound=Hashable)
 
 
 log = logging.getLogger(__name__)
@@ -400,12 +405,83 @@ class FlaggedMember:
         return self.display_name
 
 
-class SpamCheckerReason(enum.Enum):
-    spammer = 'spamming'
-    flagged_mention = 'suspicious mentions'
+class SpamCheckerResult:
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
 
     def __str__(self) -> str:
-        return self.value
+        return self.reason
+
+    @classmethod
+    def spammer(cls) -> SpamCheckerResult:
+        return cls('Auto-ban for spamming')
+
+    @classmethod
+    def flagged_mention(cls) -> SpamCheckerResult:
+        return cls('Auto-ban for suspicious mentions')
+
+
+class MultipleSpammers(SpamCheckerResult):
+    def __init__(self, members: list[discord.abc.Snowflake], *, reason: str = 'Auto-ban for spamming') -> None:
+        super().__init__(reason)
+        self.members = members
+
+
+class TaggedCooldown(commands.Cooldown, Generic[HashableT]):
+    def __init__(self, rate: int, per: float) -> None:
+        super().__init__(rate, per)
+        self.tagged: set[HashableT] = set()
+
+    def update_rate_limit(self, current: float | None = None, *, tokens: int = 1) -> float | None:
+        current = current or unix_time()
+        self._last = current
+        self._tokens = self.get_tokens(current)
+        # first token used -> start a new window
+        if self._tokens == self.rate:
+            self.tagged.clear()
+            self._window = current
+        # decrement tokens
+        self._tokens -= tokens
+        # check if we are rate-limited and return retry-after
+        if self._tokens < 0:
+            return self.per - (current - self._window)
+
+    def reset(self) -> None:
+        super().reset()
+        self.tagged.clear()
+
+    def copy(self) -> TaggedCooldown:
+        return TaggedCooldown(self.rate, self.per)
+
+    def __repr__(self) -> str:
+        return f'<TaggedCooldown rate={self.rate} per={self.per} tokens={self._tokens} tagged={self.tagged!r}>'
+
+
+class TaggedCooldownMapping(commands.CooldownMapping[discord.Message], Generic[HashableT]):
+    _cache: dict[Any, TaggedCooldown[HashableT]]
+    _cooldown: TaggedCooldown[HashableT]
+
+    def __init__(
+        self,
+        rate: int,
+        per: float,
+        type: Callable[[discord.Message], Any],
+        *,
+        tagger: Callable[[discord.Message], HashableT],
+    ) -> None:
+        super().__init__(TaggedCooldown(rate, per), type)
+        self.tagger = tagger
+
+    def get_bucket(self, message: discord.Message, current: float | None = None) -> TaggedCooldown[HashableT] | None:
+        return super().get_bucket(message, current)  # type: ignore
+
+    def update_rate_limit(self, message: discord.Message, current: float | None = None, tokens: int = 1) -> float | None:
+        bucket = self.get_bucket(message, current)
+        if bucket is None:
+            return None
+        retry_after = bucket.update_rate_limit(current, tokens=tokens)
+        bucket.tagged.add(self.tagger(message))
+        return retry_after
 
 
 # TODO: add this to d.py maybe
@@ -414,13 +490,18 @@ class CooldownByContent(commands.CooldownMapping):
         return (message.channel.id, message.content)
 
 
+class MemberJoinType(enum.Enum):
+    fast = 1
+    suspicious = 2
+
+
 class SpamChecker:
     """This spam checker does a few things.
 
     1) It checks if a user has spammed more than 10 times in 12 seconds
     2) It checks if the content has been spammed 5 times in 10 seconds.
     3) It checks if new users have spammed 30 times in 35 seconds.
-    4) It checks if "fast joiners" have spammed 5 times in 7 seconds.
+    4) It checks if "fast joiners" have spammed 5 times in 10 seconds.
     5) It checks if a member spammed `config.mention_count` mentions in 15 seconds.
 
     The second case is meant to catch alternating spam bots while the first one
@@ -433,14 +514,14 @@ class SpamChecker:
         self.by_content = CooldownByContent.from_cooldown(5, 10.0, commands.BucketType.member)
         self.by_user = commands.CooldownMapping.from_cooldown(10, 12.0, commands.BucketType.user)
         self.last_join: datetime.datetime | None = None
-        self.last_created: datetime.datetime | None = None
+        self.last_member: discord.Member | None = None
         self.new_user = commands.CooldownMapping.from_cooldown(30, 35.0, commands.BucketType.channel)
         self._by_mentions: commands.CooldownMapping | None = None
         self._by_mentions_rate: int | None = None
 
         # user_id flag mapping (for about 45 minutes)
         self.flagged_users: MutableMapping[int, FlaggedMember] = cache.ExpiringCache(seconds=2700.0)
-        self.hit_and_run = commands.CooldownMapping.from_cooldown(5, 7, commands.BucketType.channel)
+        self.hit_and_run = TaggedCooldownMapping(5, 10, commands.BucketType.channel, tagger=lambda msg: msg.author)
 
     def get_flagged_member(self, user_id: int, /) -> FlaggedMember | None:
         return self.flagged_users.get(user_id)
@@ -464,7 +545,7 @@ class SpamChecker:
         ninety_days_ago = now - datetime.timedelta(days=90)
         return member.created_at > ninety_days_ago and member.joined_at is not None and member.joined_at > seven_days_ago
 
-    def is_spamming(self, message: discord.Message) -> SpamCheckerReason | None:
+    def is_spamming(self, message: discord.Message) -> SpamCheckerResult | None:
         if message.guild is None:
             return None
 
@@ -475,50 +556,53 @@ class SpamChecker:
             flagged.messages += 1
             bucket = self.hit_and_run.get_bucket(message)
             if bucket and bucket.update_rate_limit(current):
-                return SpamCheckerReason.spammer
+                return MultipleSpammers(list(bucket.tagged))
 
             # special case for joining and just spamming mentions at some point
             if flagged.messages <= 10 and message.raw_mentions:
-                return SpamCheckerReason.flagged_mention
+                return SpamCheckerResult.flagged_mention()
 
         if self.is_new(message.author):  # type: ignore  # guarded with the first if statement
             new_bucket = self.new_user.get_bucket(message)
             if new_bucket and new_bucket.update_rate_limit(current):
-                return SpamCheckerReason.spammer
+                return SpamCheckerResult.spammer()
 
         user_bucket = self.by_user.get_bucket(message)
         if user_bucket and user_bucket.update_rate_limit(current):
-            return SpamCheckerReason.spammer
+            return SpamCheckerResult.spammer()
 
         content_bucket = self.by_content.get_bucket(message)
         if content_bucket and content_bucket.update_rate_limit(current):
-            return SpamCheckerReason.spammer
+            return SpamCheckerResult.spammer()
 
         return None
 
-    def is_fast_join(self, member: discord.Member) -> bool:
+    def get_join_type(self, member: discord.Member) -> MemberJoinType | None:
         joined = member.joined_at or discord.utils.utcnow()
-        if self.last_join is None:
+
+        if self.last_member is None:
+            self.last_member = member
             self.last_join = joined
-            return False
-        is_fast = (joined - self.last_join).total_seconds() <= 2.0
-        self.last_join = joined
-        if is_fast:
-            self.flagged_users[member.id] = FlaggedMember(member, joined)
-        return is_fast
+            return None
 
-    def is_suspicious_join(self, member: discord.Member) -> bool:
-        created = member.created_at
-        if self.last_created is None:
-            self.last_created = created
-            return False
+        # Check if the member is a fast joiner
+        if self.last_join is not None:
+            is_fast = (joined - self.last_join).total_seconds() <= 2.0
+            self.last_join = joined
+            if is_fast:
+                self.flagged_users[member.id] = FlaggedMember(member, joined)
+                if self.last_member.id not in self.flagged_users:
+                    self.flag_member(self.last_member)
+                return MemberJoinType.fast
 
-        # check if the account was created within 24 hours of the previous account
-        is_suspicious = abs((created - self.last_created).total_seconds()) <= 86400.0
-        self.last_created = created
+        # Check if the member is a suspicious  joiner
+        is_suspicious = abs((member.created_at - self.last_member.created_at).total_seconds()) <= 86400.0
         if is_suspicious:
-            self.flagged_users[member.id] = FlaggedMember(member, member.joined_at or discord.utils.utcnow())
-        return is_suspicious
+            self.flagged_users[member.id] = FlaggedMember(member, joined)
+            if self.last_member.id not in self.flagged_users:
+                self.flag_member(self.last_member)
+            return MemberJoinType.suspicious
+        return None
 
     def is_mention_spam(self, message: discord.Message, config: ModConfig) -> bool:
         mapping = self.by_mentions(config)
@@ -704,21 +788,30 @@ class Mod(commands.Cog):
                 return ModConfig.from_record(record, self.bot)
             return None
 
-    async def check_raid(self, config: ModConfig, guild_id: int, member: discord.Member, message: discord.Message) -> None:
+    async def check_raid(
+        self, config: ModConfig, guild: discord.Guild, member: discord.Member, message: discord.Message
+    ) -> None:
         if not config.automod_flags.raid:
             return
 
+        guild_id = guild.id
         checker = self._spam_check[guild_id]
-        reason = checker.is_spamming(message)
-        if reason is None:
+        result = checker.is_spamming(message)
+        if result is None:
             return
 
-        try:
-            await member.ban(reason=f'Auto-ban for {reason}')
-        except discord.HTTPException:
-            log.info('[Robomod] Failed to ban %s (ID: %s) from server %s.', member, member.id, member.guild)
+        if isinstance(result, MultipleSpammers):
+            members = result.members
         else:
-            log.info('[Robomod] Banned %s (ID: %s) from server %s.', member, member.id, member.guild)
+            members = [member]
+
+        for user in members:
+            try:
+                await guild.ban(user, reason=result.reason)
+            except discord.HTTPException:
+                log.info('[Robomod] Failed to ban %s (ID: %s) from server %s.', user, user.id, guild)
+            else:
+                log.info('[Robomod] Banned %s (ID: %s) from server %s.', user, user.id, guild)
 
     async def ban_for_mention_spam(
         self,
@@ -778,7 +871,7 @@ class Mod(commands.Cog):
             return
 
         # check for raid mode stuff
-        await self.check_raid(config, guild_id, author, message)
+        await self.check_raid(config, message.guild, author, message)
 
         if not config.mention_count:
             return
@@ -819,11 +912,12 @@ class Mod(commands.Cog):
 
         # Do the broadcasted message to the channel
         title = 'Member Joined'
-        if checker.is_fast_join(member):
+        flag = checker.get_join_type(member)
+        if flag is MemberJoinType.fast:
             colour = 0xDD5F53  # red
             if is_new:
                 title = 'Member Joined (Very New Member)'
-        elif checker.is_suspicious_join(member):
+        elif flag is MemberJoinType.suspicious:
             colour = 0xDDA453  # yellow
             title = 'Member Joined (Suspicious Member)'
         else:
@@ -1134,7 +1228,7 @@ class Mod(commands.Cog):
         self._spam_check.pop(guild_id, None)
         self.get_guild_config.invalidate(self, guild_id)
         if record is not None and record[0] is not None and protection in ('all', 'joins'):
-            wh = discord.Webhook.from_url(record[0], session=self.bot.session)  # type: ignore
+            wh = discord.Webhook.from_url(record[0], session=self.bot.session)
             try:
                 await wh.delete(reason=message)
             except discord.HTTPException:
