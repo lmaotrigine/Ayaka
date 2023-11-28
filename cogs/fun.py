@@ -33,7 +33,7 @@ from utils import checks, translator
 from utils._types.discord_ import MessageableGuildChannel
 from utils.context import Context, GuildContext
 from utils.converters import MessageOrCleanContent, MessageOrContent, RedditMediaURL
-from utils.formats import plural
+from utils.formats import human_join, plural
 from utils.paginator import ListPageSource, RoboPages
 
 
@@ -591,41 +591,57 @@ class Fun(commands.Cog):
     async def view_pronouns_callback(self, interaction: discord.Interaction, member: discord.Member) -> None:
         # fetches from pronoundb.org for people without client mods
         lookup = {
-            'unspecified': 'Unspecified',
-            'hh': 'he/him',
-            'hi': 'he/it',
-            'hs': 'he/she',
-            'ht': 'he/they',
-            'ih': 'it/him',
-            'ii': 'it/its',
-            'is': 'it/she',
-            'it': 'it/they',
-            'shh': 'she/he',
-            'sh': 'she/her',
-            'si': 'she/it',
-            'st': 'she/they',
-            'th': 'they/he',
-            'ti': 'they/it',
-            'ts': 'they/she',
-            'tt': 'they/them',
-            'any': 'Any Pronouns',
-            'other': 'Other Pronouns',
-            'ask': 'Ask me my pronouns',
-            'avoid': 'Avoid pronouns, use my name',
+            'he': ['he', 'him'],
+            'it': ['it', 'its'],
+            'she': ['she', 'her'],
+            'they': ['they', 'them'],
         }
+        is_author = member.id == interaction.user.id
+
+        def formatter(s: list[str]) -> str:
+            if not s:
+                err = 'not specified their pronouns on PronounDB.'
+                if is_author:
+                    return f'have {err}\nYou can do so by linking your Discord account on https://pronoundb.org'
+                return f'has {err}'
+            if s[0] == 'ask':
+                verb = 'prefer' if is_author else 'prefers'
+                return f'{verb} that people ask their pronouns.'
+            if s[0] == 'avoid':
+                verb = 'want' if is_author else 'wants'
+                return f'{verb} to avoid pronouns.'
+            if s[0] == 'other':
+                verb = 'go' if is_author else 'goes'
+                return f'{verb} by pronouns not available on PronounDB.'
+            ret = 'go by ' if is_author else 'goes by '
+            l = []
+            for p in s:
+                if p == 'ask':
+                    if not is_author:
+                        return f'{ret} pronouns. You may also ask this person for additional info.'
+                    return f'{ret} pronouns. People may also ask you for additional info.'
+                if p == 'other':
+                    prefix = 'You also go' if is_author else 'This person also goes'
+                    return f'{ret} pronouns. {prefix} by pronouns not available on PronounDB.'
+                if p == 'any':
+                    l.append('any pronouns')
+                else:
+                    l.append('"' + '/'.join(lookup[p]) + '"')
+            return f'{ret}{human_join(l)}'
+
         await interaction.response.defer(ephemeral=True)
-        url = f'https://pronoundb.org/api/v1/lookup?platform=discord&id={member.id}'
+        url = f'https://pronoundb.org/api/v2/lookup?platform=discord&ids={member.id}'
         if member.bot:
-            pronouns = 'beep/boop'
+            await interaction.followup.send('beep boop?', ephemeral=True)
+            return
         else:
             async with self.bot.session.get(url) as resp:
-                #
-                pronouns = lookup[(await resp.json())['pronouns']]
-        e = discord.Embed(colour=0xF49898)
-        e.set_author(name=f'{member}', icon_url=member.display_avatar.url)
-        e.set_footer(text='Powered by pronoundb.org')
-        e.add_field(name='Pronouns', value=f'```md\n# {pronouns}```')
-        await interaction.followup.send(embed=e, ephemeral=True)
+                try:
+                    pronouns = (await resp.json())[str(member.id)]['sets']['en']
+                except KeyError:  # likely not found
+                    pronouns = []
+        author = 'You' if is_author else str(member)
+        await interaction.followup.send(f'{author} {formatter(pronouns)}', ephemeral=True)
 
     @commands.command(hidden=True)
     async def feelgood(self, ctx: Context) -> None:
