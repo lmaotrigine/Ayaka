@@ -12,9 +12,10 @@ import binascii
 import os
 from urllib.parse import urlencode
 
-import config
 import discord
 import orjson
+
+import config
 
 from ..utils.handlers import HTTPHandler, Token
 

@@ -11,10 +11,11 @@ import binascii
 import os
 from typing import TYPE_CHECKING
 
-import config
 import discord
 import orjson
 import tornado.web
+
+import config
 
 from ..guild import Guild
 from ..token import Token
