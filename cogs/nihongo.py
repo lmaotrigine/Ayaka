@@ -35,7 +35,12 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from bot import Ayaka
-    from utils._types.nihongo import JishoWordsResponse, KanjiDevKanjiPayload, KanjiDevWordsPayload, _JishoJapanesePayload
+    from utils._types.nihongo import (
+        JishoWordsResponse as JishoWordsResponse,
+        KanjiDevKanjiPayload,
+        KanjiDevWordsPayload,
+        _JishoJapanesePayload,
+    )
 
 BASE_URL = 'https://kanjiapi.dev/v1'
 HIRAGANA = 'あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわを'
@@ -438,26 +443,26 @@ class Nihongo(commands.Cog):
             await ctx.send('You appear to have passed an invalid *kanji*.')
             return
 
-    @commands.command()
-    async def jisho(self, ctx: Context, *, query: str) -> None:
-        """Query the Jisho API with your kanji/word."""
-        async with ctx.session.get(JISHO_WORDS_URL, params={'keyword': query}) as resp:
-            if resp.status == 200:
-                data: JishoWordsResponse = await resp.json()
-            else:
-                raise commands.BadArgument('Not a valid query for Jisho.')
-        jisho_data = [JishoWord(payload) for payload in data['data']]
-        embeds = [KanjiEmbed.from_jisho(query, item) for item in jisho_data]
-        fixed_embeds = [
-            embed.set_footer(
-                text=f'{embed.footer.text} :: {embeds.index(embed) + 1}/{len(embeds)}'
-                if embed.footer.text
-                else f'{embeds.index(embed) + 1}/{len(embeds)}'
-            )
-            for embed in embeds
-        ]
-        menu = RoboPages(SimpleListSource(fixed_embeds), ctx=ctx)
-        await menu.start()
+    # @commands.command()
+    # async def jisho(self, ctx: Context, *, query: str) -> None:
+    #    """Query the Jisho API with your kanji/word."""
+    #    async with ctx.session.get(JISHO_WORDS_URL, params={'keyword': query}) as resp:
+    #        if resp.status == 200:
+    #            data: JishoWordsResponse = await resp.json()
+    #        else:
+    #            raise commands.BadArgument('Not a valid query for Jisho.')
+    #    jisho_data = [JishoWord(payload) for payload in data['data']]
+    #    embeds = [KanjiEmbed.from_jisho(query, item) for item in jisho_data]
+    #    fixed_embeds = [
+    #        embed.set_footer(
+    #            text=f'{embed.footer.text} :: {embeds.index(embed) + 1}/{len(embeds)}'
+    #            if embed.footer.text
+    #            else f'{embeds.index(embed) + 1}/{len(embeds)}'
+    #        )
+    #        for embed in embeds
+    #    ]
+    #    menu = RoboPages(SimpleListSource(fixed_embeds), ctx=ctx)
+    #    await menu.start()
 
     def _draw_kana(self, text: str) -> BytesIO:
         text = fill(text, 25, replace_whitespace=False)

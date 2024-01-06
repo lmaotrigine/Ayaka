@@ -14,13 +14,13 @@ from collections import Counter, defaultdict
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Coroutine, Iterable, TypeVar
 
 import aiohttp
-import config
 import discord
 import mangadex
 import nhentai
 import redis.asyncio as aioredis
 from discord.ext import commands
 
+import config
 from dashboard.routes import setup_routes
 from dashboard.utils.http import HTTPClient
 from utils.config import Config
@@ -57,6 +57,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.anime',
     'cogs.ayaka',
     'cogs.config',
+    'cogs.dictionary',
     'cogs.dnd',
     'cogs.emoji',
     # 'cogs.feeds',
