@@ -1682,8 +1682,8 @@ class Mod(commands.Cog):
             members = {m.id: m for m in members if all(p(m) for p in predicates)}
             if args.raid:
                 members.update(checker.flagged_users)
-        if args.reason is None:
-            args.reason = await ActionReason().convert(ctx, 'Raid detected')
+        if args.reason is None and args.raid:
+            args.reason = 'Raid detected'
         if len(members) == 0:
             return await ctx.send('No members found matching criteria.')
 
