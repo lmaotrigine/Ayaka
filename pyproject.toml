@@ -27,7 +27,7 @@ feedparser = "*"
 CurrencyConverter = "*"
 pykakasi = "*"
 beautifulsoup4 = "*"
-Pillow = "^9"
+Pillow = "^10"
 pygit2 = "^1.5.0"
 yt-dlp = {git = "https://github.com/yt-dlp/yt-dlp", rev = "master"}
 typing-extensions = "^4.1.1"
