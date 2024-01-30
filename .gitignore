@@ -9,6 +9,7 @@ cogs/dead/
 static/
 migrations/*.json
 *.log
+*.log.*
 /config.py
 configs/*.json
 configs/*.txt

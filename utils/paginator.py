@@ -426,12 +426,10 @@ class SimpleListSource(ListPageSource[T]):
         super().__init__(data, per_page=per_page)
 
     @overload
-    async def format_page(self, _: RoboPages, entries: list[T]) -> list[T]:
-        ...
+    async def format_page(self, _: RoboPages, entries: list[T]) -> list[T]: ...
 
     @overload
-    async def format_page(self, _: RoboPages, entries: T) -> T:
-        ...
+    async def format_page(self, _: RoboPages, entries: T) -> T: ...
 
     async def format_page(self, _: RoboPages, entries: T | list[T]):
         return entries

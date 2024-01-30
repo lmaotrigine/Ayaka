@@ -61,12 +61,10 @@ class Config(Generic[_T]):
             await self.loop.run_in_executor(None, self._dump)
 
     @overload
-    def get(self, key: Any) -> _T | Any | None:
-        ...
+    def get(self, key: Any) -> _T | Any | None: ...
 
     @overload
-    def get(self, key: Any, default: Any) -> _T | Any:
-        ...
+    def get(self, key: Any, default: Any) -> _T | Any: ...
 
     def get(self, key: Any, default: Any = None) -> _T | Any | None:
         return self._db.get(str(key), default)
