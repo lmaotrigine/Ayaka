@@ -34,8 +34,15 @@ class plural:
 
     def __format__(self, __format_spec: str) -> str:
         v = self.value
+        skip_value = __format_spec.endswith('!')
+        if skip_value:
+            __format_spec = __format_spec[:-1]
         singular, _, plural = __format_spec.partition('|')
         plural = plural or f'{singular}s'
+        if skip_value:
+            if abs(v) != 1:
+                return plural
+            return singular
         if abs(v) != 1:
             return f'{v} {plural}'
         return f'{v} {singular}'
