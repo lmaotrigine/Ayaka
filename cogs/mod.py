@@ -1647,6 +1647,9 @@ class SpamChecker:
     def get_flagged_member(self, user_id: int, /) -> FlaggedMember | None:
         return self.flagged_users.get(user_id)
 
+    def is_flagged(self, user_id: int, /) -> bool:
+        return user_id in self.flagged_users
+
     def flag_member(self, member: discord.Member, /) -> None:
         self.flagged_users[member.id] = FlaggedMember(member, member.joined_at or discord.utils.utcnow())
 
@@ -1877,6 +1880,20 @@ class Mod(commands.Cog):
             elif isinstance(original, discord.HTTPException):
                 await ctx.send('Somehow, an unexpected error occurred. Try again later?')
 
+    async def bot_check(self, ctx: Context) -> bool:
+        if ctx.guild is None:
+            return True
+        # just so we don't get locked out of the bot due to bugs
+        full_bypass = ctx.permissions.manage_guild or await self.bot.is_owner(ctx.author)
+        if full_bypass:
+            return True
+        guild_id = ctx.guild.id
+        config = await self.get_guild_config(guild_id)
+        if config is None or not config.automod_flags.value:
+            return True
+        checker = self._spam_check[guild_id]
+        return not checker.is_flagged(ctx.author.id)
+
     async def bulk_insert(self):
         query = """UPDATE guild_mod_config
                    SET muted_members = x.result_array
@@ -2062,7 +2079,8 @@ class Mod(commands.Cog):
                     await coro(reason=reason)
                 except discord.HTTPException:
                     pass
-                return
+                else:
+                    return
 
         if not config.mention_count:
             return

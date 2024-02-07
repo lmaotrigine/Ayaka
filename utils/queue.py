@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque, OrderedDict
+from collections import OrderedDict, deque
 from collections.abc import Hashable
 from typing import Generic, TypeVar
 
