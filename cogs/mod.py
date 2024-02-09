@@ -906,7 +906,7 @@ class GatekeeperChannelSelect(discord.ui.ChannelSelect['GatekeeperSetupView']):
         manage_roles = has_manage_roles_overwrite(self.view.guild.me, channel)
         if not perms.administrator and not manage_roles:
             await interaction.response.send_message(
-                'Since I do not have Administrator permission, I require Manage Roles permission in that channel.',
+                'Since I do not have Administrator permission, I require Manage Permissions permission in that channel.',
                 ephemeral=True,
             )
             return
