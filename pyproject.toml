@@ -94,5 +94,5 @@ reportUntypedFunctionDecorator = "error"
 reportUnnecessaryTypeIgnoreComment = "warning"
 
 [build-system]
-requires = ["poetry-core>=1.1.0"]
+requires = ["poetry-core>=1.1.0", "maturin"]
 build-backend = "poetry.core.masonry.api"
