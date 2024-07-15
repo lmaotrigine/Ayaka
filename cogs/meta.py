@@ -151,7 +151,7 @@ class FrontPageSource(PageSource):
             embed.add_field(
                 name='Who are you?',
                 value=(
-                    "I'm a bot made by VJ#5945. I'm a fork of R. Danny#6348 with some edits. "
+                    "I'm a bot made by isis (@5ht2). I'm a fork of R. Danny#6348 with some edits. "
                     'I have features such as moderation, starboard, tags, reminders, and more. '
                     'You can get more information on my commands by using the dropdown below.\n\n'
                     "I'm also open source. You can see my code on [GitHub](https://github.com/lmaotrigine/Ayaka)!"
