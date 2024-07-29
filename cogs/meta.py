@@ -425,7 +425,7 @@ class Meta(commands.Cog):
         original = user.display_name
         async with self.bot.session.get('https://api.5ht2.me/decancer', params={'text': original}) as resp:
             if resp.status != 200:
-                await ctx.send(f'Something went wrong with the API. Tell VJ: {await resp.text()}')
+                await ctx.send(f'Something went wrong with the API. Tell isis: {await resp.text()}')
                 return
             js = await resp.json()
         decancered = js['decancered']
@@ -943,7 +943,7 @@ class Meta(commands.Cog):
         r = """
             [Support](https://discord.gg/s44CFagYN2)
             
-            Ask VJ.
+            Ask isis.
             
             (Use the link in the profile if your server has more than 10 members and less bots than humans.)
             """

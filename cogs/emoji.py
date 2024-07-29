@@ -280,7 +280,7 @@ class Emoji(commands.Cog):
         async with ctx.session.get(cdn) as resp:
             if resp.status == 404:
                 e.description = "This isn't a valid emoji."
-                e.set_thumbnail(url='https://vj.is-very.moe/09e106.jpg')
+                e.set_thumbnail(url='https://isis.is-very.moe/09e106.jpg')
                 await ctx.send(embed=e)
                 return
 

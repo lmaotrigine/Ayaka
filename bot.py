@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     ContextT = TypeVar('ContextT', bound=Context)
 
 DESCRIPTION = """
-Hello! I'm a bot written by VJ#5945 to provide some nice utilities.
+Hello! I'm a bot written by @5ht2 to provide some nice utilities.
 """
 
 log = logging.getLogger(__name__)

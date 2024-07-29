@@ -84,7 +84,7 @@ class MangaView(discord.ui.View):
     async def follow(self, interaction: discord.Interaction, _) -> None:
         assert interaction.user is not None
         if not await self.bot.is_owner(interaction.user):
-            raise commands.CheckFailure("You can't follow manga unless you're VJ.")
+            raise commands.CheckFailure("You can't follow manga unless you're isis.")
 
         assert self.manga_id is not None
         await self.bot.manga_client.follow_manga(self.manga_id)

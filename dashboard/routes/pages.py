@@ -61,5 +61,5 @@ class NotGonnaHappen(BasePage, abc.ABC):
     async def get(self) -> None:
         self.set_header('Content-Type', 'text/plain; charset=utf-8')
         await self.finish(
-            "you don't have a token, ask VJ. tokens are one time use, so if you had one and used it you'll need to apply for another"
+            "you don't have a token, ask isis. tokens are one time use, so if you had one and used it you'll need to apply for another"
         )
