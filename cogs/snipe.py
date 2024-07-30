@@ -478,7 +478,7 @@ class Snipe(commands.Cog, command_attrs=dict(hidden=True)):
             if not await can_manage_snipe().predicate(ctx):
                 raise commands.MissingPermissions(['manage_messages'])
         queries = """
-                  DELETE FROM snipe_deletes WHERE guild_id = $1 AND {0}_id = $2 {1};
+                  WITH _ AS (DELETE FROM snipe_deletes WHERE guild_id = $1 AND {0}_id = $2 {1})
                   DELETE FROM snipe_edits WHERE guild_id = $1 AND {0}_id = $2 {1};
                   """
         if isinstance(target, discord.TextChannel):
