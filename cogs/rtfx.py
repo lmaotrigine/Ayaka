@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator
 
 import asyncpg  # type: ignore # rtfs
 import discord
+import httpx
 from discord import app_commands, ui  # type: ignore # rtfs
 from discord.ext import commands, tasks  # type: ignore # rtfs
 from jishaku.codeblocks import Codeblock, codeblock_converter
@@ -143,6 +144,12 @@ class RTFX(commands.Cog):
 
     def __init__(self, bot: Ayaka):
         self.bot = bot
+        # aiohttp did something in 3.10 that RTD's Cloudflare protection doesn't
+        # like, so we use httpx for this.
+        self.httpx = httpx.AsyncClient()
+
+    async def cog_unload(self) -> None:
+        await self.httpx.aclose()
 
     @property
     def display_emoji(self) -> discord.PartialEmoji:
@@ -207,13 +214,13 @@ class RTFX(commands.Cog):
     async def build_rtfm_lookup_table(self) -> None:
         cache = {}
         for key, page in RTFM_PAGES.items():
-            _ = cache[key] = {}
-            async with self.bot.session.get(page + '/objects.inv') as resp:
-                if resp.status != 200:
-                    raise RuntimeError('Cannot build rtfm lookup table, try again later.')
-
-                stream = SphinxObjectFileReader(await resp.read())
-                cache[key] = self.parse_object_inv(stream, page)
+            resp = await self.httpx.get(f'{page}/objects.inv')
+            if resp.status_code != 200:
+                raise RuntimeError('Cannot build rtfm lookup table, try again later.')
+            cache[key] = {}
+            stream = SphinxObjectFileReader(await resp.aread())
+            await resp.aclose()
+            cache[key] = self.parse_object_inv(stream, page)
         self._rtfm_cache = cache
 
     async def do_rtfm(self, ctx: Context, key: str, obj: str | None) -> None:
