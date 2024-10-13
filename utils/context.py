@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from aiohttp import ClientSession
-    from discord.context_managers import Typing
-    from discord.ext.commands.context import DeferTyping
 
     from bot import Ayaka
 
@@ -29,16 +27,6 @@ if TYPE_CHECKING:
 __all__ = ('Context',)
 
 T = TypeVar('T')
-
-# async with typing() when already responded should early return
-
-
-class NoOpTyping:
-    async def __aenter__(self) -> None:
-        ...
-
-    async def __aexit__(self, *_: Any) -> None:
-        ...
 
 
 # For typing purposes, `Context.db` returns a Protocol type
@@ -48,33 +36,25 @@ class NoOpTyping:
 
 
 class ConnectionContextManager(Protocol):
-    async def __aenter__(self) -> asyncpg.Connection:
-        ...
+    async def __aenter__(self) -> asyncpg.Connection: ...
 
     async def __aexit__(
         self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class DatabaseProtocol(Protocol):
-    async def execute(self, query: str, *args: Any, timeout: float | None = None) -> str:
-        ...
+    async def execute(self, query: str, *args: Any, timeout: float | None = None) -> str: ...
 
-    async def fetch(self, query: str, *args: Any, timeout: float | None = None) -> list[asyncpg.Record]:
-        ...
+    async def fetch(self, query: str, *args: Any, timeout: float | None = None) -> list[asyncpg.Record]: ...
 
-    async def fetchrow(self, query: str, *args: Any, timeout: float | None = None) -> asyncpg.Record | None:
-        ...
+    async def fetchrow(self, query: str, *args: Any, timeout: float | None = None) -> asyncpg.Record | None: ...
 
-    async def fetchval(self, query: str, *args: Any, timeout: float | None = None) -> Any | None:
-        ...
+    async def fetchval(self, query: str, *args: Any, timeout: float | None = None) -> Any | None: ...
 
-    def acquire(self, *, timeout: float | None = None) -> ConnectionContextManager:
-        ...
+    def acquire(self, *, timeout: float | None = None) -> ConnectionContextManager: ...
 
-    def release(self, connection: asyncpg.Connection) -> None:
-        ...
+    def release(self, connection: asyncpg.Connection) -> None: ...
 
 
 class Context(commands.Context['Ayaka']):
@@ -181,11 +161,6 @@ class Context(commands.Context['Ayaka']):
             return await self.send(file=discord.File(fp, filename='message_too_long.txt'), **kwargs)
         else:
             return await self.send(content)
-
-    def typing(self, *, ephemeral: bool = False) -> Typing | DeferTyping | NoOpTyping:
-        if self.interaction and not self.interaction.response.is_done():
-            return super().typing(ephemeral=ephemeral)
-        return NoOpTyping()
 
 
 class GuildContext(Context):
