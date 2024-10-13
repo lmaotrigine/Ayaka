@@ -4179,6 +4179,7 @@ class Mod(commands.Cog):
         records = []
         success, failures = [], []
         reason = f'Lockdown request by {ctx.author} (ID: {ctx.author.id})'
+        await ctx.defer()
         async with ctx.typing():
             for channel in channels:
                 overwrite = channel.overwrites_for(default_role)
