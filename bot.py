@@ -69,6 +69,7 @@ EXTENSIONS: tuple[str, ...] = (
     'cogs.minigames',
     'cogs.mod',
     'cogs.nihongo',
+    'cogs.paste',
     'cogs.poll',
     'cogs.reminders',
     'cogs.rng',
