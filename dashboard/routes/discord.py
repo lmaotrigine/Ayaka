@@ -159,7 +159,6 @@ class DiscordInviteBot(HTTPHandler, abc.ABC):
         self.set_secure_cookie('state', state)
         params = {
             'client_id': config.application_id,
-            'client_secret': config.client_secret,
             'response_type': 'code',
             'scope': 'identify guilds connections bot applications.commands',
             'redirect_uri': config.base_url + '/discord/login',
